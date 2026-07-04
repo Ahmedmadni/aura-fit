@@ -5,7 +5,7 @@ import { BottomNav } from "@/components/bottom-nav";
 import { PageShell } from "@/components/page-shell";
 
 export const Route = createFileRoute("/coach")({
-  component: Coach;
+  component: Coach,
 });
 
 type Msg = { role: "ai" | "user"; text: string };
