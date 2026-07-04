@@ -148,13 +148,14 @@ function Dashboard() {
               <span className="text-white/30">·</span>
               <span>LVL 4</span>
             </div>
-            <button
-              type="button"
+            <Link
+              to="/workout"
               className="w-full bg-primary hover:bg-white text-primary-foreground font-black py-4 rounded-xl transition-colors uppercase tracking-widest text-sm active:scale-[0.98] flex items-center justify-center gap-2"
             >
               <Play className="size-4 fill-current" />
               ابدأ الجلسة
-            </button>
+            </Link>
+
           </div>
         </div>
       </section>
