@@ -248,7 +248,7 @@ function ExerciseDetail() {
           <Card>
             <CardHeader label="خريطة تفعيل العضلات" />
             <div className="mt-4 flex items-center justify-center">
-              <MuscleMap primary={ex.primary} />
+              <MuscleAnatomy2D primary={ex.primary} />
             </div>
             <div className="mt-4 space-y-2">
               <MuscleRow label={ex.primary} pct={92} tone="primary" />
