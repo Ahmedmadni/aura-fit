@@ -9,6 +9,7 @@ import {
   Moon,
   TrendingUp,
   Award,
+  Dna,
 } from "lucide-react";
 import heroWorkout from "@/assets/hero-workout.jpg";
 import programHypertrophy from "@/assets/program-hypertrophy.jpg";
@@ -239,8 +240,12 @@ function Dashboard() {
       {/* Quick actions */}
       <section className="relative px-6 mb-8 animate-enter [animation-delay:500ms]">
         <div className="grid grid-cols-2 gap-3">
-          <QuickCard icon={Sparkles} label="المدرب الذكي" hint="اسألني أي شيء" accent />
-          <QuickCard icon={Activity} label="التغذية" hint="1,842 / 2,400 سعرة" />
+          <Link to="/dna" className="block">
+            <QuickCard icon={Dna} label="الحمض الرياضي" hint="تحليل ذكي متكامل" accent />
+          </Link>
+          <Link to="/coach" className="block">
+            <QuickCard icon={Sparkles} label="المدرب الذكي" hint="اسألني أي شيء" />
+          </Link>
         </div>
       </section>
 
