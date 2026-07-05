@@ -240,12 +240,8 @@ function Dashboard() {
       {/* Quick actions */}
       <section className="relative px-6 mb-8 animate-enter [animation-delay:500ms]">
         <div className="grid grid-cols-2 gap-3">
-          <Link to="/dna" className="block">
-            <QuickCard icon={Dna} label="الحمض الرياضي" hint="تحليل ذكي متكامل" accent />
-          </Link>
-          <Link to="/coach" className="block">
-            <QuickCard icon={Sparkles} label="المدرب الذكي" hint="اسألني أي شيء" />
-          </Link>
+          <QuickLink to="/dna" icon={Dna} label="الحمض الرياضي" hint="تحليل ذكي متكامل" accent />
+          <QuickLink to="/coach" icon={Sparkles} label="المدرب الذكي" hint="اسألني أي شيء" />
         </div>
       </section>
 
