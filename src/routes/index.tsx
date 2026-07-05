@@ -293,21 +293,19 @@ function Tag({ children, className = "" }: { children: React.ReactNode; classNam
   );
 }
 
-function QuickCard({
-  icon: Icon,
-  label,
-  hint,
-  accent,
-}: {
+type QuickProps = {
   icon: React.ComponentType<{ className?: string }>;
   label: string;
   hint: string;
   accent?: boolean;
-}) {
+};
+
+function QuickLink({ to, ...props }: QuickProps & { to: "/dna" | "/coach" | "/nutrition" }) {
+  const { icon: Icon, label, hint, accent } = props;
   return (
-    <button
-      type="button"
-      className={`text-right rounded-2xl border p-4 backdrop-blur-xl transition-all active:scale-[0.98] ${
+    <Link
+      to={to}
+      className={`text-right rounded-2xl border p-4 backdrop-blur-xl transition-all active:scale-[0.98] block ${
         accent
           ? "bg-primary/10 border-primary/30 hover:bg-primary/15"
           : "bg-surface border-border hover:border-white/20"
@@ -318,7 +316,7 @@ function QuickCard({
       <p className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest mt-1">
         {hint}
       </p>
-    </button>
+    </Link>
   );
 }
 
