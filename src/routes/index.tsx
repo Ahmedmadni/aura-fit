@@ -9,6 +9,7 @@ import {
   Moon,
   TrendingUp,
   Award,
+  Dna,
 } from "lucide-react";
 import heroWorkout from "@/assets/hero-workout.jpg";
 import programHypertrophy from "@/assets/program-hypertrophy.jpg";
@@ -239,8 +240,8 @@ function Dashboard() {
       {/* Quick actions */}
       <section className="relative px-6 mb-8 animate-enter [animation-delay:500ms]">
         <div className="grid grid-cols-2 gap-3">
-          <QuickCard icon={Sparkles} label="المدرب الذكي" hint="اسألني أي شيء" accent />
-          <QuickCard icon={Activity} label="التغذية" hint="1,842 / 2,400 سعرة" />
+          <QuickLink to="/dna" icon={Dna} label="الحمض الرياضي" hint="تحليل ذكي متكامل" accent />
+          <QuickLink to="/coach" icon={Sparkles} label="المدرب الذكي" hint="اسألني أي شيء" />
         </div>
       </section>
 
@@ -292,21 +293,19 @@ function Tag({ children, className = "" }: { children: React.ReactNode; classNam
   );
 }
 
-function QuickCard({
-  icon: Icon,
-  label,
-  hint,
-  accent,
-}: {
+type QuickProps = {
   icon: React.ComponentType<{ className?: string }>;
   label: string;
   hint: string;
   accent?: boolean;
-}) {
+};
+
+function QuickLink({ to, ...props }: QuickProps & { to: "/dna" | "/coach" | "/nutrition" }) {
+  const { icon: Icon, label, hint, accent } = props;
   return (
-    <button
-      type="button"
-      className={`text-right rounded-2xl border p-4 backdrop-blur-xl transition-all active:scale-[0.98] ${
+    <Link
+      to={to}
+      className={`text-right rounded-2xl border p-4 backdrop-blur-xl transition-all active:scale-[0.98] block ${
         accent
           ? "bg-primary/10 border-primary/30 hover:bg-primary/15"
           : "bg-surface border-border hover:border-white/20"
@@ -317,7 +316,7 @@ function QuickCard({
       <p className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest mt-1">
         {hint}
       </p>
-    </button>
+    </Link>
   );
 }
 
