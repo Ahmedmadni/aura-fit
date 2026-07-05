@@ -14,6 +14,7 @@ import {
 import { EXERCISES } from "./exercises";
 import { PageShell } from "@/components/page-shell";
 import { BottomNav } from "@/components/bottom-nav";
+import { AthletePose2D, MuscleAnatomy2D } from "@/components/athlete-2d";
 
 export const Route = createFileRoute("/exercise/$id")({
   component: ExerciseDetail,
