@@ -371,9 +371,8 @@ function RadarChart({
           y={cy + 4}
           textAnchor="middle"
           className="fill-primary"
-          style={{ fontSize: 14, fontWeight: 900 }}
+          style={{ fontSize: 12, fontWeight: 900, letterSpacing: "0.1em" }}
         >
-          <Zap x={cx - 6} y={cy - 10} />
           DNA
         </text>
       </svg>
