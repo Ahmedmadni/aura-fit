@@ -210,8 +210,8 @@ function ExerciseLibrary() {
             />
             <div className="relative flex items-center gap-4">
               {/* Skeleton icon placeholder */}
-              <div className="size-16 rounded-xl bg-background/60 border border-border grid place-items-center shrink-0">
-                <SkeletonIcon id={ex.id} />
+              <div className="size-16 rounded-xl bg-background/60 border border-border grid place-items-center shrink-0 overflow-hidden">
+                <AthleteIcon2D pose={ex.id as Parameters<typeof AthleteIcon2D>[0]["pose"]} size={54} />
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center justify-between gap-2 mb-1">
