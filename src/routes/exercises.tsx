@@ -3,6 +3,7 @@ import { useState } from "react";
 import { Search, Filter, ChevronLeft, Dumbbell, Zap, Activity, Heart } from "lucide-react";
 import { BottomNav } from "@/components/bottom-nav";
 import { PageShell, PageHeader } from "@/components/page-shell";
+import { AthleteIcon2D } from "@/components/athlete-2d";
 
 export const Route = createFileRoute("/exercises")({
   component: ExerciseLibrary,
