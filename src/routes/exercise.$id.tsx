@@ -89,7 +89,7 @@ function ExerciseDetail() {
           />
           {/* Animated skeleton */}
           <div className="absolute inset-0 grid place-items-center">
-            <SkeletonAnim />
+            <AthletePose2D pose={ex.id as Parameters<typeof AthletePose2D>[0]["pose"]} size={220} />
           </div>
           {/* HUD corners */}
           {["top-3 right-3", "top-3 left-3", "bottom-3 right-3", "bottom-3 left-3"].map((p) => (
