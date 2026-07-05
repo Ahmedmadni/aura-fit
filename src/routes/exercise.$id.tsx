@@ -14,6 +14,7 @@ import {
 import { EXERCISES } from "./exercises";
 import { PageShell } from "@/components/page-shell";
 import { BottomNav } from "@/components/bottom-nav";
+import { AthletePose2D, MuscleAnatomy2D } from "@/components/athlete-2d";
 
 export const Route = createFileRoute("/exercise/$id")({
   component: ExerciseDetail,
@@ -88,7 +89,7 @@ function ExerciseDetail() {
           />
           {/* Animated skeleton */}
           <div className="absolute inset-0 grid place-items-center">
-            <SkeletonAnim />
+            <AthletePose2D pose={ex.id as Parameters<typeof AthletePose2D>[0]["pose"]} size={220} />
           </div>
           {/* HUD corners */}
           {["top-3 right-3", "top-3 left-3", "bottom-3 right-3", "bottom-3 left-3"].map((p) => (
@@ -247,7 +248,7 @@ function ExerciseDetail() {
           <Card>
             <CardHeader label="خريطة تفعيل العضلات" />
             <div className="mt-4 flex items-center justify-center">
-              <MuscleMap primary={ex.primary} />
+              <MuscleAnatomy2D primary={ex.primary} />
             </div>
             <div className="mt-4 space-y-2">
               <MuscleRow label={ex.primary} pct={92} tone="primary" />
@@ -338,95 +339,5 @@ function MuscleRow({ label, pct, tone }: { label: string; pct: number; tone: "pr
         />
       </div>
     </div>
-  );
-}
-
-function SkeletonAnim() {
-  return (
-    <svg viewBox="0 0 120 160" className="w-40 h-56" fill="none">
-      <defs>
-        <linearGradient id="body" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#ccff00" stopOpacity="0.9" />
-          <stop offset="100%" stopColor="#ccff00" stopOpacity="0.3" />
-        </linearGradient>
-      </defs>
-      <g stroke="url(#body)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <circle cx="60" cy="20" r="10" fill="#ccff00" fillOpacity="0.1" />
-        <line x1="60" y1="30" x2="60" y2="80">
-          <animate attributeName="stroke-opacity" values="0.5;1;0.5" dur="2s" repeatCount="indefinite" />
-        </line>
-        <path d="M60 40 L30 55 M60 40 L90 55">
-          <animate attributeName="d" values="M60 40 L30 55 M60 40 L90 55;M60 40 L35 40 M60 40 L85 40;M60 40 L30 55 M60 40 L90 55" dur="2s" repeatCount="indefinite" />
-        </path>
-        <path d="M60 80 L40 130 M60 80 L80 130" />
-        <path d="M40 130 L35 150 M80 130 L85 150" />
-      </g>
-      {/* Joint markers */}
-      {[
-        [60, 30],
-        [30, 55],
-        [90, 55],
-        [60, 80],
-        [40, 130],
-        [80, 130],
-      ].map(([x, y], i) => (
-        <circle key={i} cx={x} cy={y} r="2.5" fill="#ccff00">
-          <animate attributeName="r" values="2;4;2" dur="1.5s" begin={`${i * 0.2}s`} repeatCount="indefinite" />
-        </circle>
-      ))}
-    </svg>
-  );
-}
-
-function MuscleMap({ primary }: { primary: string }) {
-  return (
-    <svg viewBox="0 0 100 160" className="w-32 h-52" fill="none">
-      <g stroke="hsl(0 0% 100% / 0.3)" strokeWidth="1.5" fill="hsl(0 0% 100% / 0.05)">
-        {/* Head */}
-        <circle cx="50" cy="15" r="9" />
-        {/* Neck */}
-        <path d="M46 24 L46 30 L54 30 L54 24" />
-        {/* Torso */}
-        <path d="M30 32 L70 32 L74 80 L26 80 Z" />
-        {/* Arms */}
-        <path d="M30 34 L18 70 L20 90" />
-        <path d="M70 34 L82 70 L80 90" />
-        {/* Legs */}
-        <path d="M35 82 L32 140 L36 155" />
-        <path d="M65 82 L68 140 L64 155" />
-      </g>
-      {/* Highlight primary */}
-      <g fill="#ccff00" opacity="0.6">
-        {primary.includes("ظهر") || primary.includes("الظهر") ? (
-          <path d="M32 34 L68 34 L70 70 L30 70 Z">
-            <animate attributeName="opacity" values="0.3;0.8;0.3" dur="2s" repeatCount="indefinite" />
-          </path>
-        ) : primary.includes("صدر") ? (
-          <ellipse cx="50" cy="50" rx="18" ry="12">
-            <animate attributeName="opacity" values="0.3;0.8;0.3" dur="2s" repeatCount="indefinite" />
-          </ellipse>
-        ) : primary.includes("فخذ") || primary.includes("أرجل") ? (
-          <>
-            <path d="M35 82 L32 130 L36 140 L40 82Z">
-              <animate attributeName="opacity" values="0.3;0.8;0.3" dur="2s" repeatCount="indefinite" />
-            </path>
-            <path d="M60 82 L64 140 L68 130 L65 82Z">
-              <animate attributeName="opacity" values="0.3;0.8;0.3" dur="2s" repeatCount="indefinite" />
-            </path>
-          </>
-        ) : primary.includes("كتف") ? (
-          <>
-            <circle cx="28" cy="36" r="6" />
-            <circle cx="72" cy="36" r="6" />
-          </>
-        ) : primary.includes("بطن") ? (
-          <rect x="42" y="45" width="16" height="30" rx="4">
-            <animate attributeName="opacity" values="0.3;0.8;0.3" dur="2s" repeatCount="indefinite" />
-          </rect>
-        ) : (
-          <ellipse cx="50" cy="55" rx="20" ry="20" opacity="0.4" />
-        )}
-      </g>
-    </svg>
   );
 }

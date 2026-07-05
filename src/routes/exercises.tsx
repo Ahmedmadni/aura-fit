@@ -3,6 +3,7 @@ import { useState } from "react";
 import { Search, Filter, ChevronLeft, Dumbbell, Zap, Activity, Heart } from "lucide-react";
 import { BottomNav } from "@/components/bottom-nav";
 import { PageShell, PageHeader } from "@/components/page-shell";
+import { AthleteIcon2D } from "@/components/athlete-2d";
 
 export const Route = createFileRoute("/exercises")({
   component: ExerciseLibrary,
@@ -209,8 +210,8 @@ function ExerciseLibrary() {
             />
             <div className="relative flex items-center gap-4">
               {/* Skeleton icon placeholder */}
-              <div className="size-16 rounded-xl bg-background/60 border border-border grid place-items-center shrink-0">
-                <SkeletonIcon id={ex.id} />
+              <div className="size-16 rounded-xl bg-background/60 border border-border grid place-items-center shrink-0 overflow-hidden">
+                <AthleteIcon2D pose={ex.id as Parameters<typeof AthleteIcon2D>[0]["pose"]} size={54} />
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center justify-between gap-2 mb-1">
@@ -254,65 +255,5 @@ function ExerciseLibrary() {
 
       <BottomNav />
     </PageShell>
-  );
-}
-
-function SkeletonIcon({ id }: { id: string }) {
-  // Simple SVG glyph per exercise to avoid heavy assets
-  const stroke = "hsl(0 0% 100% / 0.8)";
-  return (
-    <svg viewBox="0 0 40 40" className="size-9" fill="none" stroke={stroke} strokeWidth="1.8" strokeLinecap="round">
-      {id === "pull-up" && (
-        <>
-          <line x1="4" y1="8" x2="36" y2="8" />
-          <circle cx="20" cy="16" r="3" />
-          <path d="M20 19v10M14 13l6 3 6-3M14 32l6-3 6 3" />
-        </>
-      )}
-      {id === "push-up" && (
-        <>
-          <circle cx="12" cy="22" r="2.5" />
-          <path d="M14 24l8 2 12-4M22 26v6M14 32h20" />
-        </>
-      )}
-      {id === "squat" && (
-        <>
-          <circle cx="20" cy="8" r="3" />
-          <path d="M20 11v8M14 19h12M14 19l-2 8M26 19l2 8M12 27h4M24 27h4" />
-        </>
-      )}
-      {id === "deadlift" && (
-        <>
-          <circle cx="20" cy="10" r="2.5" />
-          <path d="M20 12v10M14 22h12M14 22l-2 10M26 22l2 10M6 32h28" />
-          <circle cx="8" cy="34" r="2" />
-          <circle cx="32" cy="34" r="2" />
-        </>
-      )}
-      {id === "plank" && (
-        <>
-          <circle cx="8" cy="20" r="2" />
-          <path d="M10 22l24-8M10 30h24M18 22v8M28 18v12" />
-        </>
-      )}
-      {id === "burpee" && (
-        <>
-          <circle cx="20" cy="6" r="2" />
-          <path d="M14 12l6-4 6 4M20 12v8M12 18l8 2 8-2M20 20v8M14 34h12" />
-        </>
-      )}
-      {id === "lunge" && (
-        <>
-          <circle cx="20" cy="8" r="3" />
-          <path d="M20 11v8M14 24l6-5 8 8M14 30h6M26 32h6" />
-        </>
-      )}
-      {id === "shoulder-press" && (
-        <>
-          <circle cx="20" cy="14" r="3" />
-          <path d="M20 17v10M12 8l8 5 8-5M6 8h6M28 8h6M14 27h12" />
-        </>
-      )}
-    </svg>
   );
 }
