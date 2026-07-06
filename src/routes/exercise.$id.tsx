@@ -288,6 +288,8 @@ function ExerciseDetail() {
             </div>
           </Card>
         )}
+          </motion.div>
+        </AnimatePresence>
       </section>
 
       {/* CTA */}
