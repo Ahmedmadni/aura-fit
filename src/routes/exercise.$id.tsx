@@ -478,3 +478,17 @@ function MuscleRow({ label, pct, tone }: { label: string; pct: number; tone: "pr
     </div>
   );
 }
+
+const MUSCLE_LABELS: Record<MuscleFocus, string> = {
+  chest: "الصدر",
+  back: "الظهر",
+  legs: "الأرجل",
+  shoulder: "الأكتاف",
+  arms: "الذراعان",
+  core: "الجذع",
+  full: "الجسم كامل",
+};
+
+function muscleLabel(f: MuscleFocus) {
+  return MUSCLE_LABELS[f];
+}
