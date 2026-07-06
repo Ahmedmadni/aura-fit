@@ -10,7 +10,6 @@ import {
   sfxRest,
   sfxDone,
   setSfxEnabled,
-  isSfxEnabled,
 } from "@/lib/workout-audio";
 
 export const Route = createFileRoute("/workout")({
