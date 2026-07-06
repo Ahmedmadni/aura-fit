@@ -4,9 +4,12 @@ import { BookOpen, Volume2, VolumeX } from "lucide-react";
 import { PageShell } from "@/components/page-shell";
 import { AnimatedAthlete } from "@/components/athlete-animated";
 import {
+  primeAudio,
   setSfxEnabled,
   sfxDone,
-  setSfxEnabled,
+  sfxGo,
+  sfxRest,
+  sfxTick,
 } from "@/lib/workout-audio";
 
 export const Route = createFileRoute("/workout")({
