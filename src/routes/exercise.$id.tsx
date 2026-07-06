@@ -62,8 +62,12 @@ function ExerciseDetail() {
   if (!ex) throw notFound();
 
   const [tab, setTab] = useState<"overview" | "form" | "safety" | "muscles">("overview");
-  const steps = STEPS_MAP[ex.id] ?? STEPS_MAP["push-up"];
+  const [activeStep, setActiveStep] = useState(0);
+  const steps: Step[] = STEPS_MAP[ex.id] ?? DEFAULT_STEPS;
   const mistakes = MISTAKES_MAP[ex.id] ?? ["تسرّع الحركة", "تنفس غير منتظم", "وضعية غير سليمة"];
+  const current = steps[Math.min(activeStep, steps.length - 1)];
+  const heroSpot = tab === "form" ? current.spot : null;
+  const heroFocus = tab === "form" ? current.focus : null;
 
   return (
     <PageShell>
