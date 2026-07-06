@@ -347,14 +347,16 @@ function PressFigure({ uid, mini }: { uid: string; mini?: boolean }) {
 
 /* ---------- 2D ANATOMICAL MUSCLE MAP ---------- */
 
-export function MuscleAnatomy2D({ primary }: { primary: string }) {
-  const isBack = /ظهر/.test(primary);
-  const isChest = /صدر/.test(primary);
-  const isLegs = /فخذ|أرجل|ساق|مؤخر|أوتار/.test(primary);
-  const isShoulder = /كتف/.test(primary);
-  const isArms = /باي|ترايس|ذراع/.test(primary);
-  const isCore = /بطن|جذع/.test(primary);
-  const isFull = /كامل/.test(primary);
+export type MuscleFocus = "chest" | "back" | "legs" | "shoulder" | "arms" | "core" | "full";
+
+export function MuscleAnatomy2D({ primary, focus }: { primary: string; focus?: MuscleFocus | null }) {
+  const isBack = focus ? focus === "back" : /ظهر/.test(primary);
+  const isChest = focus ? focus === "chest" : /صدر/.test(primary);
+  const isLegs = focus ? focus === "legs" : /فخذ|أرجل|ساق|مؤخر|أوتار/.test(primary);
+  const isShoulder = focus ? focus === "shoulder" : /كتف/.test(primary);
+  const isArms = focus ? focus === "arms" : /باي|ترايس|ذراع/.test(primary);
+  const isCore = focus ? focus === "core" : /بطن|جذع/.test(primary);
+  const isFull = focus ? focus === "full" : /كامل/.test(primary);
 
   const hi = (on: boolean) => (on ? NEON : "#2a2f3a");
   const glow = (on: boolean) => (on ? "url(#pulse)" : "none");
