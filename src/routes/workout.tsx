@@ -4,10 +4,7 @@ import { BookOpen, Volume2, VolumeX } from "lucide-react";
 import { PageShell } from "@/components/page-shell";
 import { AnimatedAthlete } from "@/components/athlete-animated";
 import {
-  primeAudio,
-  sfxTick,
-  sfxGo,
-  sfxRest,
+  setSfxEnabled,
   sfxDone,
   setSfxEnabled,
 } from "@/lib/workout-audio";
