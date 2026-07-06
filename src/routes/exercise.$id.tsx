@@ -11,6 +11,7 @@ import {
   Target,
   Shield,
 } from "lucide-react";
+import { AnimatePresence, motion, LayoutGroup } from "framer-motion";
 import { EXERCISES } from "./exercises";
 import { PageShell } from "@/components/page-shell";
 import { BottomNav } from "@/components/bottom-nav";
@@ -88,9 +89,19 @@ function ExerciseDetail() {
             aria-hidden
           />
           {/* Animated skeleton */}
-          <div className="absolute inset-0 grid place-items-center">
-            <AthletePose2D pose={ex.id as Parameters<typeof AthletePose2D>[0]["pose"]} size={220} />
-          </div>
+          <motion.div
+            className="absolute inset-0 grid place-items-center"
+            initial={{ opacity: 0, scale: 0.85, filter: "blur(8px)" }}
+            animate={{ opacity: 1, scale: 1, filter: "blur(0px)" }}
+            transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
+          >
+            <motion.div
+              animate={{ y: [0, -6, 0] }}
+              transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+            >
+              <AthletePose2D pose={ex.id as Parameters<typeof AthletePose2D>[0]["pose"]} size={220} />
+            </motion.div>
+          </motion.div>
           {/* HUD corners */}
           {["top-3 right-3", "top-3 left-3", "bottom-3 right-3", "bottom-3 left-3"].map((p) => (
             <div key={p} className={`absolute ${p} size-4 border-primary`} aria-hidden>
@@ -127,30 +138,49 @@ function ExerciseDetail() {
 
       {/* Tabs */}
       <div className="px-6 mb-5 sticky top-0 z-10 bg-background/80 backdrop-blur-xl py-2 -mt-2">
-        <div className="bg-surface border border-border rounded-xl p-1 flex">
-          {[
-            { id: "overview", label: "الأداء" },
-            { id: "form", label: "الخطوات" },
-            { id: "safety", label: "السلامة" },
-            { id: "muscles", label: "العضلات" },
-          ].map((t) => (
-            <button
-              key={t.id}
-              type="button"
-              onClick={() => setTab(t.id as typeof tab)}
-              className={`flex-1 py-2 text-[11px] font-bold rounded-lg transition-all ${
-                tab === t.id
-                  ? "bg-primary text-primary-foreground"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              {t.label}
-            </button>
-          ))}
-        </div>
+        <LayoutGroup id="exercise-tabs">
+          <div className="bg-surface border border-border rounded-xl p-1 flex">
+            {[
+              { id: "overview", label: "الأداء" },
+              { id: "form", label: "الخطوات" },
+              { id: "safety", label: "السلامة" },
+              { id: "muscles", label: "العضلات" },
+            ].map((t) => {
+              const active = tab === t.id;
+              return (
+                <button
+                  key={t.id}
+                  type="button"
+                  onClick={() => setTab(t.id as typeof tab)}
+                  className={`relative flex-1 py-2 text-[11px] font-bold rounded-lg transition-colors ${
+                    active ? "text-primary-foreground" : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  {active && (
+                    <motion.span
+                      layoutId="tab-pill"
+                      className="absolute inset-0 bg-primary rounded-lg shadow-[0_6px_18px_rgba(204,255,0,0.35)]"
+                      transition={{ type: "spring", stiffness: 420, damping: 34 }}
+                    />
+                  )}
+                  <span className="relative">{t.label}</span>
+                </button>
+              );
+            })}
+          </div>
+        </LayoutGroup>
       </div>
 
-      <section className="px-6 space-y-4 animate-enter" key={tab}>
+      <section className="px-6 min-h-[280px]">
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={tab}
+            initial={{ opacity: 0, y: 12, scale: 0.98, filter: "blur(6px)" }}
+            animate={{ opacity: 1, y: 0, scale: 1, filter: "blur(0px)" }}
+            exit={{ opacity: 0, y: -8, scale: 0.99, filter: "blur(4px)" }}
+            transition={{ duration: 0.32, ease: [0.22, 1, 0.36, 1] }}
+            className="space-y-4"
+          >
         {tab === "overview" && (
           <>
             <Card>
@@ -258,6 +288,8 @@ function ExerciseDetail() {
             </div>
           </Card>
         )}
+          </motion.div>
+        </AnimatePresence>
       </section>
 
       {/* CTA */}
