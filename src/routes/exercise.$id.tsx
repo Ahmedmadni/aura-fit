@@ -11,6 +11,7 @@ import {
   Target,
   Shield,
 } from "lucide-react";
+import { AnimatePresence, motion, LayoutGroup } from "framer-motion";
 import { EXERCISES } from "./exercises";
 import { PageShell } from "@/components/page-shell";
 import { BottomNav } from "@/components/bottom-nav";
