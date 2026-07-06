@@ -292,13 +292,36 @@ function WorkoutPlayer() {
             }}
             aria-hidden
           />
-          <div className="relative grid place-items-center py-2">
-            <AnimatedAthlete
-              pose={isRest ? "cooldown" : current.pose}
-              running={running && !isRest}
-              tempo={current.tempo}
-              size={260}
-            />
+          <div className="relative grid place-items-center py-2 min-h-[240px]">
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={`${index}-${isRest ? "rest" : "work"}`}
+                initial={{ opacity: 0, scale: 0.9, filter: "blur(6px)" }}
+                animate={{
+                  opacity: 1,
+                  scale: running && !isRest ? 1 : 0.97,
+                  filter: "blur(0px)",
+                }}
+                exit={{ opacity: 0, scale: 0.95, filter: "blur(4px)" }}
+                transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
+              >
+                <AnimatedAthlete
+                  pose={isRest ? "cooldown" : current.pose}
+                  running={running && !isRest}
+                  tempo={current.tempo}
+                  size={260}
+                />
+              </motion.div>
+            </AnimatePresence>
+            {running && !isRest && (
+              <motion.div
+                className="pointer-events-none absolute inset-0 rounded-3xl ring-2 ring-primary/40"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: [0.15, 0.55, 0.15] }}
+                transition={{ duration: 2.2, repeat: Infinity, ease: "easeInOut" }}
+                aria-hidden
+              />
+            )}
           </div>
         </div>
 
