@@ -15,23 +15,30 @@ import { AnimatePresence, motion, LayoutGroup } from "framer-motion";
 import { EXERCISES } from "./exercises";
 import { PageShell } from "@/components/page-shell";
 import { BottomNav } from "@/components/bottom-nav";
-import { AthletePose2D, MuscleAnatomy2D } from "@/components/athlete-2d";
+import {
+  AthletePose2D,
+  MuscleAnatomy2D,
+  type MuscleFocus,
+  type PoseSpot,
+} from "@/components/athlete-2d";
 
 export const Route = createFileRoute("/exercise/$id")({
   component: ExerciseDetail,
 });
 
-const STEPS_MAP: Record<string, { title: string; body: string }[]> = {
+type Step = { title: string; body: string; focus: MuscleFocus; spot: PoseSpot };
+
+const STEPS_MAP: Record<string, Step[]> = {
   "pull-up": [
-    { title: "الوضع الابتدائي", body: "أمسك البار بقبضة عريضة قليلاً من الكتف، الأكتاف مفعّلة." },
-    { title: "التفعيل", body: "اسحب لوحي الكتف للأسفل والخلف قبل البدء بالحركة." },
-    { title: "الحركة الصاعدة", body: "اسحب الصدر باتجاه البار مع الحفاظ على جذع مستقر." },
-    { title: "النزول المتحكم", body: "انزل ببطء خلال ٢-٣ ثوانٍ للحفاظ على التوتر العضلي." },
+    { title: "الوضع الابتدائي", body: "أمسك البار بقبضة عريضة قليلاً من الكتف، الأكتاف مفعّلة.", focus: "shoulder", spot: { x: 100, y: 22, r: 24, label: "قبضة" } },
+    { title: "التفعيل", body: "اسحب لوحي الكتف للأسفل والخلف قبل البدء بالحركة.", focus: "back", spot: { x: 100, y: 60, r: 28, label: "لوحا الكتف" } },
+    { title: "الحركة الصاعدة", body: "اسحب الصدر باتجاه البار مع الحفاظ على جذع مستقر.", focus: "arms", spot: { x: 100, y: 110, r: 30, label: "ظهر · بايسبس" } },
+    { title: "النزول المتحكم", body: "انزل ببطء خلال ٢-٣ ثوانٍ للحفاظ على التوتر العضلي.", focus: "core", spot: { x: 100, y: 160, r: 28, label: "توتر مركزي" } },
   ],
   "push-up": [
-    { title: "الوضع الابتدائي", body: "اليدان بعرض الكتفين، الجسم في خط مستقيم." },
-    { title: "النزول", body: "اثنِ المرفقين بزاوية ٤٥° حتى يقترب الصدر من الأرض." },
-    { title: "الصعود", body: "ادفع بقوة مع تفعيل عضلات البطن والصدر." },
+    { title: "الوضع الابتدائي", body: "اليدان بعرض الكتفين، الجسم في خط مستقيم.", focus: "core", spot: { x: 110, y: 180, r: 26, label: "بلانك" } },
+    { title: "النزول", body: "اثنِ المرفقين بزاوية ٤٥° حتى يقترب الصدر من الأرض.", focus: "chest", spot: { x: 60, y: 170, r: 22, label: "مرفق" } },
+    { title: "الصعود", body: "ادفع بقوة مع تفعيل عضلات البطن والصدر.", focus: "chest", spot: { x: 120, y: 170, r: 26, label: "صدر" } },
   ],
 };
 
@@ -42,14 +49,25 @@ const MISTAKES_MAP: Record<string, string[]> = {
   "deadlift": ["تقوس الظهر السفلي", "بدء الحركة من الظهر", "قفل الركبتين المبكر"],
 };
 
+const DEFAULT_STEPS: Step[] = [
+  { title: "الاستعداد", body: "ثبّت الجذع وتحقق من الوضعية الأولية.", focus: "core", spot: { x: 100, y: 130, r: 26, label: "جذع" } },
+  { title: "المرحلة الأولى", body: "ابدأ الحركة بتحكم كامل من العضلة المستهدفة.", focus: "chest", spot: { x: 100, y: 100, r: 24, label: "بداية" } },
+  { title: "المرحلة الختامية", body: "أكمل المدى ثم ارجع ببطء إلى نقطة البداية.", focus: "legs", spot: { x: 100, y: 210, r: 26, label: "قاعدة" } },
+];
+
+
 function ExerciseDetail() {
   const { id } = Route.useParams();
   const ex = EXERCISES.find((e) => e.id === id);
   if (!ex) throw notFound();
 
   const [tab, setTab] = useState<"overview" | "form" | "safety" | "muscles">("overview");
-  const steps = STEPS_MAP[ex.id] ?? STEPS_MAP["push-up"];
+  const [activeStep, setActiveStep] = useState(0);
+  const steps: Step[] = STEPS_MAP[ex.id] ?? DEFAULT_STEPS;
   const mistakes = MISTAKES_MAP[ex.id] ?? ["تسرّع الحركة", "تنفس غير منتظم", "وضعية غير سليمة"];
+  const current = steps[Math.min(activeStep, steps.length - 1)];
+  const heroSpot = tab === "form" ? current.spot : null;
+  const heroFocus = tab === "form" ? current.focus : null;
 
   return (
     <PageShell>
@@ -99,7 +117,11 @@ function ExerciseDetail() {
               animate={{ y: [0, -6, 0] }}
               transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
             >
-              <AthletePose2D pose={ex.id as Parameters<typeof AthletePose2D>[0]["pose"]} size={220} />
+              <AthletePose2D
+                pose={ex.id as Parameters<typeof AthletePose2D>[0]["pose"]}
+                size={220}
+                spot={heroSpot}
+              />
             </motion.div>
           </motion.div>
           {/* HUD corners */}
@@ -209,23 +231,106 @@ function ExerciseDetail() {
         )}
 
         {tab === "form" && (
-          <ol className="space-y-3">
-            {steps.map((s, i) => (
-              <li key={i}>
-                <Card>
-                  <div className="flex gap-4">
-                    <div className="size-10 rounded-xl bg-primary text-primary-foreground font-black grid place-items-center shrink-0">
-                      {i + 1}
-                    </div>
-                    <div className="flex-1">
-                      <p className="font-black mb-1">{s.title}</p>
-                      <p className="text-sm text-muted-foreground leading-relaxed">{s.body}</p>
-                    </div>
-                  </div>
-                </Card>
-              </li>
-            ))}
-          </ol>
+          <>
+            <Card>
+              <CardHeader label={`الخطوة ${activeStep + 1} / ${steps.length} · إبراز حي`} />
+              <div className="grid grid-cols-[1fr_auto] gap-3 items-center">
+                <div>
+                  <p className="font-black text-lg">{current.title}</p>
+                  <p className="text-sm text-muted-foreground leading-relaxed mt-1">
+                    {current.body}
+                  </p>
+                  <p className="mt-3 text-[10px] font-mono uppercase tracking-widest text-primary">
+                    ◉ {current.spot.label} · {muscleLabel(current.focus)}
+                  </p>
+                </div>
+                <div className="shrink-0">
+                  <AnimatePresence mode="wait">
+                    <motion.div
+                      key={activeStep}
+                      initial={{ opacity: 0, scale: 0.9 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.95 }}
+                      transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+                    >
+                      <MuscleAnatomy2D primary={ex.primary} focus={heroFocus} />
+                    </motion.div>
+                  </AnimatePresence>
+                </div>
+              </div>
+              <div className="mt-3 flex gap-1">
+                {steps.map((_, i) => (
+                  <div
+                    key={i}
+                    className={`h-1 flex-1 rounded-full transition-colors ${
+                      i <= activeStep ? "bg-primary" : "bg-border"
+                    }`}
+                  />
+                ))}
+              </div>
+            </Card>
+
+            <ol className="space-y-3">
+              {steps.map((s, i) => {
+                const active = i === activeStep;
+                return (
+                  <li key={i}>
+                    <motion.button
+                      type="button"
+                      onClick={() => setActiveStep(i)}
+                      className={`w-full text-right block rounded-2xl border p-4 transition-colors ${
+                        active
+                          ? "bg-primary/10 border-primary/60"
+                          : "bg-card border-border hover:border-primary/30"
+                      }`}
+                      whileTap={{ scale: 0.985 }}
+                      layout
+                    >
+                      <div className="flex gap-4 items-start">
+                        <motion.div
+                          className={`size-10 rounded-xl font-black grid place-items-center shrink-0 ${
+                            active
+                              ? "bg-primary text-primary-foreground shadow-[0_0_18px_rgba(204,255,0,0.5)]"
+                              : "bg-surface text-muted-foreground"
+                          }`}
+                          animate={active ? { scale: [1, 1.08, 1] } : { scale: 1 }}
+                          transition={{ duration: 1.4, repeat: active ? Infinity : 0 }}
+                        >
+                          {i + 1}
+                        </motion.div>
+                        <div className="flex-1">
+                          <p className="font-black mb-1">{s.title}</p>
+                          <p className="text-xs text-muted-foreground leading-relaxed">{s.body}</p>
+                          <p className="mt-2 text-[9px] font-mono uppercase tracking-widest text-primary/80">
+                            {muscleLabel(s.focus)}
+                          </p>
+                        </div>
+                      </div>
+                    </motion.button>
+                  </li>
+                );
+              })}
+            </ol>
+
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setActiveStep((s) => Math.max(0, s - 1))}
+                disabled={activeStep === 0}
+                className="flex-1 py-3 rounded-xl border border-border text-xs font-mono uppercase tracking-widest text-muted-foreground disabled:opacity-40"
+              >
+                السابقة
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveStep((s) => Math.min(steps.length - 1, s + 1))}
+                disabled={activeStep === steps.length - 1}
+                className="flex-1 py-3 rounded-xl bg-primary text-primary-foreground text-xs font-black uppercase tracking-widest disabled:opacity-40"
+              >
+                التالية ←
+              </button>
+            </div>
+          </>
         )}
 
         {tab === "safety" && (
@@ -372,4 +477,18 @@ function MuscleRow({ label, pct, tone }: { label: string; pct: number; tone: "pr
       </div>
     </div>
   );
+}
+
+const MUSCLE_LABELS: Record<MuscleFocus, string> = {
+  chest: "الصدر",
+  back: "الظهر",
+  legs: "الأرجل",
+  shoulder: "الأكتاف",
+  arms: "الذراعان",
+  core: "الجذع",
+  full: "الجسم كامل",
+};
+
+function muscleLabel(f: MuscleFocus) {
+  return MUSCLE_LABELS[f];
 }
