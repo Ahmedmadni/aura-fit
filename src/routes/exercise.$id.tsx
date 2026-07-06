@@ -138,30 +138,49 @@ function ExerciseDetail() {
 
       {/* Tabs */}
       <div className="px-6 mb-5 sticky top-0 z-10 bg-background/80 backdrop-blur-xl py-2 -mt-2">
-        <div className="bg-surface border border-border rounded-xl p-1 flex">
-          {[
-            { id: "overview", label: "الأداء" },
-            { id: "form", label: "الخطوات" },
-            { id: "safety", label: "السلامة" },
-            { id: "muscles", label: "العضلات" },
-          ].map((t) => (
-            <button
-              key={t.id}
-              type="button"
-              onClick={() => setTab(t.id as typeof tab)}
-              className={`flex-1 py-2 text-[11px] font-bold rounded-lg transition-all ${
-                tab === t.id
-                  ? "bg-primary text-primary-foreground"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              {t.label}
-            </button>
-          ))}
-        </div>
+        <LayoutGroup id="exercise-tabs">
+          <div className="bg-surface border border-border rounded-xl p-1 flex">
+            {[
+              { id: "overview", label: "الأداء" },
+              { id: "form", label: "الخطوات" },
+              { id: "safety", label: "السلامة" },
+              { id: "muscles", label: "العضلات" },
+            ].map((t) => {
+              const active = tab === t.id;
+              return (
+                <button
+                  key={t.id}
+                  type="button"
+                  onClick={() => setTab(t.id as typeof tab)}
+                  className={`relative flex-1 py-2 text-[11px] font-bold rounded-lg transition-colors ${
+                    active ? "text-primary-foreground" : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  {active && (
+                    <motion.span
+                      layoutId="tab-pill"
+                      className="absolute inset-0 bg-primary rounded-lg shadow-[0_6px_18px_rgba(204,255,0,0.35)]"
+                      transition={{ type: "spring", stiffness: 420, damping: 34 }}
+                    />
+                  )}
+                  <span className="relative">{t.label}</span>
+                </button>
+              );
+            })}
+          </div>
+        </LayoutGroup>
       </div>
 
-      <section className="px-6 space-y-4 animate-enter" key={tab}>
+      <section className="px-6 min-h-[280px]">
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={tab}
+            initial={{ opacity: 0, y: 12, scale: 0.98, filter: "blur(6px)" }}
+            animate={{ opacity: 1, y: 0, scale: 1, filter: "blur(0px)" }}
+            exit={{ opacity: 0, y: -8, scale: 0.99, filter: "blur(4px)" }}
+            transition={{ duration: 0.32, ease: [0.22, 1, 0.36, 1] }}
+            className="space-y-4"
+          >
         {tab === "overview" && (
           <>
             <Card>
