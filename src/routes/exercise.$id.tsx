@@ -89,9 +89,19 @@ function ExerciseDetail() {
             aria-hidden
           />
           {/* Animated skeleton */}
-          <div className="absolute inset-0 grid place-items-center">
-            <AthletePose2D pose={ex.id as Parameters<typeof AthletePose2D>[0]["pose"]} size={220} />
-          </div>
+          <motion.div
+            className="absolute inset-0 grid place-items-center"
+            initial={{ opacity: 0, scale: 0.85, filter: "blur(8px)" }}
+            animate={{ opacity: 1, scale: 1, filter: "blur(0px)" }}
+            transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
+          >
+            <motion.div
+              animate={{ y: [0, -6, 0] }}
+              transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+            >
+              <AthletePose2D pose={ex.id as Parameters<typeof AthletePose2D>[0]["pose"]} size={220} />
+            </motion.div>
+          </motion.div>
           {/* HUD corners */}
           {["top-3 right-3", "top-3 left-3", "bottom-3 right-3", "bottom-3 left-3"].map((p) => (
             <div key={p} className={`absolute ${p} size-4 border-primary`} aria-hidden>
