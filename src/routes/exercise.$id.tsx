@@ -231,23 +231,107 @@ function ExerciseDetail() {
         )}
 
         {tab === "form" && (
-          <ol className="space-y-3">
-            {steps.map((s, i) => (
-              <li key={i}>
-                <Card>
-                  <div className="flex gap-4">
-                    <div className="size-10 rounded-xl bg-primary text-primary-foreground font-black grid place-items-center shrink-0">
-                      {i + 1}
-                    </div>
-                    <div className="flex-1">
-                      <p className="font-black mb-1">{s.title}</p>
-                      <p className="text-sm text-muted-foreground leading-relaxed">{s.body}</p>
-                    </div>
-                  </div>
-                </Card>
-              </li>
-            ))}
-          </ol>
+          <>
+            <Card>
+              <CardHeader label={`الخطوة ${activeStep + 1} / ${steps.length} · إبراز حي`} />
+              <div className="grid grid-cols-[1fr_auto] gap-3 items-center">
+                <div>
+                  <p className="font-black text-lg">{current.title}</p>
+                  <p className="text-sm text-muted-foreground leading-relaxed mt-1">
+                    {current.body}
+                  </p>
+                  <p className="mt-3 text-[10px] font-mono uppercase tracking-widest text-primary">
+                    ◉ {current.spot.label} · {muscleLabel(current.focus)}
+                  </p>
+                </div>
+                <div className="shrink-0">
+                  <AnimatePresence mode="wait">
+                    <motion.div
+                      key={activeStep}
+                      initial={{ opacity: 0, scale: 0.9 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.95 }}
+                      transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+                    >
+                      <MuscleAnatomy2D primary={ex.primary} focus={heroFocus} />
+                    </motion.div>
+                  </AnimatePresence>
+                </div>
+              </div>
+              <div className="mt-3 flex gap-1">
+                {steps.map((_, i) => (
+                  <div
+                    key={i}
+                    className={`h-1 flex-1 rounded-full transition-colors ${
+                      i <= activeStep ? "bg-primary" : "bg-border"
+                    }`}
+                  />
+                ))}
+              </div>
+            </Card>
+
+            <ol className="space-y-3">
+              {steps.map((s, i) => {
+                const active = i === activeStep;
+                return (
+                  <li key={i}>
+                    <motion.button
+                      type="button"
+                      onClick={() => setActiveStep(i)}
+                      className={`w-full text-right block rounded-2xl border p-4 transition-colors ${
+                        active
+                          ? "bg-primary/10 border-primary/60"
+                          : "bg-card border-border hover:border-primary/30"
+                      }`}
+                      whileTap={{ scale: 0.985 }}
+                      layout
+                    >
+                      <div className="flex gap-4 items-start">
+                        <motion.div
+                          className={`size-10 rounded-xl font-black grid place-items-center shrink-0 ${
+                            active
+                              ? "bg-primary text-primary-foreground shadow-[0_0_18px_rgba(204,255,0,0.5)]"
+                              : "bg-surface text-muted-foreground"
+                          }`}
+                          animate={active ? { scale: [1, 1.08, 1] } : { scale: 1 }}
+                          transition={{ duration: 1.4, repeat: active ? Infinity : 0 }}
+                        >
+                          {i + 1}
+                        </motion.div>
+                        <div className="flex-1">
+                          <p className="font-black mb-1">{s.title}</p>
+                          <p className="text-xs text-muted-foreground leading-relaxed">{s.body}</p>
+                          <p className="mt-2 text-[9px] font-mono uppercase tracking-widest text-primary/80">
+                            {muscleLabel(s.focus)}
+                          </p>
+                        </div>
+                      </div>
+                    </motion.button>
+                  </li>
+                );
+              })}
+            </ol>
+
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setActiveStep((s) => Math.max(0, s - 1))}
+                disabled={activeStep === 0}
+                className="flex-1 py-3 rounded-xl border border-border text-xs font-mono uppercase tracking-widest text-muted-foreground disabled:opacity-40"
+              >
+                السابقة
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveStep((s) => Math.min(steps.length - 1, s + 1))}
+                disabled={activeStep === steps.length - 1}
+                className="flex-1 py-3 rounded-xl bg-primary text-primary-foreground text-xs font-black uppercase tracking-widest disabled:opacity-40"
+              >
+                التالية ←
+              </button>
+            </div>
+          </>
+        )}
         )}
 
         {tab === "safety" && (
