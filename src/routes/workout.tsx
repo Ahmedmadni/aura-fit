@@ -1,6 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { BookOpen, Volume2, VolumeX } from "lucide-react";
+import { AnimatePresence, motion } from "framer-motion";
 import { PageShell } from "@/components/page-shell";
 import { AnimatedAthlete } from "@/components/athlete-animated";
 import {
