@@ -39,7 +39,17 @@ function BodyGradient({ id }: { id: string }) {
 
 /* ---------- FULL POSE (large HUD figure) ---------- */
 
-export function AthletePose2D({ pose, size = 240 }: { pose: Pose; size?: number }) {
+export type PoseSpot = { x: number; y: number; r?: number; label?: string };
+
+export function AthletePose2D({
+  pose,
+  size = 240,
+  spot,
+}: {
+  pose: Pose;
+  size?: number;
+  spot?: PoseSpot | null;
+}) {
   const uid = `p-${pose}`;
   return (
     <svg viewBox="0 0 200 260" width={size} height={(size * 260) / 200} className="drop-shadow-[0_10px_25px_rgba(204,255,0,0.15)]">
@@ -53,6 +63,34 @@ export function AthletePose2D({ pose, size = 240 }: { pose: Pose; size?: number 
       {pose === "lunge" && <LungeFigure uid={uid} />}
       {pose === "shoulder-press" && <PressFigure uid={uid} />}
       {pose === "default" && <SquatFigure uid={uid} />}
+      {spot && (
+        <g pointerEvents="none">
+          <circle
+            cx={spot.x}
+            cy={spot.y}
+            r={spot.r ?? 22}
+            fill="none"
+            stroke={NEON}
+            strokeWidth="2"
+            opacity="0.9"
+          >
+            <animate attributeName="r" values={`${(spot.r ?? 22) - 4};${(spot.r ?? 22) + 6};${(spot.r ?? 22) - 4}`} dur="1.6s" repeatCount="indefinite" />
+            <animate attributeName="opacity" values="0.4;1;0.4" dur="1.6s" repeatCount="indefinite" />
+          </circle>
+          <circle cx={spot.x} cy={spot.y} r="3" fill={NEON} />
+          {spot.label && (
+            <text
+              x={spot.x + (spot.r ?? 22) + 6}
+              y={spot.y + 3}
+              fill={NEON}
+              fontSize="8"
+              fontFamily="ui-monospace, monospace"
+            >
+              {spot.label}
+            </text>
+          )}
+        </g>
+      )}
     </svg>
   );
 }
