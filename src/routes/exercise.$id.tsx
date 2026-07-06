@@ -117,7 +117,11 @@ function ExerciseDetail() {
               animate={{ y: [0, -6, 0] }}
               transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
             >
-              <AthletePose2D pose={ex.id as Parameters<typeof AthletePose2D>[0]["pose"]} size={220} />
+              <AthletePose2D
+                pose={ex.id as Parameters<typeof AthletePose2D>[0]["pose"]}
+                size={220}
+                spot={heroSpot}
+              />
             </motion.div>
           </motion.div>
           {/* HUD corners */}
