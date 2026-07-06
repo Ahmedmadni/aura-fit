@@ -332,7 +332,6 @@ function ExerciseDetail() {
             </div>
           </>
         )}
-        )}
 
         {tab === "safety" && (
           <>
