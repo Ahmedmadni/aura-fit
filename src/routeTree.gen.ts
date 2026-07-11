@@ -15,9 +15,11 @@ import { Route as ProgramsRouteImport } from './routes/programs'
 import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as OnboardingRouteImport } from './routes/onboarding'
 import { Route as NutritionRouteImport } from './routes/nutrition'
+import { Route as LibraryRouteImport } from './routes/library'
 import { Route as ExercisesRouteImport } from './routes/exercises'
 import { Route as DnaRouteImport } from './routes/dna'
 import { Route as CoachRouteImport } from './routes/coach'
+import { Route as BuilderRouteImport } from './routes/builder'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ExerciseIdRouteImport } from './routes/exercise.$id'
 
@@ -51,6 +53,11 @@ const NutritionRoute = NutritionRouteImport.update({
   path: '/nutrition',
   getParentRoute: () => rootRouteImport,
 } as any)
+const LibraryRoute = LibraryRouteImport.update({
+  id: '/library',
+  path: '/library',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ExercisesRoute = ExercisesRouteImport.update({
   id: '/exercises',
   path: '/exercises',
@@ -66,6 +73,11 @@ const CoachRoute = CoachRouteImport.update({
   path: '/coach',
   getParentRoute: () => rootRouteImport,
 } as any)
+const BuilderRoute = BuilderRouteImport.update({
+  id: '/builder',
+  path: '/builder',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
@@ -79,9 +91,11 @@ const ExerciseIdRoute = ExerciseIdRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/builder': typeof BuilderRoute
   '/coach': typeof CoachRoute
   '/dna': typeof DnaRoute
   '/exercises': typeof ExercisesRoute
+  '/library': typeof LibraryRoute
   '/nutrition': typeof NutritionRoute
   '/onboarding': typeof OnboardingRoute
   '/profile': typeof ProfileRoute
@@ -92,9 +106,11 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/builder': typeof BuilderRoute
   '/coach': typeof CoachRoute
   '/dna': typeof DnaRoute
   '/exercises': typeof ExercisesRoute
+  '/library': typeof LibraryRoute
   '/nutrition': typeof NutritionRoute
   '/onboarding': typeof OnboardingRoute
   '/profile': typeof ProfileRoute
@@ -106,9 +122,11 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/builder': typeof BuilderRoute
   '/coach': typeof CoachRoute
   '/dna': typeof DnaRoute
   '/exercises': typeof ExercisesRoute
+  '/library': typeof LibraryRoute
   '/nutrition': typeof NutritionRoute
   '/onboarding': typeof OnboardingRoute
   '/profile': typeof ProfileRoute
@@ -121,9 +139,11 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/builder'
     | '/coach'
     | '/dna'
     | '/exercises'
+    | '/library'
     | '/nutrition'
     | '/onboarding'
     | '/profile'
@@ -134,9 +154,11 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/builder'
     | '/coach'
     | '/dna'
     | '/exercises'
+    | '/library'
     | '/nutrition'
     | '/onboarding'
     | '/profile'
@@ -147,9 +169,11 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/builder'
     | '/coach'
     | '/dna'
     | '/exercises'
+    | '/library'
     | '/nutrition'
     | '/onboarding'
     | '/profile'
@@ -161,9 +185,11 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  BuilderRoute: typeof BuilderRoute
   CoachRoute: typeof CoachRoute
   DnaRoute: typeof DnaRoute
   ExercisesRoute: typeof ExercisesRoute
+  LibraryRoute: typeof LibraryRoute
   NutritionRoute: typeof NutritionRoute
   OnboardingRoute: typeof OnboardingRoute
   ProfileRoute: typeof ProfileRoute
@@ -217,6 +243,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof NutritionRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/library': {
+      id: '/library'
+      path: '/library'
+      fullPath: '/library'
+      preLoaderRoute: typeof LibraryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/exercises': {
       id: '/exercises'
       path: '/exercises'
@@ -238,6 +271,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CoachRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/builder': {
+      id: '/builder'
+      path: '/builder'
+      fullPath: '/builder'
+      preLoaderRoute: typeof BuilderRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -257,9 +297,11 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  BuilderRoute: BuilderRoute,
   CoachRoute: CoachRoute,
   DnaRoute: DnaRoute,
   ExercisesRoute: ExercisesRoute,
+  LibraryRoute: LibraryRoute,
   NutritionRoute: NutritionRoute,
   OnboardingRoute: OnboardingRoute,
   ProfileRoute: ProfileRoute,
@@ -271,13 +313,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}

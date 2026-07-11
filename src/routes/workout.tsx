@@ -1,7 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { BookOpen, Volume2, VolumeX } from "lucide-react";
-import { AnimatePresence, motion } from "framer-motion";
+import { BookOpen, Volume2, VolumeX, ChevronRight, ChevronLeft, Check } from "lucide-react";
+import { AnimatePresence, motion, PanInfo } from "framer-motion";
 import { PageShell } from "@/components/page-shell";
 import { AnimatedAthlete } from "@/components/athlete-animated";
 import {
@@ -12,131 +12,49 @@ import {
   sfxRest,
   sfxTick,
 } from "@/lib/workout-audio";
+import { generateWorkout, type PlannedExercise } from "@/lib/workout-engine";
+import { loadProfile, recordWorkout } from "@/lib/user-profile";
+import { checkNewAchievements } from "@/lib/achievements";
 
 export const Route = createFileRoute("/workout")({
   component: WorkoutPlayer,
 });
 
-type Pose = "warmup" | "squat" | "push-up" | "plank" | "burpee" | "cooldown";
-
-type Exercise = {
-  name: string;
-  latin: string;
-  duration: number;
-  reps?: string;
-  rest: number;
-  cue: string;
-  muscles: string;
-  pose: Pose;
-  tempo: number; // seconds per rep cycle
-  ref: string; // scientific/organizational reference
-};
-
-/**
- * Session structure follows the ACSM FITT-VP guidelines for a 30-min
- * general-fitness circuit: 5-10 min dynamic warm-up, 20 min of resistance
- * / HIIT circuits with 1:1 to 1:2 work-rest ratios, 5 min cool-down.
- *
- * Rep schemes and rest intervals per exercise reference:
- *  - ACSM's Guidelines for Exercise Testing and Prescription (11th ed., 2021)
- *  - NSCA Essentials of Strength Training and Conditioning (4th ed., 2016)
- *  - NASM Essentials of Personal Fitness Training (7th ed., 2022)
- *  - WHO Guidelines on Physical Activity and Sedentary Behaviour (2020)
- */
-const EXERCISES: Exercise[] = [
-  {
-    name: "إحماء ديناميكي",
-    latin: "Dynamic Warm-up (RAMP protocol)",
-    duration: 45,
-    rest: 10,
-    cue: "ارفع النبض تدريجياً عبر حركات مركّبة — راجع بروتوكول RAMP (Jeffreys, 2006)",
-    muscles: "الجسم كامل",
-    pose: "warmup",
-    tempo: 1.4,
-    ref: "Jeffreys I. (2006) — Warm-up revisited: the RAMP method.",
-  },
-  {
-    name: "قرفصاء هوائية",
-    latin: "Bodyweight Squat",
-    duration: 40,
-    reps: "16 عدة",
-    rest: 20,
-    cue: "الكعبان على الأرض، الركبتان بمحاذاة أصابع القدم، صدرك مرفوع",
-    muscles: "الفخذ الأمامي · المؤخرة",
-    pose: "squat",
-    tempo: 2.5,
-    ref: "NSCA Essentials of Strength Training & Conditioning, 4th ed., ch. 15.",
-  },
-  {
-    name: "تمرين الضغط",
-    latin: "Standard Push-Up",
-    duration: 40,
-    reps: "12 عدة",
-    rest: 25,
-    cue: "الجسم خط مستقيم، المرفقان بزاوية 45°، نزول متحكم بمدى 3 ثواني",
-    muscles: "الصدر · الترايسبس",
-    pose: "push-up",
-    tempo: 3,
-    ref: "ACSM Guidelines, 11th ed., §7 — Resistance training for healthy adults.",
-  },
-  {
-    name: "بلانك أمامي",
-    latin: "Prone Forearm Plank",
-    duration: 35,
-    rest: 20,
-    cue: "شدّ عضلات البطن والمؤخرة، الوركان ثابتان — انتهِ عند فقدان الاستقامة",
-    muscles: "الكور · الأكتاف",
-    pose: "plank",
-    tempo: 4,
-    ref: "McGill S. — Ultimate Back Fitness and Performance, 5th ed.",
-  },
-  {
-    name: "قفزة عمودية",
-    latin: "Bodyweight Jump Squat",
-    duration: 30,
-    reps: "10 عدة",
-    rest: 30,
-    cue: "هبوط ناعم من الأمشاط للكعب، امتصاص الصدمة بثني الركبتين والوركين",
-    muscles: "الرجل · التفجير",
-    pose: "burpee",
-    tempo: 2,
-    ref: "NSCA Position Statement — Plyometric Training (Haff & Triplett, 2016).",
-  },
-  {
-    name: "تمدد ختامي",
-    latin: "Static Cool-Down Stretch",
-    duration: 60,
-    rest: 0,
-    cue: "تنفس عميق من الأنف، ثبّت كل وضعية 20-30 ثانية دون ارتداد",
-    muscles: "المرونة العامة",
-    pose: "cooldown",
-    tempo: 5,
-    ref: "ACSM Position Stand — Quantity & Quality of Exercise (Garber et al., 2011).",
-  },
-];
-
 function WorkoutPlayer() {
   const navigate = useNavigate();
+
+  // build the workout from profile (memoized so it stays stable during the session)
+  const workout = useMemo(() => generateWorkout(loadProfile()), []);
+  const plan = workout.exercises;
+
   const [index, setIndex] = useState(0);
+  const [setIdx, setSetIdx] = useState(1); // 1-based current set
   const [phase, setPhase] = useState<"work" | "rest" | "done">("work");
-  const [remaining, setRemaining] = useState(EXERCISES[0].duration);
+  const [remaining, setRemaining] = useState(plan[0]?.workSeconds ?? 45);
   const [running, setRunning] = useState(true);
   const [muted, setMuted] = useState(false);
   const [showRefs, setShowRefs] = useState(false);
+  const [completed, setCompleted] = useState<Set<string>>(new Set());
   const startedAt = useRef(Date.now());
 
-  const current = EXERCISES[index];
-  const next = EXERCISES[index + 1];
-  const total = EXERCISES.length;
-  const progress = ((index + (phase === "rest" ? 0.5 : 0)) / total) * 100;
+  const current: PlannedExercise = plan[index];
+  const next = plan[index + 1];
+  const total = plan.length;
 
   const totalDuration = useMemo(
-    () => EXERCISES.reduce((s, e) => s + e.duration + e.rest, 0),
-    [],
+    () =>
+      plan.reduce(
+        (s, p) => s + p.workSeconds * p.sets + p.restSeconds * Math.max(0, p.sets - 1),
+        0,
+      ),
+    [plan],
   );
   const [elapsed, setElapsed] = useState(0);
 
-  // prime audio on mount + play initial "go"
+  const progress =
+    ((index + (setIdx - 1) / current.sets + (phase === "rest" ? 0.5 / current.sets : 0)) / total) *
+    100;
+
   useEffect(() => {
     primeAudio();
     sfxGo();
@@ -146,37 +64,80 @@ function WorkoutPlayer() {
     setSfxEnabled(!muted);
   }, [muted]);
 
+  // main timer
   useEffect(() => {
     if (!running || phase === "done") return;
     const id = setInterval(() => {
       setRemaining((r) => {
-        // countdown ticks
         if (r <= 4 && r > 1) sfxTick();
-
         if (r > 1) return r - 1;
-        // transition
+
+        // transition logic
         if (phase === "work") {
-          if (current.rest > 0) {
+          if (setIdx < current.sets && current.restSeconds > 0) {
             setPhase("rest");
             sfxRest();
-            return current.rest;
+            return current.restSeconds;
           }
+          // move to next exercise
+          setCompleted((s) => new Set(s).add(current.exercise.id));
+          if (index + 1 < total) {
+            setIndex((i) => i + 1);
+            setSetIdx(1);
+            setPhase("work");
+            sfxGo();
+            return plan[index + 1].workSeconds;
+          }
+          setPhase("done");
+          sfxDone();
+          return 0;
         }
-        // move next
-        if (index + 1 < total) {
-          setIndex((i) => i + 1);
-          setPhase("work");
-          sfxGo();
-          return EXERCISES[index + 1].duration;
-        }
-        setPhase("done");
-        sfxDone();
-        return 0;
+        // rest → next set of same exercise
+        setSetIdx((s) => s + 1);
+        setPhase("work");
+        sfxGo();
+        return current.workSeconds;
       });
       setElapsed((e) => e + 1);
     }, 1000);
     return () => clearInterval(id);
-  }, [running, phase, index, current.rest, total]);
+  }, [running, phase, index, setIdx, current, total, plan]);
+
+  // save on completion
+  useEffect(() => {
+    if (phase !== "done") return;
+    const durationSec = Math.round((Date.now() - startedAt.current) / 1000);
+    const calories = Math.round(
+      plan.reduce(
+        (s, p) =>
+          completed.has(p.exercise.id)
+            ? s + (p.exercise.caloriesPerMin * p.workSeconds * p.sets) / 60
+            : s,
+        0,
+      ),
+    );
+    const activeSec = plan.reduce(
+      (s, p) => (completed.has(p.exercise.id) ? s + p.workSeconds * p.sets : s),
+      0,
+    );
+    recordWorkout({
+      id: workout.id + "-" + Date.now(),
+      date: new Date().toISOString(),
+      exercises: plan.map((p) => ({
+        id: p.exercise.id,
+        sets: p.sets,
+        reps: p.reps,
+        completed: completed.has(p.exercise.id),
+      })),
+      durationSec,
+      activeSec,
+      calories,
+      intensity: workout.intensity,
+      performance: Math.round((completed.size / total) * 100),
+    });
+    checkNewAchievements([]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase]);
 
   const fmt = (s: number) =>
     `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
@@ -185,8 +146,27 @@ function WorkoutPlayer() {
   const stroke = 10;
   const radius = (ringSize - stroke) / 2;
   const circ = 2 * Math.PI * radius;
-  const phaseTotal = phase === "rest" ? current.rest : current.duration;
+  const phaseTotal = phase === "rest" ? current.restSeconds : current.workSeconds;
   const ringOffset = circ - (remaining / phaseTotal) * circ;
+
+  function handleSwipe(_: unknown, info: PanInfo) {
+    if (info.offset.x > 80 && index > 0) {
+      // swipe right in RTL = previous
+      setIndex(index - 1);
+      setSetIdx(1);
+      setPhase("work");
+      setRemaining(plan[index - 1].workSeconds);
+      sfxGo();
+    } else if (info.offset.x < -80 && next) {
+      // swipe left in RTL = next
+      setCompleted((s) => new Set(s).add(current.exercise.id));
+      setIndex(index + 1);
+      setSetIdx(1);
+      setPhase("work");
+      setRemaining(next.workSeconds);
+      sfxGo();
+    }
+  }
 
   if (phase === "done") {
     const minutes = Math.round(elapsed / 60);
@@ -197,11 +177,13 @@ function WorkoutPlayer() {
             اكتملت الجلسة
           </p>
           <h1 className="text-5xl font-black leading-none mb-2">أحسنت</h1>
-          <p className="text-muted-foreground">أتممت التمرين بنجاح</p>
+          <p className="text-muted-foreground">
+            أتممت {completed.size} من {total} تمارين
+          </p>
 
           <div className="mt-10 grid grid-cols-3 gap-3">
             <StatCard label="المدة" value={`${minutes}د`} />
-            <StatCard label="التمارين" value={String(total)} />
+            <StatCard label="التمارين" value={String(completed.size)} />
             <StatCard label="السعرات" value={`~${minutes * 8}`} />
           </div>
 
@@ -230,7 +212,7 @@ function WorkoutPlayer() {
     <PageShell>
       <div className="p-5 pt-8">
         {/* top bar */}
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center justify-between mb-4">
           <button
             onClick={() => navigate({ to: "/" })}
             className="size-10 rounded-full border border-border grid place-items-center text-lg"
@@ -240,7 +222,7 @@ function WorkoutPlayer() {
           </button>
           <div className="text-center">
             <p className="font-mono text-[10px] uppercase tracking-[0.3em] text-muted-foreground">
-              الجلسة {index + 1} / {total}
+              {index + 1} / {total} · مجموعة {setIdx} / {current.sets}
             </p>
             <p className="font-mono text-xs mt-0.5">
               {fmt(elapsed)} · {fmt(Math.max(0, totalDuration - elapsed))}
@@ -274,15 +256,36 @@ function WorkoutPlayer() {
         </div>
 
         {/* progress bar */}
-        <div className="h-1 rounded-full bg-surface overflow-hidden mb-6">
+        <div className="h-1 rounded-full bg-surface overflow-hidden mb-4">
           <div
             className="h-full bg-primary transition-all duration-500"
             style={{ width: `${progress}%` }}
           />
         </div>
 
-        {/* Animated athlete */}
-        <div className="relative mx-auto mb-4 rounded-3xl border border-border bg-surface/40 overflow-hidden">
+        {/* set dots */}
+        <div className="flex items-center justify-center gap-1.5 mb-4">
+          {Array.from({ length: current.sets }, (_, i) => (
+            <span
+              key={i}
+              className={`h-1.5 rounded-full transition-all ${
+                i + 1 < setIdx
+                  ? "bg-primary w-6"
+                  : i + 1 === setIdx
+                    ? "bg-primary w-8 animate-pulse"
+                    : "bg-surface w-6"
+              }`}
+            />
+          ))}
+        </div>
+
+        {/* Athlete + swipe */}
+        <motion.div
+          drag="x"
+          dragConstraints={{ left: 0, right: 0 }}
+          onDragEnd={handleSwipe}
+          className="relative mx-auto mb-4 rounded-3xl border border-border bg-surface/40 overflow-hidden cursor-grab active:cursor-grabbing"
+        >
           <div
             className="absolute inset-0 opacity-30"
             style={{
@@ -306,9 +309,9 @@ function WorkoutPlayer() {
                 transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
               >
                 <AnimatedAthlete
-                  pose={isRest ? "cooldown" : current.pose}
+                  pose={isRest ? "cooldown" : current.exercise.pose}
                   running={running && !isRest}
-                  tempo={current.tempo}
+                  tempo={current.exercise.tempo}
                   size={260}
                 />
               </motion.div>
@@ -322,8 +325,30 @@ function WorkoutPlayer() {
                 aria-hidden
               />
             )}
+            {/* swipe hint arrows */}
+            <div className="pointer-events-none absolute inset-y-0 right-2 flex items-center opacity-30">
+              <ChevronRight className="size-5" />
+            </div>
+            <div className="pointer-events-none absolute inset-y-0 left-2 flex items-center opacity-30">
+              <ChevronLeft className="size-5" />
+            </div>
           </div>
-        </div>
+        </motion.div>
+
+        {/* Breathing guide during rest */}
+        {isRest && (
+          <div className="text-center mb-2">
+            <motion.div
+              className="mx-auto rounded-full bg-cyan/20 border border-cyan/40"
+              animate={{ scale: [1, 1.5, 1.5, 1], opacity: [0.5, 1, 1, 0.5] }}
+              transition={{ duration: 8, repeat: Infinity, times: [0, 0.375, 0.625, 1] }}
+              style={{ width: 60, height: 60 }}
+            />
+            <p className="text-xs font-mono uppercase tracking-widest text-cyan mt-2">
+              شهيق ٤ · ثبات ٤ · زفير ٤
+            </p>
+          </div>
+        )}
 
         {/* ring */}
         <div className="relative mx-auto" style={{ width: ringSize, height: ringSize }}>
@@ -362,7 +387,7 @@ function WorkoutPlayer() {
               >
                 {fmt(remaining)}
               </p>
-              {current.reps && !isRest && (
+              {!isRest && (
                 <p className="mt-2 text-xs font-mono text-primary">{current.reps}</p>
               )}
             </div>
@@ -372,14 +397,21 @@ function WorkoutPlayer() {
         {/* exercise info */}
         <div className="mt-8 rounded-3xl bg-surface/60 backdrop-blur border border-border p-5">
           <p className="font-mono text-[10px] uppercase tracking-[0.3em] text-muted-foreground mb-1">
-            {current.latin}
+            {current.exercise.latin}
           </p>
-          <h2 className="text-2xl font-black mb-2">{current.name}</h2>
-          <p className="text-xs text-muted-foreground mb-3">{current.muscles}</p>
+          <div className="flex items-center justify-between">
+            <h2 className="text-2xl font-black">{current.exercise.name}</h2>
+            {completed.has(current.exercise.id) && (
+              <span className="size-7 rounded-full bg-primary text-primary-foreground grid place-items-center">
+                <Check className="size-4" strokeWidth={3} />
+              </span>
+            )}
+          </div>
+          <p className="text-xs text-muted-foreground mt-1 mb-3">{current.exercise.primary.join(" · ")}</p>
           <div className="border-t border-border pt-3">
             <p className="text-sm leading-relaxed">
               <span className="text-primary font-bold">تنبيه المدرب: </span>
-              {current.cue}
+              {current.exercise.cue}
             </p>
           </div>
 
@@ -396,7 +428,7 @@ function WorkoutPlayer() {
           </button>
           {showRefs && (
             <p className="mt-2 text-[11px] leading-relaxed text-foreground/80 border-r-2 border-primary/60 pr-3">
-              {current.ref}
+              {current.exercise.reference}
             </p>
           )}
         </div>
@@ -411,13 +443,15 @@ function WorkoutPlayer() {
               <p className="font-mono text-[10px] uppercase tracking-[0.3em] text-muted-foreground">
                 التالي
               </p>
-              <p className="font-bold text-sm">{next.name}</p>
+              <p className="font-bold text-sm">{next.exercise.name}</p>
             </div>
             <button
               onClick={() => {
+                setCompleted((s) => new Set(s).add(current.exercise.id));
                 setIndex(index + 1);
+                setSetIdx(1);
                 setPhase("work");
-                setRemaining(next.duration);
+                setRemaining(next.workSeconds);
                 sfxGo();
               }}
               className="text-xs font-mono text-primary"
@@ -430,7 +464,7 @@ function WorkoutPlayer() {
 
         {/* protocol footer */}
         <p className="mt-6 text-[10px] font-mono uppercase tracking-widest text-muted-foreground text-center leading-relaxed">
-          البروتوكول مبني على ACSM · NSCA · NASM · WHO
+          البروتوكول مبني على ACSM · NSCA · NASM · WHO · اسحب يميناً/يساراً للتنقل
         </p>
       </div>
     </PageShell>

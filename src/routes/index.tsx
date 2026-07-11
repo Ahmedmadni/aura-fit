@@ -10,6 +10,8 @@ import {
   TrendingUp,
   Award,
   Dna,
+  BookOpen,
+  LayoutGrid,
 } from "lucide-react";
 import heroWorkout from "@/assets/hero-workout.jpg";
 import programHypertrophy from "@/assets/program-hypertrophy.jpg";
@@ -242,6 +244,8 @@ function Dashboard() {
         <div className="grid grid-cols-2 gap-3">
           <QuickLink to="/dna" icon={Dna} label="الحمض الرياضي" hint="تحليل ذكي متكامل" accent />
           <QuickLink to="/coach" icon={Sparkles} label="المدرب الذكي" hint="اسألني أي شيء" />
+          <QuickLink to="/library" icon={BookOpen} label="مكتبة التمارين" hint="+٤٠ تمرين موثّق" />
+          <QuickLink to="/builder" icon={LayoutGrid} label="منشئ الجلسات" hint="ابنِ أو ولّد بـAI" />
         </div>
       </section>
 
@@ -300,7 +304,7 @@ type QuickProps = {
   accent?: boolean;
 };
 
-function QuickLink({ to, ...props }: QuickProps & { to: "/dna" | "/coach" | "/nutrition" }) {
+function QuickLink({ to, ...props }: QuickProps & { to: "/dna" | "/coach" | "/nutrition" | "/library" | "/builder" }) {
   const { icon: Icon, label, hint, accent } = props;
   return (
     <Link
