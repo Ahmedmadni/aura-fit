@@ -21,6 +21,7 @@ import {
   type MuscleFocus,
   type PoseSpot,
 } from "@/components/athlete-2d";
+import { PostureCompare } from "@/components/posture-compare";
 
 export const Route = createFileRoute("/exercise/$id")({
   component: ExerciseDetail,
@@ -335,8 +336,16 @@ function ExerciseDetail() {
 
         {tab === "safety" && (
           <>
+            <Card>
+              <CardHeader label="مقارنة بصرية · صحيح مقابل خطأ" icon={Shield} />
+              <p className="text-xs text-muted-foreground leading-relaxed mb-4">
+                طبقات توضيحية ثنائية الأبعاد تُظهر الوضعية السليمة والأخطاء الشائعة مع تحديد المفصل الخطر.
+              </p>
+              <PostureCompare exerciseId={ex.id} />
+            </Card>
+
             <Card className="border-destructive/40">
-              <CardHeader label="أخطاء شائعة" icon={AlertTriangle} tone="danger" />
+              <CardHeader label="قائمة الأخطاء" icon={AlertTriangle} tone="danger" />
               <ul className="space-y-2 mt-2">
                 {mistakes.map((m) => (
                   <li key={m} className="flex items-start gap-2 text-sm">
@@ -346,6 +355,7 @@ function ExerciseDetail() {
                 ))}
               </ul>
             </Card>
+
             <Card className="border-primary/40">
               <CardHeader label="التنفيذ الصحيح" icon={CheckCircle2} tone="success" />
               <ul className="space-y-2 mt-2">
@@ -363,6 +373,7 @@ function ExerciseDetail() {
                 </li>
               </ul>
             </Card>
+
             <Card>
               <CardHeader label="بدائل التمرين" icon={Shield} />
               <div className="grid grid-cols-2 gap-2 mt-2">
