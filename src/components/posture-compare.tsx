@@ -5,6 +5,8 @@
  *
  * Pure SVG — matches the neon athlete style from athlete-2d.tsx.
  */
+import { useRef, useState } from "react";
+
 
 const SKIN = "#e9f5b0";
 const SKIN_SHADE = "#a8c94a";
