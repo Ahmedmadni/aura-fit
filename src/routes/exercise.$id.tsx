@@ -337,12 +337,21 @@ function ExerciseDetail() {
         {tab === "safety" && (
           <>
             <Card>
+              <CardHeader label="مقارنة قبل / بعد · اسحب المؤشر" icon={Shield} />
+              <p className="text-xs text-muted-foreground leading-relaxed mb-4">
+                حرّك الشريط أفقياً لتبديل العرض بين الوضعية الصحيحة والخطأ الشائع على نفس المشهد.
+              </p>
+              <PostureSlider exerciseId={ex.id} />
+            </Card>
+
+            <Card>
               <CardHeader label="مقارنة بصرية · صحيح مقابل خطأ" icon={Shield} />
               <p className="text-xs text-muted-foreground leading-relaxed mb-4">
                 طبقات توضيحية ثنائية الأبعاد تُظهر الوضعية السليمة والأخطاء الشائعة مع تحديد المفصل الخطر.
               </p>
               <PostureCompare exerciseId={ex.id} />
             </Card>
+
 
             <Card className="border-destructive/40">
               <CardHeader label="قائمة الأخطاء" icon={AlertTriangle} tone="danger" />
