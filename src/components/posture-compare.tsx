@@ -5,6 +5,8 @@
  *
  * Pure SVG — matches the neon athlete style from athlete-2d.tsx.
  */
+import { useRef, useState } from "react";
+
 
 const SKIN = "#e9f5b0";
 const SKIN_SHADE = "#a8c94a";
@@ -582,5 +584,197 @@ function DefaultSVG({ uid, mistake, tone }: { uid: string; mistake?: Variant["mi
       {limb(SKIN_SHADE, `M60 116 L54 126`, 8)}
       {limb(SKIN_SHADE, `M80 116 L86 126`, 8)}
     </g>
+  );
+}
+
+/* ============ BEFORE / AFTER SLIDER ============ */
+
+export function PostureSlider({
+  exerciseId,
+  size = 260,
+}: {
+  exerciseId: string;
+  mistakeIndex?: number;
+  size?: number;
+}) {
+  const { correct, mistakes } = getPostureVariants(exerciseId);
+  const wrong = mistakes[0] ?? correct;
+  const [pos, setPos] = useState(50); // 0 = all wrong, 100 = all correct
+  const boxRef = useRef<HTMLDivElement | null>(null);
+  const dragging = useRef(false);
+
+  const updateFromClientX = (clientX: number) => {
+    const el = boxRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    const raw = ((clientX - rect.left) / rect.width) * 100;
+    setPos(Math.max(4, Math.min(96, raw)));
+  };
+
+  const onPointerDown = (e: React.PointerEvent) => {
+    dragging.current = true;
+    (e.target as Element).setPointerCapture?.(e.pointerId);
+    updateFromClientX(e.clientX);
+  };
+  const onPointerMove = (e: React.PointerEvent) => {
+    if (!dragging.current) return;
+    updateFromClientX(e.clientX);
+  };
+  const onPointerUp = (e: React.PointerEvent) => {
+    dragging.current = false;
+    (e.target as Element).releasePointerCapture?.(e.pointerId);
+  };
+
+  return (
+    <div className="space-y-3">
+      <div
+        ref={boxRef}
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={onPointerUp}
+        onPointerCancel={onPointerUp}
+        className="relative w-full rounded-2xl border border-border bg-card overflow-hidden select-none touch-none cursor-ew-resize"
+        style={{ aspectRatio: "1 / 1", maxWidth: size, marginInline: "auto" }}
+        role="slider"
+        aria-label="مقارنة قبل/بعد للوضعية"
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuenow={Math.round(pos)}
+      >
+        {/* WRONG (base) — full width */}
+        <div className="absolute inset-0 bg-destructive/5">
+          <SliderHUD tone="wrong" />
+          <div className="absolute inset-0 grid place-items-center">
+            <svg viewBox="0 0 140 140" width="90%" height="90%">
+              <line x1="10" y1="128" x2="130" y2="128" stroke={DANGER} strokeOpacity="0.35" strokeWidth="1.5" strokeDasharray="3 3" />
+              <FigureBody variant={wrong} tone="wrong" />
+            </svg>
+          </div>
+          <SliderCornerLabel tone="wrong" label="خطأ" cue={wrong.cue} side="left" />
+        </div>
+
+        {/* CORRECT (clipped by pos) */}
+        <div
+          className="absolute inset-0 bg-primary/5"
+          style={{ clipPath: `inset(0 0 0 ${pos}%)` }}
+        >
+          <SliderHUD tone="correct" />
+          <div className="absolute inset-0 grid place-items-center">
+            <svg viewBox="0 0 140 140" width="90%" height="90%">
+              <line x1="10" y1="128" x2="130" y2="128" stroke={NEON} strokeOpacity="0.35" strokeWidth="1.5" strokeDasharray="3 3" />
+              <FigureBody variant={correct} tone="correct" />
+            </svg>
+          </div>
+          <SliderCornerLabel tone="correct" label="صحيح" cue={correct.cue} side="right" />
+        </div>
+
+        {/* Divider + handle */}
+        <div
+          className="absolute top-0 bottom-0 pointer-events-none"
+          style={{ left: `${pos}%`, transform: "translateX(-50%)" }}
+        >
+          <div className="w-[2px] h-full bg-primary/90 shadow-[0_0_12px_rgba(204,255,0,0.6)]" />
+          <div
+            className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 size-10 rounded-full bg-background border-2 border-primary grid place-items-center shadow-[0_0_18px_rgba(204,255,0,0.55)]"
+          >
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke={NEON} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="15 6 9 12 15 18" />
+              <polyline points="9 6 15 12 9 18" transform="translate(0 0)" />
+            </svg>
+          </div>
+        </div>
+      </div>
+
+      {/* Range fallback for keyboards / accessibility */}
+      <div className="px-1 flex items-center gap-3">
+        <span className="text-[9px] font-mono uppercase tracking-widest text-destructive">خطأ</span>
+        <input
+          type="range"
+          min={4}
+          max={96}
+          value={pos}
+          onChange={(e) => setPos(Number(e.target.value))}
+          className="flex-1 accent-primary"
+          aria-label="نسبة المقارنة"
+        />
+        <span className="text-[9px] font-mono uppercase tracking-widest text-primary">صحيح</span>
+      </div>
+      <p className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground text-center">
+        اسحب المؤشر لمقارنة الوضعية
+      </p>
+    </div>
+  );
+}
+
+function SliderHUD({ tone }: { tone: "correct" | "wrong" }) {
+  return (
+    <div
+      className="pointer-events-none absolute inset-0 opacity-20"
+      style={{
+        backgroundImage:
+          "linear-gradient(currentColor 1px, transparent 1px), linear-gradient(90deg, currentColor 1px, transparent 1px)",
+        backgroundSize: "16px 16px",
+        color: tone === "correct" ? NEON : DANGER,
+      }}
+      aria-hidden
+    />
+  );
+}
+
+function SliderCornerLabel({
+  tone,
+  label,
+  cue,
+  side,
+}: {
+  tone: "correct" | "wrong";
+  label: string;
+  cue: string;
+  side: "left" | "right";
+}) {
+  const isOk = tone === "correct";
+  return (
+    <div className={`absolute top-2 ${side === "left" ? "left-2" : "right-2"} max-w-[45%]`}>
+      <div
+        className={`inline-flex items-center gap-1.5 rounded-full px-2 py-1 text-[10px] font-black ${
+          isOk
+            ? "bg-primary text-primary-foreground shadow-[0_0_10px_rgba(204,255,0,0.55)]"
+            : "bg-destructive text-destructive-foreground"
+        }`}
+      >
+        <span>{isOk ? "✓" : "✕"}</span>
+        <span>{label}</span>
+      </div>
+      <p className={`mt-1 text-[9px] leading-tight ${isOk ? "text-primary" : "text-destructive"}`}>
+        {cue}
+      </p>
+    </div>
+  );
+}
+
+function FigureBody({ variant, tone }: { variant: Variant; tone: "correct" | "wrong" }) {
+  const uid = `psl-${variant.figure}-${variant.mistake ?? "ok"}-${tone}`;
+  return (
+    <>
+      <defs>
+        <linearGradient id={uid} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor={SKIN} />
+          <stop offset="100%" stopColor={SKIN_SHADE} />
+        </linearGradient>
+        <linearGradient id={`${uid}-g`} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor={GEAR_HI} />
+          <stop offset="100%" stopColor={GEAR} />
+        </linearGradient>
+      </defs>
+      {variant.figure === "pushup" && <PushupSVG uid={uid} mistake={variant.mistake} tone={tone} />}
+      {variant.figure === "squat" && <SquatSVG uid={uid} mistake={variant.mistake} tone={tone} />}
+      {variant.figure === "plank" && <PlankSVG uid={uid} mistake={variant.mistake} tone={tone} />}
+      {variant.figure === "pullup" && <PullupSVG uid={uid} mistake={variant.mistake} tone={tone} />}
+      {variant.figure === "lunge" && <LungeSVG uid={uid} mistake={variant.mistake} tone={tone} />}
+      {variant.figure === "bridge" && <BridgeSVG uid={uid} mistake={variant.mistake} tone={tone} />}
+      {variant.figure === "row" && <RowSVG uid={uid} mistake={variant.mistake} tone={tone} />}
+      {variant.figure === "default" && <DefaultSVG uid={uid} mistake={variant.mistake} tone={tone} />}
+      {tone === "wrong" && <WarningMarker mistake={variant.mistake} figure={variant.figure} />}
+    </>
   );
 }
