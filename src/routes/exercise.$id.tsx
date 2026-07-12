@@ -21,7 +21,7 @@ import {
   type MuscleFocus,
   type PoseSpot,
 } from "@/components/athlete-2d";
-import { PostureCompare } from "@/components/posture-compare";
+import { PostureCompare, PostureSlider } from "@/components/posture-compare";
 
 export const Route = createFileRoute("/exercise/$id")({
   component: ExerciseDetail,
