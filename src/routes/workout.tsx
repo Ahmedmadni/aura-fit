@@ -3,7 +3,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { BookOpen, Volume2, VolumeX, ChevronRight, ChevronLeft, Check } from "lucide-react";
 import { AnimatePresence, motion, PanInfo } from "framer-motion";
 import { PageShell } from "@/components/page-shell";
-import { AnimatedAthlete } from "@/components/athlete-animated";
+import { AthleteVideo } from "@/components/athlete-video";
 import {
   primeAudio,
   setSfxEnabled,
@@ -308,7 +308,7 @@ function WorkoutPlayer() {
                 exit={{ opacity: 0, scale: 0.95, filter: "blur(4px)" }}
                 transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
               >
-                <AnimatedAthlete
+                <AthleteVideo
                   pose={isRest ? "cooldown" : current.exercise.pose}
                   running={running && !isRest}
                   tempo={current.exercise.tempo}
