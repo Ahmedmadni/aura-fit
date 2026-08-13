@@ -34,7 +34,7 @@
   --color-brand: var(--brand);
   --color-brand-dim: var(--brand-dim);
   --color-cyan: var(--cyan);
-  --font-sans: "Tajawal", "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "Alexandria", "Tajawal", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, monospace;
   --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
 }
