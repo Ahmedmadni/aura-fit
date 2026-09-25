@@ -8,3 +8,5 @@
 > Commits you push to the connected branch sync back to Lovable and show up in
 > the editor, so keep the branch in a working state.
 <!-- LOVABLE:END -->
+
+- Exercise motion media uses one explicit slot per exercise ID, with shared pattern clips only as temporary fallbacks, so generated videos can be replaced in batches without changing UI code.
