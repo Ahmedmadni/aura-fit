@@ -1,54 +1,81 @@
-## Phase 3 — AI Workout Engine & Interactive Training
+## خطة إنتاج فيديوهات التمارين الواقعية
 
-Massive scope. I'll ship it in one coherent pass focused on architecture + high-impact UX, staying inside the existing cyber-athletic design (no redesigns).
+### الوضع الحالي
+- تضم المكتبة **34 تمرينًا**.
+- المقاطع الستة الحالية عامة حسب نوع الحركة، وليست فيديو مستقلًا مطابقًا لكل تمرين.
+- الرصيد القابل للاستخدام حاليًا **0**؛ لذلك لن يبدأ توليد مدفوع قبل توفر رصيد جديد.
+- الصورة المرفقة مرجع لما يجب استبداله، وليست مادة مرئية ستظهر داخل المنصة.
 
-### 1. Data & Engine Layer (new, modular, offline-friendly)
-- `src/lib/exercise-db.ts` — scalable exercise schema (name, category, difficulty, equipment, primary/secondary muscles, cues, mistakes, safety, alternatives, progression/regression chain, calories/min, tempo, pose id, references). Seed ~40 exercises across push/pull/legs/core/HIIT/mobility as the extensible base (structure supports 1,000+).
-- `src/lib/workout-engine.ts` — pure functions:
-  - `generateWorkout({profile, goal, duration, equipment, injuries, fatigue, history})`
-  - `progressiveOverload(history)` · `deloadWeek(week)` · `weeklyPlan()` · `monthlyProgram()`
-  - `replaceUnsafe(exercise, restrictions)` → nearest safe alternative
-  - `scoreIntensity()` · `estimateCalories()`
-- `src/lib/user-profile.ts` — localStorage-backed profile (level, goals, equipment, injuries, sleep, fatigue, history). Offline-capable, ready to swap for Cloud later.
-- `src/lib/pose-detection.ts` — **stubs only** (interfaces + no-op impl) for future camera/skeleton/accuracy pipeline. Zero CV deps now.
+### معيار موحّد لكل فيديو
+- فيديو واقعي لشخص بالغ طبيعي يؤدي **تكرارًا واحدًا صحيحًا** للتمرين المحدد.
+- مدة مطلوبة: **3 ثوانٍ** (الحد العملي الأقرب إلى طلب 2–3 ثوانٍ).
+- جودة 1080p، نسبة 3:4 الملائمة لبطاقات الحركة، وكاميرا ثابتة.
+- لقطة كاملة للجسم، إضاءة استوديو رياضية، خلفية داكنة محايدة، وملابس بسيطة عالية التباين.
+- حركة تشريحية سليمة وواضحة، من دون نص أو شعارات أو موسيقى أو انتقالات سينمائية مشتتة.
+- بداية ونهاية متقاربتان لتعمل الحلقة بسلاسة، مع الحفاظ على ثبات الوجه والملابس وشكل الجسم.
 
-### 2. Interactive Workout Player (upgrade existing `/workout`)
-Keep current visuals; extend with:
-- Sets × reps tracking, swipe gestures between exercises (framer-motion drag), fullscreen toggle, landscape support.
-- Live stats HUD: calories, active/rest time, total reps/sets, intensity, performance score.
-- Rest screen: countdown + breathing guide (expanding ring) + hydration nudge + next-exercise preview.
-- Achievement celebration overlay (XP/badge burst) on completion.
+### ترتيب الإنتاج حسب الأولوية والرصيد
 
-### 3. Motion Coaching (pre-exercise briefing)
-New `src/components/exercise-briefing.tsx` shown before each exercise:
-- Animated 2D athlete (reuse existing), male/female toggle, tempo slow-mo control.
-- Tabs: Setup · Execution · Breathing · Common Mistakes · Safety (✔/❌ with highlighted joints).
-- "Start" / "Skip briefing" actions.
+#### الدفعة 1 — الأساسيات الأعلى استخدامًا (6 فيديوهات)
+1. تمرين الضغط
+2. شد على البار
+3. قرفصاء هوائية
+4. خطوة أمامية
+5. بلانك أمامي
+6. بيربي كاملة
 
-### 4. New Routes
-- `/library` — massive exercise library with advanced filters (goal, muscle, equipment, difficulty, duration, injury-safe, location). Grid + search.
-- `/builder` — custom workout builder: pick from library, drag-reorder (framer-motion Reorder), sets/reps/rest per item, save as template to localStorage, favorite/share.
-- `/progression/$exerciseId` — visualize the progression ladder (Push-up → … → One-arm push-up) with current level highlighted.
-- Extend `/progress` with history charts (completed workouts, PRs, streaks, XP) using lightweight SVG.
-- Extend `/exercise/$id` briefing tabs to consume new DB.
+#### الدفعة 2 — الأساسيات المساندة (6 فيديوهات)
+1. ضغط على الحائط
+2. ضغط مائل
+3. تجديف بشريط المقاومة
+4. تجديف بالدمبل
+5. جسر المؤخرة
+6. متسلق الجبل
 
-### 5. Achievements & Gamification
-- `src/lib/achievements.ts` — XP curve, level, badges, streaks, PRs; persisted locally; hook `useAchievements()`.
-- Toast + cinematic celebration on unlock.
+#### الدفعة 3 — مستويات الضغط والسحب (6 فيديوهات)
+1. ضغط بالركبتين
+2. ضغط الماسة
+3. ضغط الرامي
+4. ضغط بذراع واحدة
+5. تجديف أسترالي
+6. سحب سلبي
 
-### 6. Micro-interactions
-- Number count-up hook, ripple button primitive, progress ring primitive, page transition wrapper (already partial) — added where it strengthens existing screens without redesigning them.
+#### الدفعة 4 — الساقان والتوازن (6 فيديوهات)
+1. قرفصاء الكأس
+2. قفزة عمودية
+3. قرفصاء المسدس
+4. خطوة خلفية
+5. الجلوس على الحائط
+6. شد بأوزان
 
-### 7. Bottom nav
-Add `Library` and `Builder` entries alongside existing tabs.
+#### الدفعة 5 — الجذع واللياقة (5 فيديوهات)
+1. بلانك جانبي
+2. الخنفساء الميتة
+3. الطائر الصياد
+4. ركض الركب العالية
+5. قفزة النجمة
 
-### Out of scope (explicit)
-- No real computer-vision / camera pose detection — architecture only.
-- No wearable SDK integration — HR shown only if a value is present in profile.
-- No backend/Cloud yet — everything persists in localStorage so it works offline and is trivially portable to Cloud later.
-- No redesign of existing screens; only additive changes and new routes.
+#### الدفعة 6 — الإحماء والحركة والتهدئة (5 فيديوهات)
+1. إحماء ديناميكي
+2. القط–البقرة
+3. وضعية الطفل
+4. تمدد ختامي شامل
+5. فتح مفصل الحوض
 
-### Technical notes
-- Pure TS engine, no new heavy deps (uses existing framer-motion, lucide, tanstack router).
-- Everything typed; exercises DB exported so future entries scale to 1,000+ without code changes.
-- All new routes get proper `head()` metadata + `errorComponent` + `notFoundComponent`.
+### آلية تنفيذ كل دفعة
+1. توليد المقاطع **واحدًا تلو الآخر** لتجنب استهلاك الرصيد على نتائج متكررة أو غير صالحة.
+2. فحص بداية ووسط ونهاية كل فيديو للتأكد من وضوح الحركة وعدم تشوه الأطراف أو المعدات.
+3. رفض المقطع عند وجود حركة خاطئة، قطع في الجسم، كاميرا مهتزة، أو اختلاف واضح بين أول وآخر لقطة.
+4. ربط الفيديو مباشرة بمعرّف التمرين نفسه، بدل مشاركة فيديو عام بين عدة تمارين.
+5. إبقاء البديل الحالي مؤقتًا عند غياب فيديو تمرين، ثم إزالته بعد اكتمال جميع الدفعات.
+6. التحقق من التشغيل والإيقاف والحلقة الصامتة داخل صفحة التمرين ومشغل الجلسة على الهاتف وسطح المكتب.
+
+### إدارة الرصيد
+- عند توفر رصيد محدود، ننفذ الدفعة الأولى فقط ثم نراجع الرصيد قبل الدفعة التالية.
+- لا يتم توليد نسخ متعددة تلقائيًا؛ إعادة أي فيديو تتم فقط بعد تحديد عيب واضح فيه.
+- يستمر ترتيب الدفعات نفسه حتى اكتمال **34 من 34 فيديوًا**.
+
+### النتيجة النهائية
+- فيديو احترافي مستقل لكل تمرين في المكتبة.
+- تطابق كامل بين اسم التمرين والحركة المعروضة.
+- اختفاء المجسمات غير الواقعية من عروض الحركة الأساسية بعد اكتمال التغطية.
