@@ -5,12 +5,7 @@
  */
 import { useEffect, useRef } from "react";
 
-import pushup from "../../public/motion/pushup.mp4.asset.json";
-import squat from "../../public/motion/squat.mp4.asset.json";
-import plank from "../../public/motion/plank.mp4.asset.json";
-import warmup from "../../public/motion/warmup.mp4.asset.json";
-import cooldown from "../../public/motion/cooldown.mp4.asset.json";
-import burpee from "../../public/motion/burpee.mp4.asset.json";
+import { resolveExerciseVideo } from "@/lib/exercise-videos";
 import { AnimatedAthlete } from "./athlete-animated";
 
 type Pose =
@@ -22,29 +17,22 @@ type Pose =
   | "cooldown"
   | "default";
 
-const CLIPS: Record<Pose, string | null> = {
-  "push-up": pushup.url,
-  squat: squat.url,
-  plank: plank.url,
-  burpee: burpee.url,
-  warmup: warmup.url,
-  cooldown: cooldown.url,
-  default: squat.url,
-};
-
 export function AthleteVideo({
+  exerciseId,
   pose,
   running,
   tempo = 3,
   size = 260,
 }: {
+  exerciseId?: string;
   pose: Pose;
   running: boolean;
   tempo?: number;
   size?: number;
 }) {
   const ref = useRef<HTMLVideoElement>(null);
-  const src = CLIPS[pose] ?? null;
+  const video = resolveExerciseVideo(exerciseId, pose);
+  const src = video.src;
 
   useEffect(() => {
     const el = ref.current;
@@ -59,7 +47,7 @@ export function AthleteVideo({
 
   return (
     <div
-      className="relative overflow-hidden rounded-3xl border border-primary/20 bg-black/40"
+      className="relative overflow-hidden rounded-3xl border border-primary/20 bg-background"
       style={{ width: size, height: size }}
     >
       <video
@@ -85,6 +73,11 @@ export function AthleteVideo({
         <span>{running ? "◉ motion · live" : "⏸ standby"}</span>
         <span>{tempo.toFixed(1)}s/rep</span>
       </div>
+      {video.status === "temporary" && (
+        <span className="pointer-events-none absolute bottom-2 right-2 rounded-md border border-border bg-background/80 px-2 py-1 text-[10px] font-semibold text-muted-foreground">
+          عرض مؤقت
+        </span>
+      )}
     </div>
   );
 }
