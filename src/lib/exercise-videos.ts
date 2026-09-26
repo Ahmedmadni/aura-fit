@@ -4,6 +4,10 @@ import plank from "../../public/motion/plank.mp4.asset.json";
 import warmup from "../../public/motion/warmup.mp4.asset.json";
 import cooldown from "../../public/motion/cooldown.mp4.asset.json";
 import burpee from "../../public/motion/burpee.mp4.asset.json";
+import pushupEx from "../assets/exercises/pushup.mp4.asset.json";
+import lungeEx from "../assets/exercises/lunge.mp4.asset.json";
+import pullupEx from "../assets/exercises/pullup.mp4.asset.json";
+import squatEx from "../assets/exercises/bodyweight-squat.mp4.asset.json";
 
 export type ExerciseVideoStatus = "ready" | "temporary" | "pending";
 
