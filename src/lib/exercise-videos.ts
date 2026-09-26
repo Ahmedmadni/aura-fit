@@ -4,6 +4,10 @@ import plank from "../../public/motion/plank.mp4.asset.json";
 import warmup from "../../public/motion/warmup.mp4.asset.json";
 import cooldown from "../../public/motion/cooldown.mp4.asset.json";
 import burpee from "../../public/motion/burpee.mp4.asset.json";
+import pushupEx from "../assets/exercises/pushup.mp4.asset.json";
+import lungeEx from "../assets/exercises/lunge.mp4.asset.json";
+import pullupEx from "../assets/exercises/pullup.mp4.asset.json";
+import squatEx from "../assets/exercises/bodyweight-squat.mp4.asset.json";
 
 export type ExerciseVideoStatus = "ready" | "temporary" | "pending";
 
@@ -30,21 +34,21 @@ export const EXERCISE_VIDEO_SLOTS: Record<string, ExerciseVideo> = {
   "wall-pushup": { src: null, status: "pending" },
   "incline-pushup": { src: null, status: "pending" },
   "knee-pushup": { src: null, status: "pending" },
-  pushup: { src: pushup.url, status: "temporary" },
+  pushup: { src: pushupEx.url, status: "ready" },
   "diamond-pushup": { src: null, status: "pending" },
   "archer-pushup": { src: null, status: "pending" },
   "one-arm-pushup": { src: null, status: "pending" },
   "band-row": { src: null, status: "pending" },
   "australian-pullup": { src: null, status: "pending" },
   "negative-pullup": { src: null, status: "pending" },
-  pullup: { src: null, status: "pending" },
+  pullup: { src: pullupEx.url, status: "ready" },
   "weighted-pullup": { src: null, status: "pending" },
   "dumbbell-row": { src: null, status: "pending" },
-  "bodyweight-squat": { src: squat.url, status: "temporary" },
+  "bodyweight-squat": { src: squatEx.url, status: "ready" },
   "goblet-squat": { src: null, status: "pending" },
   "jump-squat": { src: null, status: "pending" },
   "pistol-squat": { src: null, status: "pending" },
-  lunge: { src: null, status: "pending" },
+  lunge: { src: lungeEx.url, status: "ready" },
   "reverse-lunge": { src: null, status: "pending" },
   "wall-sit": { src: null, status: "pending" },
   "glute-bridge": { src: null, status: "pending" },
