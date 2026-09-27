@@ -8,6 +8,7 @@ import pushupEx from "../assets/exercises/pushup.mp4.asset.json";
 import lungeEx from "../assets/exercises/lunge.mp4.asset.json";
 import pullupEx from "../assets/exercises/pullup.mp4.asset.json";
 import squatEx from "../assets/exercises/bodyweight-squat.mp4.asset.json";
+import plankEx from "../assets/exercises/plank.mp4.asset.json";
 
 export type ExerciseVideoStatus = "ready" | "temporary" | "pending";
 
@@ -52,7 +53,7 @@ export const EXERCISE_VIDEO_SLOTS: Record<string, ExerciseVideo> = {
   "reverse-lunge": { src: null, status: "pending" },
   "wall-sit": { src: null, status: "pending" },
   "glute-bridge": { src: null, status: "pending" },
-  plank: { src: plank.url, status: "temporary" },
+  plank: { src: plankEx.url, status: "ready" },
   "side-plank": { src: null, status: "pending" },
   "dead-bug": { src: null, status: "pending" },
   "bird-dog": { src: null, status: "pending" },

@@ -30,6 +30,13 @@ export const Route = createFileRoute("/exercise/$id")({
 
 type Step = { title: string; body: string; focus: MuscleFocus; spot: PoseSpot };
 
+function poseFromCategory(category: string) {
+  if (category === "chest") return "push-up" as const;
+  if (category === "legs") return "squat" as const;
+  if (category === "core") return "plank" as const;
+  return "default" as const;
+}
+
 const STEPS_MAP: Record<string, Step[]> = {
   "pull-up": [
     { title: "الوضع الابتدائي", body: "أمسك البار بقبضة عريضة قليلاً من الكتف، الأكتاف مفعّلة.", focus: "shoulder", spot: { x: 100, y: 22, r: 24, label: "قبضة" } },

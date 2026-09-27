@@ -10,3 +10,4 @@
 <!-- LOVABLE:END -->
 
 - Exercise motion media uses one explicit slot per exercise ID, with shared pattern clips only as temporary fallbacks, so generated videos can be replaced in batches without changing UI code.
+- Completed workout entries keep optional per-set repetition arrays so daily best-set reports remain compatible with older local records.
