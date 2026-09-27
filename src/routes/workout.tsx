@@ -4,6 +4,7 @@ import { BookOpen, Volume2, VolumeX, ChevronRight, ChevronLeft, Check } from "lu
 import { AnimatePresence, motion, PanInfo } from "framer-motion";
 import { PageShell } from "@/components/page-shell";
 import { AthleteVideo } from "@/components/athlete-video";
+import { Button } from "@/components/ui/button";
 import {
   primeAudio,
   setSfxEnabled,
@@ -35,6 +36,8 @@ function WorkoutPlayer() {
   const [muted, setMuted] = useState(false);
   const [showRefs, setShowRefs] = useState(false);
   const [completed, setCompleted] = useState<Set<string>>(new Set());
+  const [setReps, setSetReps] = useState<Record<string, number[]>>({});
+  const [currentReps, setCurrentReps] = useState(() => suggestedReps(plan[0]?.reps));
   const startedAt = useRef(Date.now());
 
   const current: PlannedExercise = plan[index];
@@ -50,6 +53,18 @@ function WorkoutPlayer() {
     [plan],
   );
   const [elapsed, setElapsed] = useState(0);
+
+  function saveCurrentSet() {
+    setSetReps((all) => {
+      const values = [...(all[current.exercise.id] ?? [])];
+      values[setIdx - 1] = currentReps;
+      return { ...all, [current.exercise.id]: values };
+    });
+  }
+
+  function prepareExercise(nextIndex: number) {
+    setCurrentReps(suggestedReps(plan[nextIndex]?.reps));
+  }
 
   const progress =
     ((index + (setIdx - 1) / current.sets + (phase === "rest" ? 0.5 / current.sets : 0)) / total) *
@@ -74,6 +89,7 @@ function WorkoutPlayer() {
 
         // transition logic
         if (phase === "work") {
+          saveCurrentSet();
           if (setIdx < current.sets && current.restSeconds > 0) {
             setPhase("rest");
             sfxRest();
@@ -83,6 +99,7 @@ function WorkoutPlayer() {
           setCompleted((s) => new Set(s).add(current.exercise.id));
           if (index + 1 < total) {
             setIndex((i) => i + 1);
+            prepareExercise(index + 1);
             setSetIdx(1);
             setPhase("work");
             sfxGo();
@@ -101,7 +118,7 @@ function WorkoutPlayer() {
       setElapsed((e) => e + 1);
     }, 1000);
     return () => clearInterval(id);
-  }, [running, phase, index, setIdx, current, total, plan]);
+  }, [running, phase, index, setIdx, current, currentReps, total, plan]);
 
   // save on completion
   useEffect(() => {
@@ -128,6 +145,7 @@ function WorkoutPlayer() {
         sets: p.sets,
         reps: p.reps,
         completed: completed.has(p.exercise.id),
+        setReps: setReps[p.exercise.id],
       })),
       durationSec,
       activeSec,
@@ -153,6 +171,7 @@ function WorkoutPlayer() {
     if (info.offset.x > 80 && index > 0) {
       // swipe right in RTL = previous
       setIndex(index - 1);
+      prepareExercise(index - 1);
       setSetIdx(1);
       setPhase("work");
       setRemaining(plan[index - 1].workSeconds);
@@ -160,7 +179,9 @@ function WorkoutPlayer() {
     } else if (info.offset.x < -80 && next) {
       // swipe left in RTL = next
       setCompleted((s) => new Set(s).add(current.exercise.id));
+      saveCurrentSet();
       setIndex(index + 1);
+      prepareExercise(index + 1);
       setSetIdx(1);
       setPhase("work");
       setRemaining(next.workSeconds);
@@ -395,6 +416,38 @@ function WorkoutPlayer() {
           </div>
         </div>
 
+        {!isRest && isRepExercise(current.reps) && (
+          <div className="mt-5 flex items-center justify-between rounded-2xl border border-border bg-surface/60 p-4">
+            <div>
+              <p className="text-xs font-bold">تكرارات هذه المجموعة</p>
+              <p className="mt-1 text-[10px] text-muted-foreground">سجّل العدد الفعلي قبل الانتقال</p>
+            </div>
+            <div className="flex items-center gap-2" dir="ltr">
+              <Button
+                type="button"
+                size="icon"
+                variant="outline"
+                aria-label="إنقاص تكرار"
+                onClick={() => setCurrentReps((value) => Math.max(0, value - 1))}
+              >
+                −
+              </Button>
+              <output className="w-10 text-center text-2xl font-black tabular-nums">
+                {currentReps}
+              </output>
+              <Button
+                type="button"
+                size="icon"
+                variant="outline"
+                aria-label="إضافة تكرار"
+                onClick={() => setCurrentReps((value) => Math.min(999, value + 1))}
+              >
+                +
+              </Button>
+            </div>
+          </div>
+        )}
+
         {/* exercise info */}
         <div className="mt-8 rounded-3xl bg-surface/60 backdrop-blur border border-border p-5">
           <p className="font-mono text-[10px] uppercase tracking-[0.3em] text-muted-foreground mb-1">
@@ -448,8 +501,10 @@ function WorkoutPlayer() {
             </div>
             <button
               onClick={() => {
+                saveCurrentSet();
                 setCompleted((s) => new Set(s).add(current.exercise.id));
                 setIndex(index + 1);
+                prepareExercise(index + 1);
                 setSetIdx(1);
                 setPhase("work");
                 setRemaining(next.workSeconds);
@@ -470,6 +525,16 @@ function WorkoutPlayer() {
       </div>
     </PageShell>
   );
+}
+
+function suggestedReps(reps?: string): number {
+  if (!reps) return 0;
+  const match = reps.match(/\d+/);
+  return match ? Number(match[0]) : 0;
+}
+
+function isRepExercise(reps: string): boolean {
+  return !reps.includes("دقائق") && suggestedReps(reps) > 0;
 }
 
 function StatCard({ label, value }: { label: string; value: string }) {

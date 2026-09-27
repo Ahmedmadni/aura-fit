@@ -124,9 +124,9 @@ function ExerciseDetail() {
           >
             <AthleteVideo
               exerciseId={ex.id}
-              pose={"pose" in ex ? ex.pose : poseFromCategory(ex.category)}
+              pose={poseFromCategory(ex.category)}
               running
-              tempo={"tempo" in ex ? ex.tempo : 3}
+              tempo={3}
               size={320}
             />
           </motion.div>
