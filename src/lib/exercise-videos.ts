@@ -9,6 +9,7 @@ import lungeEx from "../assets/exercises/lunge.mp4.asset.json";
 import pullupEx from "../assets/exercises/pullup.mp4.asset.json";
 import squatEx from "../assets/exercises/bodyweight-squat.mp4.asset.json";
 import plankEx from "../assets/exercises/plank.mp4.asset.json";
+import burpeeEx from "../assets/exercises/burpee.mp4.asset.json";
 
 export type ExerciseVideoStatus = "ready" | "temporary" | "pending";
 
@@ -58,7 +59,7 @@ export const EXERCISE_VIDEO_SLOTS: Record<string, ExerciseVideo> = {
   "dead-bug": { src: null, status: "pending" },
   "bird-dog": { src: null, status: "pending" },
   "mountain-climber": { src: null, status: "pending" },
-  burpee: { src: burpee.url, status: "temporary" },
+  burpee: { src: burpeeEx.url, status: "ready" },
   "high-knees": { src: null, status: "pending" },
   "jumping-jack": { src: null, status: "pending" },
   "dynamic-warmup": { src: warmup.url, status: "temporary" },
