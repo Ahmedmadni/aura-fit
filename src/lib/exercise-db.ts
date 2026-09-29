@@ -1,11 +1,5 @@
-/**
- * Scalable exercise database. Structure supports 1,000+ entries — this seed
- * ships ~40 exercises covering the main movement patterns. New entries can be
- * added without changing consumers.
- *
- * Sources for programming defaults: ACSM 11th ed., NSCA Essentials 4th ed.,
- * NASM 7th ed., WHO 2020 activity guidelines, McGill (spine), Haff/Triplett.
- */
+import manifest from "../data/workout-guide-manifest.json";
+import instructionEnrichment from "../data/exercise-instructions.json";
 
 export type Category =
   | "push"
@@ -19,13 +13,23 @@ export type Category =
 
 export type Equipment =
   | "none"
+  | "mat"
   | "dumbbells"
   | "barbell"
   | "kettlebell"
   | "resistance-band"
   | "pullup-bar"
   | "bench"
-  | "mat";
+  | "machine"
+  | "cable"
+  | "cardio-machine"
+  | "weight-plate"
+  | "wall"
+  | "chair"
+  | "doorway"
+  | "towel"
+  | "box"
+  | "stability-ball";
 
 export type Level = "beginner" | "intermediate" | "advanced";
 
@@ -43,10 +47,14 @@ export type Muscle =
   | "shoulders"
   | "biceps"
   | "triceps"
+  | "forearms"
   | "quads"
   | "hamstrings"
   | "glutes"
   | "calves"
+  | "adductors"
+  | "hips"
+  | "lower-back"
   | "core"
   | "full-body";
 
@@ -70,6 +78,23 @@ export type Pose =
   | "cooldown"
   | "default";
 
+export type ExerciseType =
+  | "weight_reps"
+  | "bodyweight_reps"
+  | "duration"
+  | "distance_duration"
+  | "assisted_bodyweight";
+
+export interface ExerciseMedia {
+  kind: "frames";
+  frames: [string, string, string];
+  attribution: string;
+  license: "CC BY-SA 4.0";
+  licenseUrl: string;
+  sourceUrl: string;
+  sourceCommit: string;
+}
+
 export interface Exercise {
   id: string;
   name: string;
@@ -81,12 +106,14 @@ export interface Exercise {
   secondary: Muscle[];
   location: Location[];
   goals: Goal[];
-  /** joints/regions to avoid this movement for */
+  /**
+   * Conservative screening tags inferred from the movement name for the
+   * existing workout filter. They are not medical contraindications.
+   */
   contraindicated: Injury[];
   pose: Pose;
-  /** seconds per full rep cycle */
   tempo: number;
-  /** kcal per minute, moderate effort (~70 kg adult) */
+  /** Approximate planning estimate, not a measured metabolic value. */
   caloriesPerMin: number;
   recommendedSets: number;
   recommendedReps: string;
@@ -95,924 +122,384 @@ export interface Exercise {
   mistakes: string[];
   safety: string[];
   breathing: string;
-  /** ordered ladder: easier → harder (id list including this exercise) */
   progression: string[];
   alternatives: string[];
   reference: string;
+  exerciseType: ExerciseType;
+  isStretch: boolean;
+  media: ExerciseMedia;
+  sourceInstructionsEn?: string;
+  sourceInstructionStepsEn?: string[];
 }
 
-const REF_ACSM = "ACSM Guidelines for Exercise Testing & Prescription, 11th ed.";
-const REF_NSCA = "NSCA Essentials of Strength Training & Conditioning, 4th ed.";
-const REF_NASM = "NASM Essentials of Personal Fitness Training, 7th ed.";
-const REF_MCGILL = "McGill S. — Ultimate Back Fitness & Performance, 5th ed.";
-const REF_WHO = "WHO Guidelines on Physical Activity, 2020.";
+type SourceExercise = {
+  id: string;
+  slug: string;
+  name: string;
+  exerciseType: ExerciseType;
+  equipment: string;
+  primaryMuscle: string;
+  secondaryMuscles: string[];
+  isStretch: boolean;
+  frames: Array<{ index: 1 | 2 | 3; path: string }>;
+};
 
-export const EXERCISES: Exercise[] = [
-  // ============ PUSH — chest/shoulders/triceps ============
-  {
-    id: "wall-pushup",
-    name: "ضغط على الحائط",
-    latin: "Wall Push-Up",
-    category: "push",
-    level: "beginner",
-    equipment: ["none"],
-    primary: ["chest"],
-    secondary: ["triceps", "shoulders", "core"],
-    location: ["home", "outdoor"],
-    goals: ["general-fitness", "endurance"],
-    contraindicated: [],
-    pose: "push-up",
-    tempo: 3,
-    caloriesPerMin: 4,
-    recommendedSets: 3,
-    recommendedReps: "12-15",
-    restSeconds: 45,
-    cue: "الجسم بخط مستقيم، المرفقان بزاوية 45°، ادفع بقوة",
-    mistakes: ["ترخي الوسط", "المرفقان مفتوحان تماماً", "الرأس متدلٍّ"],
-    safety: ["أوقف إن شعرت بألم في الكتف أو الرسغ"],
-    breathing: "شهيق نزولاً · زفير دفعاً",
-    progression: ["wall-pushup", "incline-pushup", "pushup", "diamond-pushup", "archer-pushup", "one-arm-pushup"],
-    alternatives: ["incline-pushup"],
-    reference: REF_NASM,
-  },
-  {
-    id: "incline-pushup",
-    name: "ضغط مائل",
-    latin: "Incline Push-Up",
-    category: "push",
-    level: "beginner",
-    equipment: ["bench"],
-    primary: ["chest"],
-    secondary: ["triceps", "shoulders", "core"],
-    location: ["home", "gym"],
-    goals: ["muscle-gain", "general-fitness"],
-    contraindicated: ["wrist"],
-    pose: "push-up",
-    tempo: 3,
-    caloriesPerMin: 5,
-    recommendedSets: 3,
-    recommendedReps: "10-12",
-    restSeconds: 60,
-    cue: "اليدان أوسع من الكتفين قليلاً، الجذع مشدود",
-    mistakes: ["الوركان مرتفعان", "المرفق يتجاوز الرسغ"],
-    safety: ["استخدم سطحاً ثابتاً لا يتحرك"],
-    breathing: "شهيق نزولاً · زفير دفعاً",
-    progression: ["wall-pushup", "incline-pushup", "pushup", "diamond-pushup", "archer-pushup", "one-arm-pushup"],
-    alternatives: ["wall-pushup", "knee-pushup"],
-    reference: REF_ACSM,
-  },
-  {
-    id: "knee-pushup",
-    name: "ضغط بالركبتين",
-    latin: "Knee Push-Up",
-    category: "push",
-    level: "beginner",
-    equipment: ["mat"],
-    primary: ["chest"],
-    secondary: ["triceps", "core"],
-    location: ["home"],
-    goals: ["general-fitness"],
-    contraindicated: ["wrist"],
-    pose: "push-up",
-    tempo: 3,
-    caloriesPerMin: 5,
-    recommendedSets: 3,
-    recommendedReps: "10-12",
-    restSeconds: 60,
-    cue: "الركبتان على الأرض، الحوض مشدود، الجذع بخط مستقيم من الرأس للركبة",
-    mistakes: ["تدلي الحوض", "الرأس للأسفل"],
-    safety: ["ضع وسادة تحت الركبتين"],
-    breathing: "شهيق نزولاً · زفير دفعاً",
-    progression: ["knee-pushup", "pushup", "diamond-pushup"],
-    alternatives: ["incline-pushup"],
-    reference: REF_NASM,
-  },
-  {
-    id: "pushup",
-    name: "تمرين الضغط",
-    latin: "Standard Push-Up",
-    category: "push",
-    level: "intermediate",
-    equipment: ["mat"],
-    primary: ["chest"],
-    secondary: ["triceps", "shoulders", "core"],
-    location: ["home", "gym", "outdoor"],
-    goals: ["muscle-gain", "strength", "general-fitness"],
-    contraindicated: ["wrist", "shoulder"],
-    pose: "push-up",
-    tempo: 3,
-    caloriesPerMin: 8,
-    recommendedSets: 4,
-    recommendedReps: "10-15",
-    restSeconds: 60,
-    cue: "المرفقان بزاوية 45°، نزول متحكم لمدة 3 ثواني",
-    mistakes: ["فتح المرفقين 90°", "تدلي الحوض", "الرأس متقدم"],
-    safety: ["توقف عند وخز في الكتف"],
-    breathing: "شهيق نزولاً · زفير دفعاً",
-    progression: ["wall-pushup", "incline-pushup", "pushup", "diamond-pushup", "archer-pushup", "one-arm-pushup"],
-    alternatives: ["knee-pushup", "incline-pushup"],
-    reference: REF_ACSM,
-  },
-  {
-    id: "diamond-pushup",
-    name: "ضغط الماسة",
-    latin: "Diamond Push-Up",
-    category: "push",
-    level: "advanced",
-    equipment: ["mat"],
-    primary: ["triceps"],
-    secondary: ["chest", "shoulders"],
-    location: ["home", "gym"],
-    goals: ["strength", "muscle-gain"],
-    contraindicated: ["wrist", "shoulder"],
-    pose: "push-up",
-    tempo: 3,
-    caloriesPerMin: 9,
-    recommendedSets: 4,
-    recommendedReps: "8-12",
-    restSeconds: 75,
-    cue: "الإبهامان والسبابتان تشكلان ماسة تحت الصدر",
-    mistakes: ["فرد المرفقين", "نزول سريع دون تحكم"],
-    safety: ["توقف عند ألم في الرسغ"],
-    breathing: "شهيق نزولاً · زفير دفعاً",
-    progression: ["pushup", "diamond-pushup", "archer-pushup", "one-arm-pushup"],
-    alternatives: ["pushup"],
-    reference: REF_NSCA,
-  },
-  {
-    id: "archer-pushup",
-    name: "ضغط الرامي",
-    latin: "Archer Push-Up",
-    category: "push",
-    level: "advanced",
-    equipment: ["mat"],
-    primary: ["chest"],
-    secondary: ["triceps", "core"],
-    location: ["home", "gym"],
-    goals: ["strength", "muscle-gain"],
-    contraindicated: ["shoulder", "wrist"],
-    pose: "push-up",
-    tempo: 4,
-    caloriesPerMin: 10,
-    recommendedSets: 4,
-    recommendedReps: "5-8 لكل جهة",
-    restSeconds: 90,
-    cue: "انزل نحو ذراع واحدة والأخرى ممتدة كوتر القوس",
-    mistakes: ["الوسط ملتوٍ", "الحوض ينخفض"],
-    safety: ["زد المدى تدريجياً"],
-    breathing: "شهيق نزولاً · زفير دفعاً",
-    progression: ["diamond-pushup", "archer-pushup", "one-arm-pushup"],
-    alternatives: ["diamond-pushup"],
-    reference: REF_NSCA,
-  },
-  {
-    id: "one-arm-pushup",
-    name: "ضغط بذراع واحدة",
-    latin: "One-Arm Push-Up",
-    category: "push",
-    level: "advanced",
-    equipment: ["mat"],
-    primary: ["chest"],
-    secondary: ["core", "triceps"],
-    location: ["home", "gym"],
-    goals: ["strength"],
-    contraindicated: ["shoulder", "wrist", "lower-back"],
-    pose: "push-up",
-    tempo: 5,
-    caloriesPerMin: 12,
-    recommendedSets: 5,
-    recommendedReps: "3-5 لكل جهة",
-    restSeconds: 120,
-    cue: "القدمان متباعدتان جداً للاتزان، الجذع مشدود بالكامل",
-    mistakes: ["الالتفاف بالكتف", "الوسط يهبط"],
-    safety: ["اتقن Archer قبل المحاولة"],
-    breathing: "شهيق نزولاً · زفير دفعاً",
-    progression: ["archer-pushup", "one-arm-pushup"],
-    alternatives: ["archer-pushup"],
-    reference: REF_NSCA,
-  },
+type InstructionEnrichment = {
+  sourceId: string;
+  sourceName: string;
+  instructionsEn: string;
+  stepsEn: string[];
+  target: string;
+  muscleGroup: string;
+  secondaryMuscles: string[];
+  license: "MIT";
+  repository: "hasaneyldrm/exercises-dataset";
+};
 
-  // ============ PULL ============
-  {
-    id: "band-row",
-    name: "تجديف بشريط المقاومة",
-    latin: "Resistance Band Row",
-    category: "pull",
-    level: "beginner",
-    equipment: ["resistance-band"],
-    primary: ["back"],
-    secondary: ["biceps"],
-    location: ["home", "outdoor"],
-    goals: ["muscle-gain", "general-fitness"],
-    contraindicated: [],
-    pose: "default",
-    tempo: 3,
-    caloriesPerMin: 6,
-    recommendedSets: 3,
-    recommendedReps: "12-15",
-    restSeconds: 60,
-    cue: "اسحب المرفقين للخلف واضغط لوحي الكتف",
-    mistakes: ["رفع الكتفين", "التأرجح بالجذع"],
-    safety: ["ثبّت الشريط على مثبت آمن"],
-    breathing: "زفير سحباً · شهيق عودةً",
-    progression: ["band-row", "australian-pullup", "negative-pullup", "pullup", "weighted-pullup"],
-    alternatives: ["dumbbell-row"],
-    reference: REF_NASM,
-  },
-  {
-    id: "australian-pullup",
-    name: "تجديف أسترالي",
-    latin: "Australian Pull-Up (Inverted Row)",
-    category: "pull",
-    level: "intermediate",
-    equipment: ["pullup-bar"],
-    primary: ["back"],
-    secondary: ["biceps", "core"],
-    location: ["home", "gym", "outdoor"],
-    goals: ["muscle-gain", "strength"],
-    contraindicated: ["shoulder"],
-    pose: "default",
-    tempo: 3,
-    caloriesPerMin: 8,
-    recommendedSets: 4,
-    recommendedReps: "8-12",
-    restSeconds: 75,
-    cue: "الجسم بخط مستقيم، اسحب الصدر نحو البار",
-    mistakes: ["الحوض يهبط", "المرفقان مفتوحان"],
-    safety: ["احرص على ثبات البار"],
-    breathing: "زفير سحباً · شهيق نزولاً",
-    progression: ["band-row", "australian-pullup", "negative-pullup", "pullup", "weighted-pullup"],
-    alternatives: ["band-row"],
-    reference: REF_NSCA,
-  },
-  {
-    id: "negative-pullup",
-    name: "سحب سلبي",
-    latin: "Negative Pull-Up",
-    category: "pull",
-    level: "intermediate",
-    equipment: ["pullup-bar"],
-    primary: ["back"],
-    secondary: ["biceps"],
-    location: ["home", "gym"],
-    goals: ["strength"],
-    contraindicated: ["shoulder", "wrist"],
-    pose: "default",
-    tempo: 5,
-    caloriesPerMin: 9,
-    recommendedSets: 4,
-    recommendedReps: "4-6",
-    restSeconds: 90,
-    cue: "ابدأ من الأعلى وانزل ببطء 4-5 ثوانٍ",
-    mistakes: ["نزول سريع", "استخدام الزخم"],
-    safety: ["استخدم مقعداً للصعود"],
-    breathing: "شهيق نزولاً بتحكم",
-    progression: ["australian-pullup", "negative-pullup", "pullup", "weighted-pullup"],
-    alternatives: ["band-row"],
-    reference: REF_NSCA,
-  },
-  {
-    id: "pullup",
-    name: "شد على البار",
-    latin: "Standard Pull-Up",
-    category: "pull",
-    level: "advanced",
-    equipment: ["pullup-bar"],
-    primary: ["back"],
-    secondary: ["biceps", "core"],
-    location: ["home", "gym", "outdoor"],
-    goals: ["strength", "muscle-gain"],
-    contraindicated: ["shoulder"],
-    pose: "default",
-    tempo: 3,
-    caloriesPerMin: 10,
-    recommendedSets: 5,
-    recommendedReps: "5-10",
-    restSeconds: 120,
-    cue: "قبضة أوسع من الكتفين، اسحب حتى تجاوز الذقن للبار",
-    mistakes: ["التأرجح (kipping غير مقصود)", "عدم كمال المدى"],
-    safety: ["توقف عند فرقعة في الكتف"],
-    breathing: "زفير صعوداً · شهيق نزولاً",
-    progression: ["negative-pullup", "pullup", "weighted-pullup"],
-    alternatives: ["negative-pullup", "australian-pullup"],
-    reference: REF_NSCA,
-  },
-  {
-    id: "weighted-pullup",
-    name: "شد بأوزان",
-    latin: "Weighted Pull-Up",
-    category: "pull",
-    level: "advanced",
-    equipment: ["pullup-bar"],
-    primary: ["back"],
-    secondary: ["biceps"],
-    location: ["gym"],
-    goals: ["strength"],
-    contraindicated: ["shoulder", "lower-back"],
-    pose: "default",
-    tempo: 3,
-    caloriesPerMin: 12,
-    recommendedSets: 4,
-    recommendedReps: "3-6",
-    restSeconds: 150,
-    cue: "استخدم حزام أوزان، حافظ على تحكم المدى الكامل",
-    mistakes: ["تجاهل المدى الكامل", "حبس النفس المطوّل"],
-    safety: ["ابدأ بوزن خفيف"],
-    breathing: "زفير صعوداً",
-    progression: ["pullup", "weighted-pullup"],
-    alternatives: ["pullup"],
-    reference: REF_NSCA,
-  },
-  {
-    id: "dumbbell-row",
-    name: "تجديف بالدمبل",
-    latin: "One-Arm Dumbbell Row",
-    category: "pull",
-    level: "intermediate",
-    equipment: ["dumbbells", "bench"],
-    primary: ["back"],
-    secondary: ["biceps"],
-    location: ["home", "gym"],
-    goals: ["muscle-gain", "strength"],
-    contraindicated: ["lower-back"],
-    pose: "default",
-    tempo: 3,
-    caloriesPerMin: 7,
-    recommendedSets: 4,
-    recommendedReps: "10-12",
-    restSeconds: 60,
-    cue: "الظهر مستوٍ، اسحب الدمبل نحو الورك",
-    mistakes: ["الالتواء بالكتف", "تقوّس أسفل الظهر"],
-    safety: ["ثبّت اليد الأخرى على المقعد"],
-    breathing: "زفير سحباً",
-    progression: ["band-row", "dumbbell-row"],
-    alternatives: ["band-row"],
-    reference: REF_NSCA,
-  },
+const SOURCE_COMMIT = "aac599224bb9780305239607ef98540b7e0ce389";
+const SOURCE_REPO = "https://github.com/bryllim/workout-guide";
+const ASSET_BASE =
+  "https://raw.githubusercontent.com/bryllim/workout-guide/" +
+  SOURCE_COMMIT +
+  "/packages/workout-guide/";
 
-  // ============ LEGS ============
-  {
-    id: "bodyweight-squat",
-    name: "قرفصاء هوائية",
-    latin: "Bodyweight Squat",
-    category: "legs",
-    level: "beginner",
-    equipment: ["none"],
-    primary: ["quads", "glutes"],
-    secondary: ["core", "hamstrings"],
-    location: ["home", "outdoor"],
-    goals: ["general-fitness", "endurance", "mobility"],
-    contraindicated: [],
-    pose: "squat",
-    tempo: 2.5,
-    caloriesPerMin: 7,
-    recommendedSets: 3,
-    recommendedReps: "12-20",
-    restSeconds: 45,
-    cue: "الكعبان على الأرض، الركبتان بمحاذاة الأصابع، الصدر مرفوع",
-    mistakes: ["ميل الركبتين للداخل", "رفع الكعبين", "انحناء الظهر"],
-    safety: ["توقف عند ألم في الركبة"],
-    breathing: "شهيق نزولاً · زفير صعوداً",
-    progression: ["bodyweight-squat", "goblet-squat", "jump-squat", "pistol-squat"],
-    alternatives: ["wall-sit"],
-    reference: REF_NSCA,
-  },
-  {
-    id: "goblet-squat",
-    name: "قرفصاء الكأس",
-    latin: "Goblet Squat",
-    category: "legs",
-    level: "intermediate",
-    equipment: ["dumbbells", "kettlebell"],
-    primary: ["quads", "glutes"],
-    secondary: ["core"],
-    location: ["home", "gym"],
-    goals: ["strength", "muscle-gain"],
-    contraindicated: ["knee"],
-    pose: "squat",
-    tempo: 3,
-    caloriesPerMin: 8,
-    recommendedSets: 4,
-    recommendedReps: "10-12",
-    restSeconds: 75,
-    cue: "احمل الوزن قرب الصدر، مرفقاك يمرّان بين الركبتين",
-    mistakes: ["تدلي الوزن", "تقوس الظهر العلوي"],
-    safety: ["استخدم وزناً مناسباً"],
-    breathing: "شهيق نزولاً · زفير صعوداً",
-    progression: ["bodyweight-squat", "goblet-squat", "front-squat"],
-    alternatives: ["bodyweight-squat"],
-    reference: REF_NSCA,
-  },
-  {
-    id: "jump-squat",
-    name: "قفزة عمودية",
-    latin: "Jump Squat",
-    category: "legs",
-    level: "intermediate",
-    equipment: ["none"],
-    primary: ["quads", "glutes"],
-    secondary: ["calves", "core"],
-    location: ["home", "outdoor"],
-    goals: ["fat-loss", "endurance"],
-    contraindicated: ["knee", "ankle"],
-    pose: "burpee",
-    tempo: 2,
-    caloriesPerMin: 12,
-    recommendedSets: 3,
-    recommendedReps: "8-12",
-    restSeconds: 60,
-    cue: "هبوط ناعم من الأمشاط للكعب، امتصاص الصدمة بثني الركبتين والوركين",
-    mistakes: ["هبوط بركبتين مفرودتين", "هبوط للداخل"],
-    safety: ["توقف عند ألم بالركبة أو الكاحل"],
-    breathing: "زفير قفزاً",
-    progression: ["bodyweight-squat", "jump-squat", "box-jump"],
-    alternatives: ["bodyweight-squat"],
-    reference: "NSCA Plyometric Position Statement (Haff & Triplett, 2016).",
-  },
-  {
-    id: "pistol-squat",
-    name: "قرفصاء المسدس",
-    latin: "Pistol Squat",
-    category: "legs",
-    level: "advanced",
-    equipment: ["none"],
-    primary: ["quads", "glutes"],
-    secondary: ["core", "hamstrings"],
-    location: ["home", "gym"],
-    goals: ["strength", "mobility"],
-    contraindicated: ["knee", "hip"],
-    pose: "squat",
-    tempo: 4,
-    caloriesPerMin: 10,
-    recommendedSets: 4,
-    recommendedReps: "3-6 لكل ساق",
-    restSeconds: 90,
-    cue: "الساق الحرة ممتدة أماماً، انزل ببطء تام",
-    mistakes: ["فقدان التوازن", "دوران الركبة للداخل"],
-    safety: ["تمرن قرب حائط للاستناد"],
-    breathing: "شهيق نزولاً · زفير صعوداً",
-    progression: ["goblet-squat", "pistol-squat"],
-    alternatives: ["bodyweight-squat"],
-    reference: REF_NSCA,
-  },
-  {
-    id: "lunge",
-    name: "خطوة أمامية",
-    latin: "Forward Lunge",
-    category: "legs",
-    level: "beginner",
-    equipment: ["none"],
-    primary: ["quads", "glutes"],
-    secondary: ["hamstrings", "core"],
-    location: ["home", "outdoor"],
-    goals: ["general-fitness", "endurance"],
-    contraindicated: ["knee"],
-    pose: "squat",
-    tempo: 3,
-    caloriesPerMin: 7,
-    recommendedSets: 3,
-    recommendedReps: "10 لكل ساق",
-    restSeconds: 45,
-    cue: "الركبة الأمامية فوق الكاحل، الجذع مستقيم",
-    mistakes: ["الركبة تتقدم أصابع القدم بشدة", "ميل الجذع"],
-    safety: ["ابدأ بخطوات قصيرة"],
-    breathing: "شهيق نزولاً · زفير صعوداً",
-    progression: ["lunge", "walking-lunge", "reverse-lunge"],
-    alternatives: ["bodyweight-squat"],
-    reference: REF_NASM,
-  },
-  {
-    id: "reverse-lunge",
-    name: "خطوة خلفية",
-    latin: "Reverse Lunge",
-    category: "legs",
-    level: "beginner",
-    equipment: ["none"],
-    primary: ["glutes"],
-    secondary: ["quads", "hamstrings"],
-    location: ["home"],
-    goals: ["general-fitness"],
-    contraindicated: [],
-    pose: "squat",
-    tempo: 3,
-    caloriesPerMin: 7,
-    recommendedSets: 3,
-    recommendedReps: "10 لكل ساق",
-    restSeconds: 45,
-    cue: "خطوة كبيرة للخلف، انزل حتى تلمس الركبة الخلفية الأرض تقريباً",
-    mistakes: ["تقدم الجذع", "قصر الخطوة"],
-    safety: ["ألطف على الركبة من الأمامية"],
-    breathing: "شهيق نزولاً · زفير صعوداً",
-    progression: ["reverse-lunge", "lunge", "walking-lunge"],
-    alternatives: ["bodyweight-squat"],
-    reference: REF_NASM,
-  },
-  {
-    id: "wall-sit",
-    name: "الجلوس على الحائط",
-    latin: "Wall Sit",
-    category: "legs",
-    level: "beginner",
-    equipment: ["none"],
-    primary: ["quads"],
-    secondary: ["glutes", "core"],
-    location: ["home"],
-    goals: ["endurance"],
-    contraindicated: ["knee"],
-    pose: "squat",
-    tempo: 5,
-    caloriesPerMin: 5,
-    recommendedSets: 3,
-    recommendedReps: "30-60 ثانية",
-    restSeconds: 45,
-    cue: "الفخذان موازيان للأرض، الظهر ملتصق بالحائط",
-    mistakes: ["ركبتان أعلى من 90°", "رفع الكعبين"],
-    safety: ["توقف عند إحساس بحرقة شديدة في الركبة"],
-    breathing: "تنفس منتظم ثابت",
-    progression: ["wall-sit", "bodyweight-squat"],
-    alternatives: ["bodyweight-squat"],
-    reference: REF_ACSM,
-  },
-  {
-    id: "glute-bridge",
-    name: "جسر المؤخرة",
-    latin: "Glute Bridge",
-    category: "legs",
-    level: "beginner",
-    equipment: ["mat"],
-    primary: ["glutes"],
-    secondary: ["hamstrings", "core"],
-    location: ["home"],
-    goals: ["general-fitness", "mobility"],
-    contraindicated: [],
-    pose: "default",
-    tempo: 3,
-    caloriesPerMin: 5,
-    recommendedSets: 3,
-    recommendedReps: "12-15",
-    restSeconds: 45,
-    cue: "ادفع الوركين للأعلى واضغط عضلات المؤخرة في القمة",
-    mistakes: ["تقوس أسفل الظهر", "دفع بالكعبين والأمشاط بلا توازن"],
-    safety: ["مفيد بعد إصابات أسفل الظهر"],
-    breathing: "زفير صعوداً · شهيق نزولاً",
-    progression: ["glute-bridge", "single-leg-bridge", "hip-thrust"],
-    alternatives: ["bodyweight-squat"],
-    reference: REF_MCGILL,
-  },
+const SOURCE_MANIFEST = manifest as unknown as SourceExercise[];
+const INSTRUCTIONS = instructionEnrichment as Record<string, InstructionEnrichment>;
 
-  // ============ CORE ============
-  {
-    id: "plank",
-    name: "بلانك أمامي",
-    latin: "Prone Forearm Plank",
-    category: "core",
-    level: "beginner",
-    equipment: ["mat"],
-    primary: ["core"],
-    secondary: ["shoulders", "glutes"],
-    location: ["home"],
-    goals: ["general-fitness", "endurance"],
-    contraindicated: ["shoulder"],
-    pose: "plank",
-    tempo: 4,
-    caloriesPerMin: 5,
-    recommendedSets: 3,
-    recommendedReps: "30-60 ثانية",
-    restSeconds: 45,
-    cue: "شدّ البطن والمؤخرة، الوركان ثابتان، خط مستقيم من الرأس للكعب",
-    mistakes: ["تدلي الحوض", "رفع المؤخرة", "الرأس معلق"],
-    safety: ["أنهِ الجولة عند فقدان الاستقامة"],
-    breathing: "تنفس بطني منتظم",
-    progression: ["plank", "side-plank", "plank-shoulder-tap"],
-    alternatives: ["knee-plank"],
-    reference: REF_MCGILL,
-  },
-  {
-    id: "side-plank",
-    name: "بلانك جانبي",
-    latin: "Side Plank",
-    category: "core",
-    level: "intermediate",
-    equipment: ["mat"],
-    primary: ["core"],
-    secondary: ["shoulders", "glutes"],
-    location: ["home"],
-    goals: ["strength", "general-fitness"],
-    contraindicated: ["shoulder"],
-    pose: "plank",
-    tempo: 4,
-    caloriesPerMin: 6,
-    recommendedSets: 3,
-    recommendedReps: "30 ثانية لكل جهة",
-    restSeconds: 45,
-    cue: "الجسم بخط مستقيم، ارفع الورك عالياً",
-    mistakes: ["الورك يهبط", "الرأس ينحرف"],
-    safety: ["توقف عند ألم بالكتف"],
-    breathing: "تنفس منتظم",
-    progression: ["plank", "side-plank", "side-plank-hip-lift"],
-    alternatives: ["plank"],
-    reference: REF_MCGILL,
-  },
-  {
-    id: "dead-bug",
-    name: "الخنفساء الميتة",
-    latin: "Dead Bug",
-    category: "core",
-    level: "beginner",
-    equipment: ["mat"],
-    primary: ["core"],
-    secondary: [],
-    location: ["home"],
-    goals: ["general-fitness", "mobility"],
-    contraindicated: [],
-    pose: "default",
-    tempo: 4,
-    caloriesPerMin: 4,
-    recommendedSets: 3,
-    recommendedReps: "10 لكل جهة",
-    restSeconds: 30,
-    cue: "أسفل ظهرك ملتصق بالأرض، ذراع وساق معاكسة تتحركان ببطء",
-    mistakes: ["تقوس أسفل الظهر", "التسرع"],
-    safety: ["ممتاز لآلام أسفل الظهر"],
-    breathing: "زفير مع مد الأطراف",
-    progression: ["dead-bug", "bird-dog"],
-    alternatives: ["bird-dog"],
-    reference: REF_MCGILL,
-  },
-  {
-    id: "bird-dog",
-    name: "الطائر الصياد",
-    latin: "Bird Dog",
-    category: "core",
-    level: "beginner",
-    equipment: ["mat"],
-    primary: ["core"],
-    secondary: ["back", "glutes"],
-    location: ["home"],
-    goals: ["general-fitness", "mobility"],
-    contraindicated: [],
-    pose: "default",
-    tempo: 4,
-    caloriesPerMin: 4,
-    recommendedSets: 3,
-    recommendedReps: "10 لكل جهة",
-    restSeconds: 30,
-    cue: "على أربع، مد ذراع وساق معاكسة مع ثبات الحوض",
-    mistakes: ["دوران الحوض", "تقوس الظهر"],
-    safety: ["حركة موصى بها للتأهيل"],
-    breathing: "زفير مع المد",
-    progression: ["dead-bug", "bird-dog"],
-    alternatives: ["dead-bug"],
-    reference: REF_MCGILL,
-  },
-  {
-    id: "mountain-climber",
-    name: "متسلق الجبل",
-    latin: "Mountain Climber",
-    category: "core",
-    level: "intermediate",
-    equipment: ["mat"],
-    primary: ["core"],
-    secondary: ["shoulders", "quads"],
-    location: ["home", "outdoor"],
-    goals: ["fat-loss", "endurance"],
-    contraindicated: ["shoulder", "wrist"],
-    pose: "plank",
-    tempo: 1,
-    caloriesPerMin: 11,
-    recommendedSets: 3,
-    recommendedReps: "30-45 ثانية",
-    restSeconds: 45,
-    cue: "بلانك عالٍ، بدّل الركبتين للصدر بسرعة مع ثبات الوركين",
-    mistakes: ["رفع الوركين", "لمس الأرض بضعف"],
-    safety: ["اخفض السرعة عند ألم بالرسغ"],
-    breathing: "تنفس سريع منتظم",
-    progression: ["mountain-climber", "burpee"],
-    alternatives: ["high-knees"],
-    reference: REF_ACSM,
-  },
+const EQUIPMENT_MAP: Record<string, Equipment> = {
+  Barbell: "barbell",
+  Dumbbell: "dumbbells",
+  Machine: "machine",
+  Cable: "cable",
+  Bodyweight: "none",
+  Cardio: "cardio-machine",
+  Plate: "weight-plate",
+  Kettlebell: "kettlebell",
+  "Pull-up Bar": "pullup-bar",
+  Bench: "bench",
+  Wall: "wall",
+  Chair: "chair",
+  Doorway: "doorway",
+  Towel: "towel",
+  Box: "box",
+  "Stability Ball": "stability-ball",
+  "Resistance Band": "resistance-band",
+};
 
-  // ============ CARDIO / HIIT ============
-  {
-    id: "burpee",
-    name: "بيربي كاملة",
-    latin: "Full Burpee",
-    category: "cardio",
-    level: "advanced",
-    equipment: ["none"],
-    primary: ["full-body"],
-    secondary: ["core", "quads", "chest"],
-    location: ["home", "outdoor"],
-    goals: ["fat-loss", "endurance"],
-    contraindicated: ["knee", "wrist", "shoulder"],
-    pose: "burpee",
-    tempo: 2.5,
-    caloriesPerMin: 14,
-    recommendedSets: 4,
-    recommendedReps: "8-12",
-    restSeconds: 60,
-    cue: "قرفصاء → بلانك → ضغطة (اختياري) → قفزة قوية",
-    mistakes: ["هبوط الوركين", "قفز غير متحكم"],
-    safety: ["استبدل القفزة بخطوة عند إصابة"],
-    breathing: "زفير مع القفزة",
-    progression: ["mountain-climber", "burpee"],
-    alternatives: ["mountain-climber"],
-    reference: REF_ACSM,
-  },
-  {
-    id: "high-knees",
-    name: "ركض الركب العالية",
-    latin: "High Knees",
-    category: "cardio",
-    level: "beginner",
-    equipment: ["none"],
-    primary: ["quads"],
-    secondary: ["calves", "core"],
-    location: ["home", "outdoor"],
-    goals: ["fat-loss", "endurance"],
-    contraindicated: ["knee"],
-    pose: "warmup",
-    tempo: 1,
-    caloriesPerMin: 12,
-    recommendedSets: 3,
-    recommendedReps: "30-45 ثانية",
-    restSeconds: 30,
-    cue: "ارفع الركبتين حتى مستوى الحوض بسرعة عالية",
-    mistakes: ["الجذع منحنٍ للخلف", "هبوط ثقيل"],
-    safety: ["اهبط على مقدمة القدم"],
-    breathing: "تنفس منتظم سريع",
-    progression: ["high-knees", "mountain-climber", "burpee"],
-    alternatives: ["mountain-climber"],
-    reference: REF_ACSM,
-  },
-  {
-    id: "jumping-jack",
-    name: "قفزة النجمة",
-    latin: "Jumping Jack",
-    category: "cardio",
-    level: "beginner",
-    equipment: ["none"],
-    primary: ["full-body"],
-    secondary: ["calves", "shoulders"],
-    location: ["home", "outdoor"],
-    goals: ["fat-loss", "endurance"],
-    contraindicated: ["knee", "ankle"],
-    pose: "warmup",
-    tempo: 1,
-    caloriesPerMin: 10,
-    recommendedSets: 3,
-    recommendedReps: "30-60 ثانية",
-    restSeconds: 30,
-    cue: "ذراعان لأعلى وقدمان جانبيتان معاً في تناغم",
-    mistakes: ["هبوط بركب متيبسة"],
-    safety: ["استبدل بـstep-jack عند إصابة الركبة"],
-    breathing: "تنفس منتظم",
-    progression: ["jumping-jack", "high-knees"],
-    alternatives: ["high-knees"],
-    reference: REF_WHO,
-  },
+const MUSCLE_MAP: Record<string, Muscle[]> = {
+  Chest: ["chest"],
+  Shoulders: ["shoulders"],
+  "Rear Delts": ["shoulders"],
+  "Upper Back": ["back"],
+  Back: ["back"],
+  Lats: ["back"],
+  Biceps: ["biceps"],
+  Triceps: ["triceps"],
+  Forearms: ["forearms"],
+  Quads: ["quads"],
+  Hamstrings: ["hamstrings"],
+  "Posterior Chain": ["hamstrings", "glutes", "lower-back"],
+  Glutes: ["glutes"],
+  Calves: ["calves"],
+  Adductors: ["adductors"],
+  Hips: ["hips"],
+  Core: ["core"],
+  "Lower Back": ["lower-back", "core"],
+  Legs: ["quads", "glutes"],
+  Mobility: ["full-body"],
+};
 
-  // ============ WARMUP / COOLDOWN / MOBILITY ============
-  {
-    id: "dynamic-warmup",
-    name: "إحماء ديناميكي",
-    latin: "Dynamic Warm-up (RAMP)",
-    category: "warmup",
-    level: "beginner",
-    equipment: ["none"],
-    primary: ["full-body"],
-    secondary: [],
-    location: ["home", "gym", "outdoor"],
-    goals: ["general-fitness", "mobility"],
-    contraindicated: [],
-    pose: "warmup",
-    tempo: 1.4,
-    caloriesPerMin: 5,
-    recommendedSets: 1,
-    recommendedReps: "5-8 دقائق",
-    restSeconds: 0,
-    cue: "ارفع النبض تدريجياً بحركات مركّبة (بروتوكول RAMP)",
-    mistakes: ["تمدد استاتيكي بارد", "شدة عالية مبكرة"],
-    safety: ["ابدأ ببطء وارفع الشدة تدريجياً"],
-    breathing: "تنفس عميق",
-    progression: ["dynamic-warmup"],
+const ARABIC_NAME_OVERRIDES: Record<string, string> = {
+  "bench-press": "ضغط البنش بالبار",
+  "incline-bench-press": "ضغط بنش مائل",
+  "dumbbell-bench-press": "ضغط بنش بالدمبل",
+  "push-up": "تمرين الضغط",
+  "pull-up": "العقلة",
+  squat: "القرفصاء",
+  deadlift: "الرفعة الميتة",
+  "romanian-deadlift": "الرفعة الرومانية",
+  "overhead-press": "ضغط علوي بالبار",
+  "lateral-raise": "رفع جانبي للكتف",
+  "barbell-row": "تجديف بالبار",
+  "lat-pulldown": "سحب علوي",
+  "bicep-curl": "بايسبس كيرل",
+  "tricep-pushdown": "دفع ترايسبس بالكابل",
+  plank: "البلانك",
+  "side-plank": "بلانك جانبي",
+  crunch: "كرنش",
+  "bicycle-crunch": "كرنش الدراجة",
+  "mountain-climber": "متسلق الجبل",
+  burpee: "بيربي",
+  running: "الجري",
+  walking: "المشي",
+  cycling: "ركوب الدراجة",
+  rowing: "جهاز التجديف",
+  "jump-rope": "نط الحبل",
+  inchworm: "المشي باليدين",
+  "cat-cow-stretch": "تمدد القط والبقرة",
+  "hamstring-stretch": "تمدد أوتار الركبة",
+};
+
+function categoryFor(raw: SourceExercise): Category {
+  if (raw.isStretch || raw.primaryMuscle === "Mobility") return "mobility";
+  if (raw.exerciseType === "distance_duration" || raw.equipment === "Cardio") return "cardio";
+  if (["Chest", "Shoulders", "Triceps"].includes(raw.primaryMuscle)) return "push";
+  if (["Rear Delts", "Upper Back", "Back", "Lats", "Biceps", "Forearms"].includes(raw.primaryMuscle))
+    return "pull";
+  if (
+    ["Posterior Chain", "Hamstrings", "Quads", "Glutes", "Calves", "Legs", "Adductors", "Hips"].includes(
+      raw.primaryMuscle,
+    )
+  )
+    return "legs";
+  return "core";
+}
+
+function levelFor(raw: SourceExercise): Level {
+  const name = raw.name.toLowerCase();
+  if (
+    /(muscle.?up|handstand|pistol|dragon|one-arm|nordic|human flag|front lever|back lever|sissy squat|weighted pull-up|weighted dip|clap|plyo)/.test(
+      name,
+    )
+  )
+    return "advanced";
+  if (
+    raw.isStretch ||
+    /(assisted|wall |dead bug|bird dog|glute bridge|march|walking|cat-cow|calf stretch|incline push-up)/.test(
+      name,
+    )
+  )
+    return "beginner";
+  return "intermediate";
+}
+
+function screeningTagsFor(raw: SourceExercise): Injury[] {
+  const name = raw.name.toLowerCase();
+  const tags = new Set<Injury>();
+  if (/(squat|lunge|leg press|leg extension|jump|step-up|pistol|split squat|sissy)/.test(name))
+    tags.add("knee");
+  if (/(jump|calf|run|sprint|rope|step-up)/.test(name)) tags.add("ankle");
+  if (/(press|push-up|dip|fly|raise|pull-up|pulldown|shoulder|row)/.test(name))
+    tags.add("shoulder");
+  if (/(push-up|plank|handstand|bear crawl|inchworm)/.test(name)) tags.add("wrist");
+  if (/(deadlift|good morning|back extension|row|sit-up|crunch|woodchop)/.test(name))
+    tags.add("lower-back");
+  if (/(hip|lunge|squat|adductor)/.test(name)) tags.add("hip");
+  if (/neck/.test(name)) tags.add("neck");
+  return [...tags];
+}
+
+function poseFor(raw: SourceExercise): Pose {
+  const name = raw.name.toLowerCase();
+  if (raw.isStretch) return "cooldown";
+  if (/push-up|chest press|bench press/.test(name)) return "push-up";
+  if (/squat|lunge|leg press|step-up/.test(name)) return "squat";
+  if (/plank|dead bug|bird dog/.test(name)) return "plank";
+  if (/burpee|jump|running|sprint|mountain climber/.test(name)) return "burpee";
+  return "default";
+}
+
+function goalsFor(raw: SourceExercise): Goal[] {
+  if (raw.isStretch) return ["mobility", "general-fitness"];
+  if (raw.exerciseType === "distance_duration" || raw.equipment === "Cardio")
+    return ["endurance", "fat-loss", "general-fitness"];
+  if (raw.exerciseType === "weight_reps") return ["muscle-gain", "strength", "general-fitness"];
+  if (raw.exerciseType === "assisted_bodyweight") return ["strength", "general-fitness"];
+  return ["strength", "endurance", "general-fitness"];
+}
+
+function locationFor(raw: SourceExercise): Location[] {
+  if (["Bodyweight", "Resistance Band", "Wall", "Chair", "Doorway", "Towel"].includes(raw.equipment))
+    return ["home", "gym", "outdoor"];
+  if (
+    ["Dumbbell", "Kettlebell", "Pull-up Bar", "Bench", "Box", "Stability Ball"].includes(
+      raw.equipment,
+    )
+  )
+    return ["home", "gym"];
+  return ["gym"];
+}
+
+function tempoFor(raw: SourceExercise) {
+  if (raw.isStretch) return 5;
+  if (raw.exerciseType === "distance_duration") return 1.5;
+  if (raw.exerciseType === "duration") return 3;
+  return 3;
+}
+
+function caloriesFor(raw: SourceExercise) {
+  if (raw.isStretch) return 3;
+  if (raw.exerciseType === "distance_duration" || raw.equipment === "Cardio") return 9;
+  if (raw.exerciseType === "bodyweight_reps") return 7;
+  if (raw.exerciseType === "assisted_bodyweight") return 6;
+  return 6;
+}
+
+function defaultsFor(raw: SourceExercise) {
+  if (raw.isStretch) return { sets: 2, reps: "30-45 ثانية", rest: 15 };
+  if (raw.exerciseType === "distance_duration") return { sets: 1, reps: "10-20 دقيقة", rest: 30 };
+  if (raw.exerciseType === "duration") return { sets: 3, reps: "30-60 ثانية", rest: 30 };
+  if (raw.exerciseType === "weight_reps") return { sets: 3, reps: "8-12", rest: 75 };
+  return { sets: 3, reps: "10-15", rest: 60 };
+}
+
+function toExercise(raw: SourceExercise): Exercise {
+  const defaults = defaultsFor(raw);
+  const sourceInstructions = INSTRUCTIONS[raw.slug];
+  const primary = MUSCLE_MAP[raw.primaryMuscle] ?? ["full-body"];
+  const secondary = [...new Set(raw.secondaryMuscles.flatMap((muscle) => MUSCLE_MAP[muscle] ?? []))].filter(
+    (muscle) => !primary.includes(muscle),
+  );
+  const frames = [...raw.frames]
+    .sort((a, b) => a.index - b.index)
+    .map((frame) => ASSET_BASE + frame.path) as [string, string, string];
+
+  const cue = raw.isStretch
+    ? "نفّذ " + raw.name + " ببطء وبدون ارتداد، وراجع الإطارات الثلاثة بالترتيب قبل البدء."
+    : "نفّذ " + raw.name + " بتحكم، وراجع الإطارات الثلاثة بالترتيب 1 ← 2 ← 3 قبل زيادة السرعة أو المقاومة.";
+
+  return {
+    id: raw.slug,
+    name: ARABIC_NAME_OVERRIDES[raw.slug] ?? raw.name,
+    latin: raw.name,
+    category: categoryFor(raw),
+    level: levelFor(raw),
+    equipment: [EQUIPMENT_MAP[raw.equipment] ?? "none"],
+    primary,
+    secondary,
+    location: locationFor(raw),
+    goals: goalsFor(raw),
+    contraindicated: screeningTagsFor(raw),
+    pose: poseFor(raw),
+    tempo: tempoFor(raw),
+    caloriesPerMin: caloriesFor(raw),
+    recommendedSets: defaults.sets,
+    recommendedReps: defaults.reps,
+    restSeconds: defaults.rest,
+    cue,
+    mistakes: raw.isStretch
+      ? ["الارتداد أثناء التمدد", "الدخول في مدى يسبب ألماً حاداً"]
+      : ["التسرع على حساب التحكم", "زيادة المقاومة قبل ثبات نمط الحركة"],
+    safety: [
+      "أوقف الحركة عند الألم الحاد أو الدوار.",
+      "ابدأ بمقاومة ومدى حركة يمكنك التحكم بهما.",
+      "إشارات الفحص داخل التطبيق احترازية وليست تشخيصاً طبياً.",
+    ],
+    breathing: raw.isStretch
+      ? "تنفس ببطء وبشكل طبيعي طوال التمدد."
+      : "ازفر خلال مرحلة الجهد وخذ شهيقاً أثناء العودة بشكل متحكم.",
+    progression: [raw.slug],
     alternatives: [],
-    reference: "Jeffreys I. (2006) — Warm-up revisited: the RAMP method.",
-  },
-  {
-    id: "cat-cow",
-    name: "القط - البقرة",
-    latin: "Cat-Cow Stretch",
-    category: "mobility",
-    level: "beginner",
-    equipment: ["mat"],
-    primary: ["back"],
-    secondary: ["core"],
-    location: ["home"],
-    goals: ["mobility"],
-    contraindicated: [],
-    pose: "cooldown",
-    tempo: 4,
-    caloriesPerMin: 3,
-    recommendedSets: 2,
-    recommendedReps: "10 دورات",
-    restSeconds: 15,
-    cue: "على أربع، تبادل تقويس وتقعير العمود ببطء",
-    mistakes: ["حركة سريعة", "شد الرقبة"],
-    safety: ["ممتاز لبداية اليوم"],
-    breathing: "شهيق مع التقعير · زفير مع التقويس",
-    progression: ["cat-cow"],
-    alternatives: ["child-pose"],
-    reference: REF_MCGILL,
-  },
-  {
-    id: "child-pose",
-    name: "وضعية الطفل",
-    latin: "Child's Pose",
-    category: "cooldown",
-    level: "beginner",
-    equipment: ["mat"],
-    primary: ["back"],
-    secondary: [],
-    location: ["home"],
-    goals: ["mobility"],
-    contraindicated: [],
-    pose: "cooldown",
-    tempo: 5,
-    caloriesPerMin: 2,
-    recommendedSets: 1,
-    recommendedReps: "60-90 ثانية",
-    restSeconds: 0,
-    cue: "الجلوس على الكعبين، الذراعان ممدودتان أماماً، الجبهة تلامس الأرض",
-    mistakes: ["شد الرقبة", "رفع المؤخرة"],
-    safety: ["يمكن وضع وسادة تحت البطن للحوامل"],
-    breathing: "تنفس بطني بطيء",
-    progression: ["child-pose"],
-    alternatives: ["cat-cow"],
-    reference: REF_ACSM,
-  },
-  {
-    id: "static-cooldown",
-    name: "تمدد ختامي شامل",
-    latin: "Static Cool-Down Stretch",
-    category: "cooldown",
-    level: "beginner",
-    equipment: ["mat"],
-    primary: ["full-body"],
-    secondary: [],
-    location: ["home", "gym"],
-    goals: ["mobility"],
-    contraindicated: [],
-    pose: "cooldown",
-    tempo: 5,
-    caloriesPerMin: 3,
-    recommendedSets: 1,
-    recommendedReps: "5-10 دقائق",
-    restSeconds: 0,
-    cue: "ثبّت كل وضعية 20-30 ثانية دون ارتداد",
-    mistakes: ["ارتداد", "حبس النفس"],
-    safety: ["توقف عند أي ألم حاد"],
-    breathing: "تنفس عميق من الأنف",
-    progression: ["static-cooldown"],
-    alternatives: [],
-    reference: "ACSM Position Stand — Garber et al. (2011).",
-  },
-  {
-    id: "hip-opener",
-    name: "فتح مفصل الحوض",
-    latin: "90/90 Hip Opener",
-    category: "mobility",
-    level: "beginner",
-    equipment: ["mat"],
-    primary: ["hips" as unknown as Muscle],
-    secondary: ["glutes"],
-    location: ["home"],
-    goals: ["mobility"],
-    contraindicated: [],
-    pose: "cooldown",
-    tempo: 4,
-    caloriesPerMin: 3,
-    recommendedSets: 2,
-    recommendedReps: "8 دورات لكل جهة",
-    restSeconds: 15,
-    cue: "الساقان بزاوية 90/90، بدّل الجهات ببطء بتحكم",
-    mistakes: ["الاندفاع بالوركين", "تقوس الظهر"],
-    safety: ["مفيد للجالسين طويلاً"],
-    breathing: "تنفس منتظم",
-    progression: ["hip-opener"],
-    alternatives: ["cat-cow"],
-    reference: REF_NASM,
-  },
-];
+    reference: sourceInstructions
+      ? "Workout Guide (" +
+        raw.name +
+        ") + matched technique text from exercises-dataset (" +
+        sourceInstructions.sourceName +
+        ")."
+      : "Workout Guide (" + raw.name + ") — visual frames and structured exercise metadata.",
+    exerciseType: raw.exerciseType,
+    isStretch: raw.isStretch,
+    media: {
+      kind: "frames",
+      frames,
+      attribution: "Bryl Lim / Everkinetic",
+      license: "CC BY-SA 4.0",
+      licenseUrl: "https://creativecommons.org/licenses/by-sa/4.0/",
+      sourceUrl: SOURCE_REPO,
+      sourceCommit: SOURCE_COMMIT,
+    },
+    sourceInstructionsEn: sourceInstructions?.instructionsEn || undefined,
+    sourceInstructionStepsEn: sourceInstructions?.stepsEn?.length ? sourceInstructions.stepsEn : undefined,
+  };
+}
+
+const BASE_EXERCISES = SOURCE_MANIFEST.map(toExercise);
+
+export const EXERCISES: Exercise[] = BASE_EXERCISES.map((exercise) => ({
+  ...exercise,
+  alternatives: BASE_EXERCISES.filter(
+    (candidate) =>
+      candidate.id !== exercise.id &&
+      candidate.category === exercise.category &&
+      candidate.primary[0] === exercise.primary[0],
+  )
+    .slice(0, 3)
+    .map((candidate) => candidate.id),
+}));
+
+const LEGACY_ID_ALIASES: Record<string, string> = {
+  pushup: "push-up",
+  pullup: "pull-up",
+  "bodyweight-squat": "squat",
+  "dynamic-warmup": "inchworm",
+  "static-cooldown": "cat-cow-stretch",
+};
 
 export function getExercise(id: string): Exercise | undefined {
-  return EXERCISES.find((e) => e.id === id);
+  const resolved = LEGACY_ID_ALIASES[id] ?? id;
+  return EXERCISES.find((exercise) => exercise.id === resolved);
 }
 
 export function progressionLadder(id: string): Exercise[] {
-  const ex = getExercise(id);
-  if (!ex) return [];
-  return ex.progression
-    .map((pid) => getExercise(pid))
-    .filter((e): e is Exercise => Boolean(e));
+  const exercise = getExercise(id);
+  if (!exercise) return [];
+  return exercise.progression
+    .map((progressionId) => getExercise(progressionId))
+    .filter((candidate): candidate is Exercise => Boolean(candidate));
 }
+
+export const LEVEL_LABEL_AR: Record<Level, string> = {
+  beginner: "مبتدئ",
+  intermediate: "متوسط",
+  advanced: "متقدم",
+};
+
+export const CATEGORY_LABEL_AR: Record<Category, string> = {
+  push: "دفع",
+  pull: "سحب",
+  legs: "أرجل",
+  core: "كور",
+  cardio: "كارديو",
+  mobility: "مرونة",
+  warmup: "إحماء",
+  cooldown: "استرداد",
+};
+
+export const MUSCLE_LABEL_AR: Record<Muscle, string> = {
+  chest: "الصدر",
+  back: "الظهر",
+  shoulders: "الأكتاف",
+  biceps: "البايسبس",
+  triceps: "الترايسبس",
+  forearms: "الساعد",
+  quads: "الفخذ الأمامي",
+  hamstrings: "أوتار الركبة",
+  glutes: "المؤخرة",
+  calves: "السمانة",
+  adductors: "العضلات الضامة",
+  hips: "الحوض",
+  "lower-back": "أسفل الظهر",
+  core: "الجذع",
+  "full-body": "كامل الجسم",
+};
+
+export const EQUIPMENT_LABEL_AR: Record<Equipment, string> = {
+  none: "بدون معدات",
+  mat: "حصيرة",
+  dumbbells: "دمبل",
+  barbell: "باربل",
+  kettlebell: "كيتل بيل",
+  "resistance-band": "شريط مقاومة",
+  "pullup-bar": "بار عقلة",
+  bench: "بنش",
+  machine: "جهاز",
+  cable: "كابل",
+  "cardio-machine": "جهاز كارديو",
+  "weight-plate": "قرص أوزان",
+  wall: "حائط",
+  chair: "كرسي",
+  doorway: "مدخل باب",
+  towel: "منشفة",
+  box: "صندوق",
+  "stability-ball": "كرة ثبات",
+};

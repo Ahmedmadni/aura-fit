@@ -138,8 +138,8 @@ export function generateWorkout(
 
   const middle = pickExercises(focus, profile, count);
 
-  const warmup = getExercise("dynamic-warmup")!;
-  const cooldown = getExercise("static-cooldown")!;
+  const warmup = getExercise("inchworm")!;
+  const cooldown = getExercise("cat-cow-stretch")!;
 
   const planned: PlannedExercise[] = [
     {
