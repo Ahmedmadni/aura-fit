@@ -28,10 +28,10 @@ export function PageHeader({
   return (
     <header className="relative p-6 pt-10 flex justify-between items-end animate-enter">
       <div>
-        <p className="text-xs font-mono uppercase tracking-[0.2em] text-muted-foreground mb-1.5">
+        <p className="type-eyebrow text-muted-foreground mb-2">
           {eyebrow}
         </p>
-        <h1 className="text-3xl font-black tracking-tight leading-none">{title}</h1>
+        <h1 className="type-page-title text-foreground">{title}</h1>
       </div>
       {action}
     </header>
