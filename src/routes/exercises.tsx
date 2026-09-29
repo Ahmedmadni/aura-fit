@@ -37,6 +37,7 @@ const categories: Array<{ id: Category | "all"; label: string; icon: typeof Dumb
 
 const LEVEL_BARS = { beginner: 2, intermediate: 3, advanced: 5 } as const;
 const PAGE_SIZE = 48;
+const GIF_COUNT = EXERCISES.filter((exercise) => Boolean(exercise.media.preferredGifUrl)).length;
 
 function ExerciseLibrary() {
   const [cat, setCat] = useState<Category | "all">("all");
@@ -118,7 +119,7 @@ function ExerciseLibrary() {
 
       <div className="px-6 mb-4 flex items-center justify-between gap-3 text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
         <span>{filtered.length} تمرين</span>
-        <span className="text-primary">302 تمرينًا موثقًا · CC BY-SA</span>
+        <span className="text-primary">{GIF_COUNT} فيديو متحرك · {EXERCISES.length - GIF_COUNT} بإطارات</span>
       </div>
 
       <section className="px-6 space-y-3 animate-enter">
@@ -133,8 +134,8 @@ function ExerciseLibrary() {
             <div className="relative flex items-center gap-4">
               <div className="size-20 rounded-xl bg-background/60 border border-border grid place-items-center shrink-0 overflow-hidden">
                 <img
-                  src={exercise.media.frames[0]}
-                  alt={"الوضع الابتدائي لتمرين " + exercise.latin}
+                  src={exercise.media.preferredImageUrl ?? exercise.media.frames[0]}
+                  alt={"صورة مطابقة لتمرين " + exercise.latin}
                   loading="lazy"
                   className="size-full object-contain p-1"
                 />
@@ -150,9 +151,16 @@ function ExerciseLibrary() {
                       </p>
                     )}
                   </div>
-                  <span className="type-caption shrink-0 text-primary">
-                    {CATEGORY_LABEL_AR[exercise.category]}
-                  </span>
+                  <div className="flex shrink-0 flex-col items-end gap-1">
+                    <span className="type-caption text-primary">
+                      {CATEGORY_LABEL_AR[exercise.category]}
+                    </span>
+                    {exercise.media.preferredGifUrl ? (
+                      <span className="rounded-full border border-primary/25 bg-primary/10 px-2 py-0.5 text-[9px] font-semibold text-primary">
+                        GIF
+                      </span>
+                    ) : null}
+                  </div>
                 </div>
 
                 <p className="type-small mb-2 truncate text-muted-foreground">
