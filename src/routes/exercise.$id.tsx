@@ -20,8 +20,11 @@ import { PageShell } from "@/components/page-shell";
 import {
   CATEGORY_LABEL_AR,
   EQUIPMENT_LABEL_AR,
+  EXERCISE_TYPE_LABEL_AR,
   getExercise,
+  GOAL_LABEL_AR,
   LEVEL_LABEL_AR,
+  LOCATION_LABEL_AR,
   MUSCLE_LABEL_AR,
   type Injury,
 } from "@/lib/exercise-db";
@@ -98,8 +101,8 @@ function ExerciseDetail() {
           </motion.div>
 
           <div className="absolute bottom-0 inset-x-0 p-4 bg-gradient-to-t from-background via-background/80 to-transparent">
-            <h1 className="text-2xl font-black leading-tight">{exercise.name}</h1>
-            <p className="text-[10px] font-mono uppercase tracking-wider text-primary mt-1">
+            <h1 className="font-display text-[1.55rem] font-extrabold leading-[1.35]">{exercise.name}</h1>
+            <p dir="ltr" className="mt-1 text-left text-[11px] font-medium tracking-wide text-primary">
               {exercise.latin}
             </p>
           </div>
@@ -156,26 +159,34 @@ function ExerciseDetail() {
             {tab === "overview" && (
               <>
                 <Card>
-                  <CardHeader label="بيانات التمرين المستوردة" />
-                  <p className="text-sm leading-relaxed text-foreground/90">
-                    <strong>{exercise.latin}</strong> يستهدف {primary} بشكل أساسي
-                    {secondary ? "، مع مشاركة " + secondary : ""}. نوع الحركة{" "}
-                    {exercise.exerciseType.replaceAll("_", " ")}، والمعدات: {equipment}.
-                    التصنيف داخل Aura Fit: {CATEGORY_LABEL_AR[exercise.category]} ·{" "}
-                    {LEVEL_LABEL_AR[exercise.level]}.
-                  </p>
+                  <CardHeader label="عن التمرين" />
+                  <p className="type-body text-foreground/90">{exercise.descriptionAr}</p>
+
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    <InfoChip>{CATEGORY_LABEL_AR[exercise.category]}</InfoChip>
+                    <InfoChip>{LEVEL_LABEL_AR[exercise.level]}</InfoChip>
+                    <InfoChip>{EXERCISE_TYPE_LABEL_AR[exercise.exerciseType]}</InfoChip>
+                    {exercise.location.map((location) => (
+                      <InfoChip key={location}>{LOCATION_LABEL_AR[location]}</InfoChip>
+                    ))}
+                  </div>
+
+                  <div className="mt-4 border-t border-border pt-3 text-sm leading-7 text-muted-foreground">
+                    <p><span className="font-semibold text-foreground">العضلة الأساسية:</span> {primary}</p>
+                    {secondary ? <p><span className="font-semibold text-foreground">عضلات مساعدة:</span> {secondary}</p> : null}
+                    <p><span className="font-semibold text-foreground">المعدات:</span> {equipment}</p>
+                    <p><span className="font-semibold text-foreground">الهدف:</span> {exercise.goals.map((goal) => GOAL_LABEL_AR[goal]).join("، ")}</p>
+                  </div>
                 </Card>
 
                 <Card>
                   <CardHeader label="تنبيه المدرب" />
-                  <p className="text-sm leading-relaxed">{exercise.cue}</p>
+                  <p className="type-body">{exercise.cue}</p>
                 </Card>
 
                 <Card>
                   <CardHeader label="التنفس" icon={Wind} />
-                  <p className="text-sm leading-relaxed text-muted-foreground">
-                    {exercise.breathing}
-                  </p>
+                  <p className="type-body text-muted-foreground">{exercise.breathing}</p>
                 </Card>
               </>
             )}
@@ -208,25 +219,28 @@ function ExerciseDetail() {
                   </div>
                 </Card>
 
-                {exercise.sourceInstructionStepsEn?.length ? (
-                  <Card>
-                    <CardHeader label="تعليمات موثقة من مصدر البيانات · EN" />
-                    <ol className="space-y-2 list-decimal list-inside text-sm leading-relaxed">
-                      {exercise.sourceInstructionStepsEn.map((step) => (
-                        <li key={step}>{step}</li>
-                      ))}
-                    </ol>
-                  </Card>
-                ) : (
-                  <Card>
-                    <CardHeader label="سلامة المحتوى" icon={Shield} />
-                    <p className="text-xs text-muted-foreground leading-relaxed">
-                      لم أستورد خطوات تقنية تفصيلية لهذا التمرين لأن المطابقة مع مصدر
-                      التعليمات لم تكن قطعية. يعرض التطبيق بيانات العضلة والمعدة والإطارات
-                      الأصلية بدل اختلاق وصف قد لا يطابق الحركة.
-                    </p>
-                  </Card>
-                )}
+                <Card>
+                  <CardHeader label="خطوات الأداء بالعربية" icon={CheckCircle2} />
+                  <ol className="space-y-3">
+                    {exercise.instructionsAr.map((step, index) => (
+                      <li key={step} className="flex items-start gap-3 type-body">
+                        <span className="mt-0.5 grid size-6 shrink-0 place-items-center rounded-full bg-primary/10 text-xs font-bold text-primary">
+                          {index + 1}
+                        </span>
+                        <span>{step}</span>
+                      </li>
+                    ))}
+                  </ol>
+                </Card>
+
+                <Card>
+                  <CardHeader label="قاعدة مطابقة الحركة" icon={Shield} />
+                  <p className="type-small text-muted-foreground">
+                    الخطوات العربية مرتبطة بنوع هذا التمرين وبالإطارات الثلاثة الأصلية الخاصة به.
+                    وعندما تتوفر مطابقة موثقة في مصدر التعليمات، يبقى النص الإنجليزي الأصلي محفوظًا
+                    في تبويب المصدر للمراجعة الفنية.
+                  </p>
+                </Card>
               </>
             )}
 
@@ -293,7 +307,7 @@ function ExerciseDetail() {
                 <Card>
                   <CardHeader label="مصدر الصور والبيانات" icon={ExternalLink} />
                   <p className="text-sm font-bold">Workout Guide · Bryl Lim</p>
-                  <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+                  <p className="type-small text-muted-foreground mt-1">
                     الصور: CC BY-SA 4.0 · الإسناد: {exercise.media.attribution}. تم تثبيت
                     الاستيراد على commit {exercise.media.sourceCommit.slice(0, 12)} لضمان
                     ثبات التطابق.
@@ -310,11 +324,24 @@ function ExerciseDetail() {
 
                 <Card>
                   <CardHeader label="مصدر التعليمات" />
-                  <p className="text-xs text-muted-foreground leading-relaxed">
+                  <p className="type-small text-muted-foreground">
                     {exercise.sourceInstructionsEn
                       ? "تمت مطابقة هذا التمرين بشكل قطعي مع exercises-dataset واستخدام نص التعليمات فقط تحت MIT؛ لم تُستخدم صور أو GIFs من ذلك المستودع."
-                      : "لا توجد مطابقة قطعية مع مصدر التعليمات الإضافي، لذلك لم يتم استيراد نص تقني منه."}
+                      : "لا توجد مطابقة قطعية مع مصدر التعليمات الإضافي، لذلك يعتمد التطبيق على البيانات المنظمة والإطارات الأصلية دون اختلاق نص منسوب للمصدر."}
                   </p>
+
+                  {exercise.sourceInstructionStepsEn?.length ? (
+                    <details className="mt-4 rounded-xl border border-border bg-background/60 p-3">
+                      <summary className="cursor-pointer text-xs font-semibold text-primary">
+                        عرض النص الإنجليزي الأصلي للمراجعة
+                      </summary>
+                      <ol dir="ltr" className="mt-3 list-decimal space-y-2 pl-5 text-left text-xs leading-6 text-muted-foreground">
+                        {exercise.sourceInstructionStepsEn.map((step) => (
+                          <li key={step}>{step}</li>
+                        ))}
+                      </ol>
+                    </details>
+                  ) : null}
                 </Card>
               </>
             )}
@@ -364,7 +391,7 @@ function CardHeader({
   return (
     <div className={"flex items-center gap-2 mb-2 " + color}>
       {Icon && <Icon className="size-4" />}
-      <p className="text-[10px] font-mono uppercase tracking-widest">{label}</p>
+      <p className="type-caption font-semibold">{label}</p>
     </div>
   );
 }
@@ -381,10 +408,17 @@ function QuickStat({
   return (
     <div className="bg-card border border-border rounded-2xl p-3 min-w-0">
       <Icon className="size-4 text-primary mb-2" />
-      <p className="text-[9px] font-mono uppercase tracking-widest text-muted-foreground">
-        {label}
-      </p>
-      <p className="text-xs font-black mt-1 truncate">{value}</p>
+      <p className="type-caption text-muted-foreground">{label}</p>
+      <p className="mt-1 truncate text-sm font-bold">{value}</p>
     </div>
+  );
+}
+
+
+function InfoChip({ children }: { children: React.ReactNode }) {
+  return (
+    <span className="rounded-full border border-border bg-surface px-3 py-1 text-xs font-medium text-foreground/85">
+      {children}
+    </span>
   );
 }
