@@ -1,6 +1,7 @@
 import manifest from "../data/workout-guide-manifest.json";
 import instructionEnrichment from "../data/exercise-instructions.json";
 import arabicNames from "../data/exercise-arabic-names.json";
+import preferredMedia from "../data/exercise-gymvisual-media.json";
 
 export type Category =
   | "push"
@@ -87,13 +88,20 @@ export type ExerciseType =
   | "assisted_bodyweight";
 
 export interface ExerciseMedia {
-  kind: "frames";
+  kind: "gif" | "frames";
   frames: [string, string, string];
   attribution: string;
   license: "CC BY-SA 4.0";
   licenseUrl: string;
   sourceUrl: string;
   sourceCommit: string;
+  preferredGifUrl?: string;
+  preferredImageUrl?: string;
+  preferredSourceId?: string;
+  preferredSourceName?: string;
+  preferredAttribution?: string;
+  preferredSourceUrl?: string;
+  preferredSourceCommit?: string;
 }
 
 export interface Exercise {
@@ -159,6 +167,19 @@ type InstructionEnrichment = {
   repository: "hasaneyldrm/exercises-dataset";
 };
 
+type PreferredExerciseMedia = {
+  sourceId: string;
+  sourceName: string;
+  gifUrl: string;
+  imageUrl: string;
+  equipment: string;
+  target: string;
+  muscleGroup: string;
+  attribution: string;
+  sourceRepository: "hasaneyldrm/exercises-dataset";
+  sourceCommit: string;
+};
+
 const SOURCE_COMMIT = "aac599224bb9780305239607ef98540b7e0ce389";
 const SOURCE_REPO = "https://github.com/bryllim/workout-guide";
 const ASSET_BASE =
@@ -168,6 +189,7 @@ const ASSET_BASE =
 
 const SOURCE_MANIFEST = manifest as unknown as SourceExercise[];
 const INSTRUCTIONS = instructionEnrichment as Record<string, InstructionEnrichment>;
+const PREFERRED_MEDIA = preferredMedia as Record<string, PreferredExerciseMedia>;
 
 const EQUIPMENT_MAP: Record<string, Equipment> = {
   Barbell: "barbell",
@@ -447,6 +469,7 @@ function defaultsFor(raw: SourceExercise) {
 function toExercise(raw: SourceExercise): Exercise {
   const defaults = defaultsFor(raw);
   const sourceInstructions = INSTRUCTIONS[raw.slug];
+  const preferred = PREFERRED_MEDIA[raw.slug];
   const primary = MUSCLE_MAP[raw.primaryMuscle] ?? ["full-body"];
   const secondary = [...new Set(raw.secondaryMuscles.flatMap((muscle) => MUSCLE_MAP[muscle] ?? []))].filter(
     (muscle) => !primary.includes(muscle),
@@ -500,13 +523,22 @@ function toExercise(raw: SourceExercise): Exercise {
     exerciseType: raw.exerciseType,
     isStretch: raw.isStretch,
     media: {
-      kind: "frames",
+      kind: preferred ? "gif" : "frames",
       frames,
       attribution: "Bryl Lim / Everkinetic",
       license: "CC BY-SA 4.0",
       licenseUrl: "https://creativecommons.org/licenses/by-sa/4.0/",
       sourceUrl: SOURCE_REPO,
       sourceCommit: SOURCE_COMMIT,
+      preferredGifUrl: preferred?.gifUrl,
+      preferredImageUrl: preferred?.imageUrl,
+      preferredSourceId: preferred?.sourceId,
+      preferredSourceName: preferred?.sourceName,
+      preferredAttribution: preferred?.attribution,
+      preferredSourceUrl: preferred
+        ? "https://github.com/hasaneyldrm/exercises-dataset"
+        : undefined,
+      preferredSourceCommit: preferred?.sourceCommit,
     },
     sourceInstructionsEn: sourceInstructions?.instructionsEn || undefined,
     sourceInstructionStepsEn: sourceInstructions?.stepsEn?.length ? sourceInstructions.stepsEn : undefined,
