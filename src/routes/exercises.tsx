@@ -30,8 +30,8 @@ const categories: Array<{ id: Category | "all"; label: string; icon: typeof Dumb
   { id: "push", label: "دفع", icon: Zap },
   { id: "pull", label: "سحب", icon: Activity },
   { id: "legs", label: "أرجل", icon: Heart },
-  { id: "core", label: "كور", icon: Zap },
-  { id: "cardio", label: "كارديو", icon: Activity },
+  { id: "core", label: "الجذع", icon: Zap },
+  { id: "cardio", label: "القلب والتحمل", icon: Activity },
   { id: "mobility", label: "مرونة", icon: RefreshCcw },
 ];
 
@@ -70,7 +70,7 @@ function ExerciseLibrary() {
 
   return (
     <PageShell>
-      <PageHeader eyebrow="OPEN-SOURCE MOTION LAB" title="مكتبة التمارين" />
+      <PageHeader eyebrow="مكتبة حركات موثقة ومطابقة للمصدر" title="مكتبة التمارين" />
 
       <div className="px-6 mb-4 animate-enter">
         <div className="relative">
@@ -118,7 +118,7 @@ function ExerciseLibrary() {
 
       <div className="px-6 mb-4 flex items-center justify-between gap-3 text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
         <span>{filtered.length} تمرين</span>
-        <span className="text-primary">302 SOURCE-MATCHED · CC BY-SA</span>
+        <span className="text-primary">302 تمرينًا موثقًا · CC BY-SA</span>
       </div>
 
       <section className="px-6 space-y-3 animate-enter">
@@ -143,24 +143,24 @@ function ExerciseLibrary() {
               <div className="flex-1 min-w-0">
                 <div className="flex items-start justify-between gap-2 mb-1">
                   <div className="min-w-0">
-                    <h3 className="font-black text-base leading-tight truncate">{exercise.name}</h3>
+                    <h3 className="font-display text-[0.98rem] font-bold leading-[1.45] truncate">{exercise.name}</h3>
                     {exercise.name !== exercise.latin && (
-                      <p className="text-[9px] font-mono uppercase tracking-wider text-muted-foreground truncate mt-0.5">
+                      <p dir="ltr" className="mt-0.5 truncate text-left text-[10px] font-medium tracking-wide text-muted-foreground">
                         {exercise.latin}
                       </p>
                     )}
                   </div>
-                  <span className="text-[9px] font-mono uppercase tracking-widest text-primary shrink-0">
+                  <span className="type-caption shrink-0 text-primary">
                     {CATEGORY_LABEL_AR[exercise.category]}
                   </span>
                 </div>
 
-                <p className="text-xs text-muted-foreground truncate mb-2">
+                <p className="type-small mb-2 truncate text-muted-foreground">
                   {exercise.primary.map((muscle) => MUSCLE_LABEL_AR[muscle]).join(" · ")} ·{" "}
                   {exercise.equipment.map((equipment) => EQUIPMENT_LABEL_AR[equipment]).join("، ")}
                 </p>
 
-                <div className="flex items-center gap-3 text-[10px] font-mono">
+                <div className="flex items-center gap-3 type-caption">
                   <span className="text-muted-foreground">{LEVEL_LABEL_AR[exercise.level]}</span>
                   <span className="text-primary">≈ {exercise.caloriesPerMin} كال/د</span>
                   <div className="flex gap-0.5 mr-auto">
