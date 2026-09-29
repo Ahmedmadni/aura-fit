@@ -1,5 +1,6 @@
 import manifest from "../data/workout-guide-manifest.json";
 import instructionEnrichment from "../data/exercise-instructions.json";
+import arabicNames from "../data/exercise-arabic-names.json";
 
 export type Category =
   | "push"
@@ -128,6 +129,8 @@ export interface Exercise {
   exerciseType: ExerciseType;
   isStretch: boolean;
   media: ExerciseMedia;
+  descriptionAr: string;
+  instructionsAr: string[];
   sourceInstructionsEn?: string;
   sourceInstructionStepsEn?: string[];
 }
@@ -209,38 +212,136 @@ const MUSCLE_MAP: Record<string, Muscle[]> = {
   Mobility: ["full-body"],
 };
 
-const ARABIC_NAME_OVERRIDES: Record<string, string> = {
-  "bench-press": "ضغط البنش بالبار",
-  "incline-bench-press": "ضغط بنش مائل",
-  "dumbbell-bench-press": "ضغط بنش بالدمبل",
-  "push-up": "تمرين الضغط",
-  "pull-up": "العقلة",
-  squat: "القرفصاء",
-  deadlift: "الرفعة الميتة",
-  "romanian-deadlift": "الرفعة الرومانية",
-  "overhead-press": "ضغط علوي بالبار",
-  "lateral-raise": "رفع جانبي للكتف",
-  "barbell-row": "تجديف بالبار",
-  "lat-pulldown": "سحب علوي",
-  "bicep-curl": "بايسبس كيرل",
-  "tricep-pushdown": "دفع ترايسبس بالكابل",
-  plank: "البلانك",
-  "side-plank": "بلانك جانبي",
-  crunch: "كرنش",
-  "bicycle-crunch": "كرنش الدراجة",
-  "mountain-climber": "متسلق الجبل",
-  burpee: "بيربي",
-  running: "الجري",
-  walking: "المشي",
-  cycling: "ركوب الدراجة",
-  rowing: "جهاز التجديف",
-  "jump-rope": "نط الحبل",
-  inchworm: "المشي باليدين",
-  "cat-cow-stretch": "تمدد القط والبقرة",
-  "hamstring-stretch": "تمدد أوتار الركبة",
+const ARABIC_NAMES = arabicNames as Record<string, string>;
+
+const SOURCE_MUSCLE_LABEL_AR: Record<string, string> = {
+  Chest: "الصدر",
+  Shoulders: "الأكتاف",
+  "Rear Delts": "الكتف الخلفي",
+  "Upper Back": "أعلى الظهر",
+  Back: "الظهر",
+  Lats: "عضلات الظهر العريضة",
+  Biceps: "البايسبس",
+  Triceps: "الترايسبس",
+  Forearms: "الساعد",
+  Quads: "الفخذ الأمامي",
+  Hamstrings: "أوتار الركبة",
+  "Posterior Chain": "السلسلة الخلفية",
+  Glutes: "عضلات المؤخرة",
+  Calves: "السمانة",
+  Adductors: "العضلات الضامة",
+  Hips: "الورك",
+  Core: "عضلات الجذع",
+  "Lower Back": "أسفل الظهر",
+  Legs: "الأرجل",
+  Mobility: "الحركة والمرونة",
 };
 
-function categoryFor(raw: SourceExercise): Category {
+const SOURCE_EQUIPMENT_LABEL_AR: Record<string, string> = {
+  Barbell: "البار",
+  Dumbbell: "الدمبل",
+  Machine: "الجهاز",
+  Cable: "الكابل",
+  Bodyweight: "وزن الجسم",
+  Cardio: "جهاز الكارديو",
+  Plate: "قرص الأوزان",
+  Kettlebell: "الكيتل بيل",
+  "Pull-up Bar": "بار العقلة",
+  Bench: "البنش",
+  Wall: "الحائط",
+  Chair: "الكرسي",
+  Doorway: "مدخل الباب",
+  Towel: "المنشفة",
+  Box: "الصندوق",
+  "Stability Ball": "كرة الثبات",
+  "Resistance Band": "شريط المقاومة",
+};
+
+function descriptionFor(raw: SourceExercise, nameAr: string) {
+  const muscle = SOURCE_MUSCLE_LABEL_AR[raw.primaryMuscle] ?? "العضلات المستهدفة";
+  const equipment = SOURCE_EQUIPMENT_LABEL_AR[raw.equipment] ?? "المعدات المناسبة";
+  if (raw.isStretch) {
+    return nameAr + " تمرين مرونة وحركة يركز على " + muscle + "، ويُنفذ باستخدام " + equipment + " مع مدى مريح وتحكم كامل دون ارتداد.";
+  }
+  if (raw.exerciseType === "distance_duration") {
+    return nameAr + " تمرين لياقة وتحمل يركز على " + muscle + "، ويُنفذ باستخدام " + equipment + " مع الحفاظ على إيقاع يمكن التحكم فيه ووضعية مستقرة.";
+  }
+  if (raw.exerciseType === "duration") {
+    return nameAr + " تمرين يعتمد على الزمن ويستهدف " + muscle + "، مع أهمية تثبيت الوضع والمحاذاة طوال مدة الجولة.";
+  }
+  return nameAr + " تمرين مقاومة يستهدف " + muscle + " بشكل أساسي ويُنفذ باستخدام " + equipment + " عبر مدى حركة متحكم ومتوافق مع الإطارات الأصلية للتمرين.";
+}
+
+function instructionsFor(raw: SourceExercise): string[] {
+  if (raw.isStretch) {
+    return [
+      "ابدأ من الوضع الموضح في الإطار الأول، واضبط الجسم في وضع مريح ومستقر قبل زيادة مدى التمدد.",
+      "انتقل تدريجيًا عبر الإطار الثاني نحو مدى التمدد من دون ارتداد أو ضغط مفاجئ على المفاصل.",
+      "اثبت عند المدى المريح الموضح في الإطار الثالث مع تنفس هادئ، ثم ارجع ببطء إلى وضع البداية.",
+      "يجب أن يكون الإحساس شدًا مريحًا لا ألمًا حادًا؛ قلّل المدى فورًا إذا ظهر ألم أو تنميل.",
+    ];
+  }
+  if (raw.exerciseType === "distance_duration") {
+    return [
+      "ابدأ بإيقاع سهل يسمح لك بتثبيت الوضع والتنفس قبل رفع الشدة أو السرعة.",
+      "حافظ على الجذع مستقرًا واتبع نمط الحركة الموضح في الإطارات من دون مبالغة في مدى المفاصل.",
+      "ارفع الشدة تدريجيًا مع الحفاظ على نفس جودة الحركة، ثم اخفضها تدريجيًا في نهاية الجولة.",
+      "استخدم الزمن أو المسافة كهدف للجولة، وليس السرعة وحدها، وأوقف التمرين عند الدوار أو الألم الحاد.",
+    ];
+  }
+  if (raw.exerciseType === "duration") {
+    return [
+      "اتخذ وضع البداية كما في الإطار الأول وثبّت نقاط الارتكاز قبل بدء احتساب الزمن.",
+      "انتقل إلى الوضع المطلوب كما توضحه الإطارات التالية مع إبقاء الجذع والمفاصل في محاذاة مستقرة.",
+      "حافظ على الوضع طوال المدة المحددة من دون حبس النفس أو انهيار القوام.",
+      "أنهِ الجولة عند فقدان المحاذاة الجيدة، ثم استرح قبل التكرار.",
+    ];
+  }
+  if (raw.exerciseType === "assisted_bodyweight") {
+    return [
+      "اضبط وسيلة المساعدة بحيث تسمح لك بأداء الحركة كاملة مع تحكم واضح من البداية إلى النهاية.",
+      "ابدأ من الإطار الأول، وثبّت الجذع والكتفين أو الحوض بحسب مسار الحركة.",
+      "تحرك عبر الإطارين الثاني والثالث بسلاسة، من دون دفع مفاجئ أو ارتداد من الجهاز.",
+      "عد ببطء إلى البداية وحافظ على نفس المسار في كل تكرار قبل تقليل مقدار المساعدة.",
+    ];
+  }
+  if (raw.exerciseType === "bodyweight_reps") {
+    return [
+      "ابدأ من الوضع الموضح في الإطار الأول، وثبّت الجذع ونقاط الارتكاز قبل بدء التكرار.",
+      "حرّك الجسم عبر المسار الموضح في الإطار الثاني مع الحفاظ على المحاذاة ومنع الاندفاع بالزخم.",
+      "أكمل المدى إلى الإطار الثالث فقط بالقدر الذي يمكنك التحكم فيه من دون ألم أو فقدان للوضع.",
+      "ارجع ببطء عبر نفس المسار وكرّر مع جودة حركة ثابتة بدل مطاردة عدد التكرارات.",
+    ];
+  }
+  return [
+    "اضبط المقاومة في مستوى يمكنك التحكم فيه، ثم اتخذ وضع البداية الموضح في الإطار الأول.",
+    "ثبّت الجذع والمفاصل غير المشاركة مباشرة في الحركة، وابدأ تحريك المقاومة عبر المسار الموضح في الإطار الثاني.",
+    "أكمل المدى إلى الإطار الثالث من دون ارتداد أو تغيير مفاجئ في وضع الجسم.",
+    "أعد المقاومة ببطء إلى البداية، وحافظ على نفس المسار والإيقاع في كل تكرار قبل زيادة الوزن.",
+  ];
+}
+
+function mistakesFor(raw: SourceExercise): string[] {
+  if (raw.isStretch) return ["الارتداد أثناء التمدد", "الدخول في مدى يسبب ألمًا حادًا", "حبس النفس أثناء الثبات"];
+  if (raw.exerciseType === "distance_duration")
+    return ["رفع السرعة قبل ثبات التقنية", "فقدان وضع الجذع مع التعب", "تجاهل الألم أو الدوار"];
+  if (raw.exerciseType === "duration")
+    return ["الاستمرار بعد انهيار الوضع", "حبس النفس", "شد الرقبة أو المفاصل بلا داعٍ"];
+  if (raw.exerciseType === "weight_reps")
+    return ["استخدام وزن أعلى من القدرة على التحكم", "الاعتماد على الزخم بدل العضلة المستهدفة", "اختصار مدى الحركة بسبب ثقل المقاومة"];
+  return ["التسرع على حساب التحكم", "فقدان محاذاة الجذع أو المفاصل", "اختصار المدى قبل إتقان الحركة"];
+}
+
+function breathingFor(raw: SourceExercise) {
+  if (raw.isStretch) return "تنفس ببطء وبشكل طبيعي، وازفر تدريجيًا عند الدخول إلى مدى التمدد.";
+  if (raw.exerciseType === "distance_duration")
+    return "حافظ على تنفس منتظم ومتوافق مع الإيقاع، وتجنب حبس النفس عند رفع الشدة.";
+  if (raw.exerciseType === "duration")
+    return "تنفس بصورة هادئة ومستمرة طوال زمن الثبات أو الحركة.";
+  return "ازفر أثناء مرحلة الجهد أو الدفع/السحب، وخذ شهيقًا أثناء العودة المتحكم بها.";
+}
+
+function categoryForfunction categoryFor(raw: SourceExercise): Category {
   if (raw.isStretch || raw.primaryMuscle === "Mobility") return "mobility";
   if (raw.exerciseType === "distance_duration" || raw.equipment === "Cardio") return "cardio";
   if (["Chest", "Shoulders", "Triceps"].includes(raw.primaryMuscle)) return "push";
@@ -354,13 +455,14 @@ function toExercise(raw: SourceExercise): Exercise {
     .sort((a, b) => a.index - b.index)
     .map((frame) => ASSET_BASE + frame.path) as [string, string, string];
 
+  const nameAr = ARABIC_NAMES[raw.slug] ?? raw.name;
   const cue = raw.isStretch
-    ? "نفّذ " + raw.name + " ببطء وبدون ارتداد، وراجع الإطارات الثلاثة بالترتيب قبل البدء."
-    : "نفّذ " + raw.name + " بتحكم، وراجع الإطارات الثلاثة بالترتيب 1 ← 2 ← 3 قبل زيادة السرعة أو المقاومة.";
+    ? "نفّذ " + nameAr + " ببطء وبدون ارتداد، وابقَ داخل مدى مريح يمكنك التحكم فيه."
+    : "نفّذ " + nameAr + " بتحكم، واتبع الإطارات 1 ← 2 ← 3 قبل زيادة السرعة أو المقاومة.";
 
   return {
     id: raw.slug,
-    name: ARABIC_NAME_OVERRIDES[raw.slug] ?? raw.name,
+    name: nameAr,
     latin: raw.name,
     category: categoryFor(raw),
     level: levelFor(raw),
@@ -377,17 +479,15 @@ function toExercise(raw: SourceExercise): Exercise {
     recommendedReps: defaults.reps,
     restSeconds: defaults.rest,
     cue,
-    mistakes: raw.isStretch
-      ? ["الارتداد أثناء التمدد", "الدخول في مدى يسبب ألماً حاداً"]
-      : ["التسرع على حساب التحكم", "زيادة المقاومة قبل ثبات نمط الحركة"],
+    descriptionAr: descriptionFor(raw, nameAr),
+    instructionsAr: instructionsFor(raw),
+    mistakes: mistakesFor(raw),
     safety: [
       "أوقف الحركة عند الألم الحاد أو الدوار.",
       "ابدأ بمقاومة ومدى حركة يمكنك التحكم بهما.",
       "إشارات الفحص داخل التطبيق احترازية وليست تشخيصاً طبياً.",
     ],
-    breathing: raw.isStretch
-      ? "تنفس ببطء وبشكل طبيعي طوال التمدد."
-      : "ازفر خلال مرحلة الجهد وخذ شهيقاً أثناء العودة بشكل متحكم.",
+    breathing: breathingFor(raw),
     progression: [raw.slug],
     alternatives: [],
     reference: sourceInstructions
@@ -502,4 +602,28 @@ export const EQUIPMENT_LABEL_AR: Record<Equipment, string> = {
   towel: "منشفة",
   box: "صندوق",
   "stability-ball": "كرة ثبات",
+};
+
+
+export const EXERCISE_TYPE_LABEL_AR: Record<ExerciseType, string> = {
+  weight_reps: "مقاومة وتكرارات",
+  bodyweight_reps: "وزن الجسم وتكرارات",
+  duration: "تمرين زمني",
+  distance_duration: "مسافة أو زمن",
+  assisted_bodyweight: "وزن الجسم بمساعدة",
+};
+
+export const LOCATION_LABEL_AR: Record<Location, string> = {
+  home: "المنزل",
+  gym: "صالة الجيم",
+  outdoor: "الخارج",
+};
+
+export const GOAL_LABEL_AR: Record<Goal, string> = {
+  "fat-loss": "خفض الدهون",
+  "muscle-gain": "بناء العضلات",
+  strength: "زيادة القوة",
+  endurance: "رفع التحمل",
+  mobility: "تحسين الحركة",
+  "general-fitness": "اللياقة العامة",
 };
