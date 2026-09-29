@@ -64,8 +64,8 @@ function ExerciseDetail() {
           <ChevronRight className="size-4" />
         </Link>
 
-        <span className="max-w-[250px] truncate text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
-          EXACT SOURCE · {exercise.latin}
+        <span className="max-w-[250px] truncate text-[10px] font-medium tracking-wide text-muted-foreground">
+          {exercise.media.preferredGifUrl ? "فيديو مطابق" : "حركة مطابقة"} · {exercise.latin}
         </span>
 
         <div className="size-10 rounded-full bg-primary/10 border border-primary/20 grid place-items-center text-primary">
@@ -194,29 +194,50 @@ function ExerciseDetail() {
             {tab === "motion" && (
               <>
                 <Card>
-                  <CardHeader label="الإطارات المطابقة للتمرين" />
-                  <p className="text-xs text-muted-foreground leading-relaxed mb-4">
-                    هذه الإطارات الثلاثة مأخوذة من سجل التمرين نفسه في المصدر المفتوح،
-                    ولذلك لا يوجد استخدام لفيديو عام أو حركة بديلة غير مطابقة.
-                  </p>
+                  <CardHeader
+                    label={exercise.media.preferredGifUrl ? "فيديو الحركة المطابق" : "الإطارات المطابقة للتمرين"}
+                  />
 
-                  <div className="grid grid-cols-3 gap-2" dir="ltr">
-                    {exercise.media.frames.map((frame, index) => (
-                      <div
-                        key={frame}
-                        className="rounded-xl border border-border bg-background p-1"
-                      >
+                  {exercise.media.preferredGifUrl ? (
+                    <>
+                      <div className="overflow-hidden rounded-2xl border border-border bg-background">
                         <img
-                          src={frame}
-                          alt={"إطار " + (index + 1) + " لتمرين " + exercise.latin}
-                          className="aspect-square size-full object-contain"
+                          src={exercise.media.preferredGifUrl}
+                          alt={"فيديو متحرك مطابق لتمرين " + exercise.latin}
+                          className="aspect-square w-full object-contain"
                         />
-                        <p className="text-center text-[9px] font-mono text-primary mt-1">
-                          FRAME {index + 1}
-                        </p>
                       </div>
-                    ))}
-                  </div>
+                      <p className="type-small mt-3 text-muted-foreground">
+                        هذا الـGIF مرتبط مباشرة بنفس معرّف التمرين في
+                        hasaneyldrm/exercises-dataset: {exercise.media.preferredSourceId}.
+                      </p>
+                    </>
+                  ) : (
+                    <>
+                      <p className="type-small mb-4 text-muted-foreground">
+                        لا توجد مطابقة GIF مؤكدة لهذا التمرين حاليًا، لذلك يعرض التطبيق
+                        الإطارات الثلاثة الأصلية المرتبطة بنفس سجل التمرين.
+                      </p>
+
+                      <div className="grid grid-cols-3 gap-2" dir="ltr">
+                        {exercise.media.frames.map((frame, index) => (
+                          <div
+                            key={frame}
+                            className="rounded-xl border border-border bg-background p-1"
+                          >
+                            <img
+                              src={frame}
+                              alt={"إطار " + (index + 1) + " لتمرين " + exercise.latin}
+                              className="aspect-square size-full object-contain"
+                            />
+                            <p className="mt-1 text-center text-[9px] font-medium text-primary">
+                              إطار {index + 1}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    </>
+                  )}
                 </Card>
 
                 <Card>
@@ -305,29 +326,51 @@ function ExerciseDetail() {
             {tab === "source" && (
               <>
                 <Card>
-                  <CardHeader label="مصدر الصور والبيانات" icon={ExternalLink} />
-                  <p className="text-sm font-bold">Workout Guide · Bryl Lim</p>
-                  <p className="type-small text-muted-foreground mt-1">
-                    الصور: CC BY-SA 4.0 · الإسناد: {exercise.media.attribution}. تم تثبيت
-                    الاستيراد على commit {exercise.media.sourceCommit.slice(0, 12)} لضمان
-                    ثبات التطابق.
-                  </p>
-                  <a
-                    href={exercise.media.sourceUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-flex items-center gap-1 text-xs text-primary mt-3"
-                  >
-                    فتح المصدر <ExternalLink className="size-3" />
-                  </a>
+                  <CardHeader label="مصدر الحركة والصور" icon={ExternalLink} />
+                  {exercise.media.preferredGifUrl ? (
+                    <>
+                      <p className="text-sm font-bold">hasaneyldrm/exercises-dataset</p>
+                      <p className="type-small mt-1 text-muted-foreground">
+                        المصدر المطابق: {exercise.media.preferredSourceName} · ID{" "}
+                        {exercise.media.preferredSourceId}. تم تثبيت الربط على commit{" "}
+                        {exercise.media.preferredSourceCommit?.slice(0, 12)}.
+                      </p>
+                      <a
+                        href={exercise.media.preferredSourceUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="mt-3 inline-flex items-center gap-1 text-xs text-primary"
+                      >
+                        فتح مصدر الفيديو <ExternalLink className="size-3" />
+                      </a>
+                    </>
+                  ) : (
+                    <>
+                      <p className="text-sm font-bold">Workout Guide · Bryl Lim</p>
+                      <p className="type-small mt-1 text-muted-foreground">
+                        الإطارات: CC BY-SA 4.0 · الإسناد: {exercise.media.attribution}. تم تثبيت
+                        الاستيراد على commit {exercise.media.sourceCommit.slice(0, 12)}.
+                      </p>
+                      <a
+                        href={exercise.media.sourceUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="mt-3 inline-flex items-center gap-1 text-xs text-primary"
+                      >
+                        فتح مصدر الإطارات <ExternalLink className="size-3" />
+                      </a>
+                    </>
+                  )}
                 </Card>
 
                 <Card>
                   <CardHeader label="مصدر التعليمات" />
                   <p className="type-small text-muted-foreground">
-                    {exercise.sourceInstructionsEn
-                      ? "تمت مطابقة هذا التمرين بشكل قطعي مع exercises-dataset واستخدام نص التعليمات فقط تحت MIT؛ لم تُستخدم صور أو GIFs من ذلك المستودع."
-                      : "لا توجد مطابقة قطعية مع مصدر التعليمات الإضافي، لذلك يعتمد التطبيق على البيانات المنظمة والإطارات الأصلية دون اختلاق نص منسوب للمصدر."}
+                    {exercise.media.preferredGifUrl
+                      ? "تمت مطابقة هذا التمرين مع exercises-dataset باستخدام نفس sourceId، ويستخدم التطبيق الـGIF والصورة والتعليمات المرتبطة بهذا السجل."
+                      : exercise.sourceInstructionsEn
+                        ? "توجد مطابقة موثقة لنص التعليمات، لكن لا توجد وسائط GIF مفعلة لهذا السجل في خريطة الوسائط الحالية."
+                        : "لا توجد مطابقة قطعية مع مصدر التعليمات الإضافي، لذلك يعتمد التطبيق على البيانات المنظمة والإطارات الأصلية."}
                   </p>
 
                   {exercise.sourceInstructionStepsEn?.length ? (
