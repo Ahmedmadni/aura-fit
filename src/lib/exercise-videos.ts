@@ -11,6 +11,7 @@ import squatEx from "../assets/exercises/bodyweight-squat.mp4.asset.json";
 import plankEx from "../assets/exercises/plank.mp4.asset.json";
 import burpeeEx from "../assets/exercises/burpee.mp4.asset.json";
 import wallPushupEx from "../assets/exercises/wall-pushup.mp4.asset.json";
+import inclinePushupEx from "../assets/exercises/incline-pushup.mp4.asset.json";
 
 export type ExerciseVideoStatus = "ready" | "temporary" | "pending";
 
@@ -35,7 +36,7 @@ const temporaryByPattern: Record<string, string> = {
  */
 export const EXERCISE_VIDEO_SLOTS: Record<string, ExerciseVideo> = {
   "wall-pushup": { src: wallPushupEx.url, status: "ready" },
-  "incline-pushup": { src: null, status: "pending" },
+  "incline-pushup": { src: inclinePushupEx.url, status: "ready" },
   "knee-pushup": { src: null, status: "pending" },
   pushup: { src: pushupEx.url, status: "ready" },
   "diamond-pushup": { src: null, status: "pending" },
