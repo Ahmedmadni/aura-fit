@@ -84,11 +84,11 @@ export function AthleteVideo({
         aria-hidden
       />
       <div className="pointer-events-none absolute inset-x-0 top-0 flex items-center justify-between px-3 py-2 font-mono text-[9px] uppercase tracking-widest text-primary/80">
-        <span>{running ? "◉ exact motion" : "⏸ frame 1"}</span>
-        <span>{frameIndex + 1}/3</span>
+        <span>{running ? "◉ حركة مطابقة" : "⏸ الإطار 1"}</span>
+        <span>إطار {frameIndex + 1}/3</span>
       </div>
       <div className="pointer-events-none absolute inset-x-2 bottom-2 rounded-lg border border-border bg-background/85 px-2 py-1 text-center text-[8px] text-muted-foreground backdrop-blur">
-        Bryl Lim / Everkinetic · CC BY-SA 4.0
+        Bryl Lim / Everkinetic · ترخيص CC BY-SA 4.0
       </div>
     </div>
   );
