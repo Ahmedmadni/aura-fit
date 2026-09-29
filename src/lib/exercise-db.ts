@@ -341,7 +341,7 @@ function breathingFor(raw: SourceExercise) {
   return "ازفر أثناء مرحلة الجهد أو الدفع/السحب، وخذ شهيقًا أثناء العودة المتحكم بها.";
 }
 
-function categoryForfunction categoryFor(raw: SourceExercise): Category {
+function categoryFor(raw: SourceExercise): Category {
   if (raw.isStretch || raw.primaryMuscle === "Mobility") return "mobility";
   if (raw.exerciseType === "distance_duration" || raw.equipment === "Cardio") return "cardio";
   if (["Chest", "Shoulders", "Triceps"].includes(raw.primaryMuscle)) return "push";
