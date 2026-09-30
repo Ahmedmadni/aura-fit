@@ -102,6 +102,10 @@
   body {
     letter-spacing: 0;
   }
+  /* النص العربي متصل الحروف: أي تباعد حرفي يفككه — يُسمح به للنصوص اللاتينية فقط */
+  html[lang="ar"] *:not([dir="ltr"]):not([dir="ltr"] *) {
+    letter-spacing: 0 !important;
+  }
   button, input, textarea, select {
     font: inherit;
   }
