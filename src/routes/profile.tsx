@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { BottomNav } from "@/components/bottom-nav";
 import { PageShell } from "@/components/page-shell";
+import { FontSizeSetting } from "@/components/font-size-setting";
 
 export const Route = createFileRoute("/profile")({
   component: Profile,
@@ -60,6 +61,10 @@ function Profile() {
               </span>
             </div>
           </div>
+        </div>
+
+        <div className="mb-4">
+          <FontSizeSetting />
         </div>
 
         {/* Level bar */}
