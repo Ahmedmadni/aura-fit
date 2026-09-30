@@ -128,6 +128,12 @@ function RootShell({ children }: { children: ReactNode }) {
     <html lang="ar" dir="rtl">
       <head>
         <HeadContent />
+        <script
+          dangerouslySetInnerHTML={{
+            __html:
+              "try{var s=localStorage.getItem('kp-font-scale');if(s)document.documentElement.style.setProperty('--font-scale',s)}catch(e){}",
+          }}
+        />
       </head>
       <body>
         {children}
