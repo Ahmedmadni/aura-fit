@@ -65,7 +65,7 @@ function ExerciseDetail() {
         </Link>
 
         <span className="max-w-[250px] truncate text-[10px] font-medium tracking-wide text-muted-foreground">
-          {exercise.media.preferredGifUrl ? "فيديو مطابق" : "حركة مطابقة"} · {exercise.latin}
+          {exercise.media.gif ? "فيديو مطابق" : "حركة مطابقة"} · {exercise.latin}
         </span>
 
         <div className="size-10 rounded-full bg-primary/10 border border-primary/20 grid place-items-center text-primary">
@@ -195,28 +195,30 @@ function ExerciseDetail() {
               <>
                 <Card>
                   <CardHeader
-                    label={exercise.media.preferredGifUrl ? "فيديو الحركة المطابق" : "الإطارات المطابقة للتمرين"}
+                    label={exercise.media.gif ? "فيديو الحركة المطابق" : "الإطارات المطابقة للتمرين"}
                   />
 
-                  {exercise.media.preferredGifUrl ? (
+                  {exercise.media.gif ? (
                     <>
-                      <div className="overflow-hidden rounded-2xl border border-border bg-background">
-                        <img
-                          src={exercise.media.preferredGifUrl}
-                          alt={"فيديو متحرك مطابق لتمرين " + exercise.latin}
-                          className="aspect-square w-full object-contain"
-                        />
-                      </div>
+                      <AthleteVideo
+                        exerciseId={exercise.id}
+                        pose={exercise.pose}
+                        running
+                        tempo={exercise.tempo}
+                        fluid
+                      />
                       <p className="type-small mt-3 text-muted-foreground">
                         هذا الـGIF مرتبط مباشرة بنفس معرّف التمرين في
-                        hasaneyldrm/exercises-dataset: {exercise.media.preferredSourceId}.
+                        hasaneyldrm/exercises-dataset: {exercise.media.sourceExerciseId}. مستوى
+                        المطابقة: {exercise.media.matchConfidence === "exact" ? "تطابق اسمي" : "ثقة مرتفعة"}.
                       </p>
                     </>
                   ) : (
                     <>
                       <p className="type-small mb-4 text-muted-foreground">
-                        لا توجد مطابقة GIF مؤكدة لهذا التمرين حاليًا، لذلك يعرض التطبيق
-                        الإطارات الثلاثة الأصلية المرتبطة بنفس سجل التمرين.
+                        {exercise.media.matchConfidence === "review"
+                          ? "توجد مطابقة مرشحة تحتاج مراجعة فنية؛ لن يتم تشغيلها تلقائيًا، لذلك يعرض التطبيق إطارات Workout Guide الآمنة كـ fallback."
+                          : "لا توجد مطابقة GIF مؤكدة لهذا التمرين حاليًا، لذلك يعرض التطبيق إطارات Workout Guide الأصلية كـ fallback."}
                       </p>
 
                       <div className="grid grid-cols-3 gap-2" dir="ltr">
@@ -327,16 +329,16 @@ function ExerciseDetail() {
               <>
                 <Card>
                   <CardHeader label="مصدر الحركة والصور" icon={ExternalLink} />
-                  {exercise.media.preferredGifUrl ? (
+                  {exercise.media.gif ? (
                     <>
                       <p className="text-sm font-bold">hasaneyldrm/exercises-dataset</p>
                       <p className="type-small mt-1 text-muted-foreground">
-                        المصدر المطابق: {exercise.media.preferredSourceName} · ID{" "}
-                        {exercise.media.preferredSourceId}. تم تثبيت الربط على commit{" "}
-                        {exercise.media.preferredSourceCommit?.slice(0, 12)}.
+                        المصدر المطابق: {exercise.media.sourceName} · ID{" "}
+                        {exercise.media.sourceExerciseId}. تم تثبيت الربط على commit{" "}
+                        {exercise.media.sourceCommit?.slice(0, 12)}.
                       </p>
                       <a
-                        href={exercise.media.preferredSourceUrl}
+                        href={exercise.media.sourceUrl}
                         target="_blank"
                         rel="noreferrer"
                         className="mt-3 inline-flex items-center gap-1 text-xs text-primary"
@@ -348,11 +350,11 @@ function ExerciseDetail() {
                     <>
                       <p className="text-sm font-bold">Workout Guide · Bryl Lim</p>
                       <p className="type-small mt-1 text-muted-foreground">
-                        الإطارات: CC BY-SA 4.0 · الإسناد: {exercise.media.attribution}. تم تثبيت
-                        الاستيراد على commit {exercise.media.sourceCommit.slice(0, 12)}.
+                        الإطارات: CC BY-SA 4.0 · الإسناد: {exercise.media.fallback.attribution}. تم تثبيت
+                        الاستيراد على commit {exercise.media.fallback.sourceCommit.slice(0, 12)}.
                       </p>
                       <a
-                        href={exercise.media.sourceUrl}
+                        href={exercise.media.fallback.sourceUrl}
                         target="_blank"
                         rel="noreferrer"
                         className="mt-3 inline-flex items-center gap-1 text-xs text-primary"
@@ -366,7 +368,7 @@ function ExerciseDetail() {
                 <Card>
                   <CardHeader label="مصدر التعليمات" />
                   <p className="type-small text-muted-foreground">
-                    {exercise.media.preferredGifUrl
+                    {exercise.media.gif
                       ? "تمت مطابقة هذا التمرين مع exercises-dataset باستخدام نفس sourceId، ويستخدم التطبيق الـGIF والصورة والتعليمات المرتبطة بهذا السجل."
                       : exercise.sourceInstructionsEn
                         ? "توجد مطابقة موثقة لنص التعليمات، لكن لا توجد وسائط GIF مفعلة لهذا السجل في خريطة الوسائط الحالية."

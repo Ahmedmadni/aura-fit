@@ -1,9 +1,9 @@
 /**
- * Exact exercise motion preview.
+ * GIF-first exercise media player.
  *
- * Verified hasaneyldrm GIFs are preferred when a sourceId match exists.
- * The three Workout Guide frames remain the deterministic fallback for
- * exercises without a verified GIF mapping.
+ * Exact/high-confidence hasaneyldrm GIFs are preferred. Static posters are
+ * used while paused, and the three Workout Guide frames remain the runtime
+ * fallback when no verified GIF exists or a preferred asset fails to load.
  */
 import { useEffect, useMemo, useState } from "react";
 
@@ -19,24 +19,30 @@ type Pose =
   | "cooldown"
   | "default";
 
-export function AthleteVideo({
-  exerciseId,
-  pose,
-  running,
-  tempo = 3,
-  size = 260,
-}: {
+type ExerciseMediaPlayerProps = {
   exerciseId?: string;
   pose: Pose;
   running: boolean;
   tempo?: number;
   size?: number;
-}) {
+  fluid?: boolean;
+};
+
+export function ExerciseMediaPlayer({
+  exerciseId,
+  pose,
+  running,
+  tempo = 3,
+  size = 260,
+  fluid = false,
+}: ExerciseMediaPlayerProps) {
   const exercise = exerciseId ? getExercise(exerciseId) : undefined;
   const frames = exercise?.media.frames;
-  const preferredGif = exercise?.media.preferredGifUrl;
-  const preferredImage = exercise?.media.preferredImageUrl;
+  const preferredGif =
+    exercise?.media.preferred === "gif" ? exercise.media.gif : undefined;
+  const poster = exercise?.media.poster;
   const [frameIndex, setFrameIndex] = useState(0);
+  const [preferredFailed, setPreferredFailed] = useState(false);
 
   const intervalMs = useMemo(
     () => Math.max(280, Math.round((tempo * 1000) / 3)),
@@ -45,41 +51,49 @@ export function AthleteVideo({
 
   useEffect(() => {
     setFrameIndex(0);
+    setPreferredFailed(false);
+  }, [exerciseId, preferredGif, poster]);
+
+  useEffect(() => {
     if (!running || !frames?.length) return;
     const timer = window.setInterval(
       () => setFrameIndex((current) => (current + 1) % frames.length),
       intervalMs,
     );
     return () => window.clearInterval(timer);
-  }, [exerciseId, frames, intervalMs, running]);
+  }, [frames, intervalMs, running]);
 
   useEffect(() => {
-    if (preferredImage) {
-      const poster = new Image();
-      poster.src = preferredImage;
-    }
-    if (preferredGif) {
-      const motion = new Image();
-      motion.src = preferredGif;
+    const preferredAsset = running ? preferredGif : poster;
+    if (preferredAsset) {
+      const image = new Image();
+      image.src = preferredAsset;
     }
     if (!frames) return;
     frames.forEach((src) => {
       const image = new Image();
       image.src = src;
     });
-  }, [frames, preferredGif, preferredImage]);
+  }, [frames, poster, preferredGif, running]);
 
-  if (preferredGif) {
-    const source = running ? preferredGif : preferredImage ?? preferredGif;
+  const containerStyle = fluid
+    ? { width: "100%", aspectRatio: "1 / 1" }
+    : { width: size, height: size };
+
+  if (preferredGif && !preferredFailed) {
+    const source = running ? preferredGif : poster ?? frames?.[0] ?? preferredGif;
     return (
       <div
         className="relative overflow-hidden rounded-3xl border border-primary/20 bg-background"
-        style={{ width: size, height: size }}
+        style={containerStyle}
       >
         <img
           key={running ? "gif" : "poster"}
           src={source}
           alt={"حركة مطابقة لتمرين " + (exercise?.latin ?? "")}
+          loading="lazy"
+          decoding="async"
+          onError={() => setPreferredFailed(true)}
           className="size-full object-contain"
           style={{ filter: running ? "none" : "grayscale(0.15) brightness(0.92)" }}
         />
@@ -93,10 +107,10 @@ export function AthleteVideo({
         />
         <div className="pointer-events-none absolute inset-x-0 top-0 flex items-center justify-between px-3 py-2 text-[9px] font-semibold tracking-wide text-primary/90">
           <span>{running ? "◉ فيديو الحركة" : "⏸ صورة البداية"}</span>
-          <span>{exercise?.media.preferredSourceId}</span>
+          <span>{exercise?.media.sourceExerciseId}</span>
         </div>
         <div className="pointer-events-none absolute inset-x-2 bottom-2 rounded-lg border border-border bg-background/85 px-2 py-1 text-center text-[8px] text-muted-foreground backdrop-blur">
-          hasaneyldrm/exercises-dataset · {exercise?.media.preferredSourceName}
+          hasaneyldrm/exercises-dataset · {exercise?.media.sourceName}
         </div>
       </div>
     );
@@ -109,12 +123,14 @@ export function AthleteVideo({
   return (
     <div
       className="relative overflow-hidden rounded-3xl border border-primary/20 bg-background"
-      style={{ width: size, height: size }}
+      style={containerStyle}
     >
       <img
         key={frames[frameIndex]}
         src={frames[frameIndex]}
         alt={"إطار توضيحي مطابق لتمرين " + (exercise?.latin ?? "")}
+        loading="lazy"
+        decoding="async"
         className="size-full object-contain p-3 transition-opacity duration-200"
         style={{ filter: running ? "none" : "grayscale(0.25) brightness(0.9)" }}
       />
@@ -127,7 +143,7 @@ export function AthleteVideo({
         aria-hidden
       />
       <div className="pointer-events-none absolute inset-x-0 top-0 flex items-center justify-between px-3 py-2 font-mono text-[9px] uppercase tracking-widest text-primary/80">
-        <span>{running ? "◉ حركة مطابقة" : "⏸ الإطار 1"}</span>
+        <span>{preferredFailed ? "↺ fallback آمن" : running ? "◉ حركة مطابقة" : "⏸ الإطار 1"}</span>
         <span>إطار {frameIndex + 1}/3</span>
       </div>
       <div className="pointer-events-none absolute inset-x-2 bottom-2 rounded-lg border border-border bg-background/85 px-2 py-1 text-center text-[8px] text-muted-foreground backdrop-blur">
@@ -136,3 +152,5 @@ export function AthleteVideo({
     </div>
   );
 }
+
+export const AthleteVideo = ExerciseMediaPlayer;

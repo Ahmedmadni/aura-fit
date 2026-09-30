@@ -1,86 +1,36 @@
 # Third-party exercise data and media
 
-Aura Fit's exercise catalog was rebuilt on 2026-09-29. The app no longer uses the previous hand-written exercise list or generic per-pattern motion clips.
+Aura Fit keeps the 302-exercise Workout Guide catalog as the canonical application catalog and uses verified hasaneyldrm media as the preferred motion layer.
 
-## Workout Guide — canonical catalog and visual frames
+## Workout Guide — canonical catalog and fallback frames
 
 - Repository: https://github.com/bryllim/workout-guide
 - Pinned commit: aac599224bb9780305239607ef98540b7e0ce389
-- Imported catalog entries: 302
-- Software / structured metadata license: MIT
-- Visual assets license: CC BY-SA 4.0
-- Visual attribution: Bryl Lim / Everkinetic
-- Asset adaptations remain subject to CC BY-SA 4.0.
+- Aura Fit catalog entries: 302
+- Three exercise-specific frames remain available for every catalog entry.
+- These frames are the deterministic fallback when no preferred GIF is approved or when a preferred asset fails to load.
 
-MIT notice:
-
-MIT License
-
-Copyright (c) 2026 Bryl Lim
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
-
-Visual license: https://creativecommons.org/licenses/by-sa/4.0/
-
-The original pose artwork used by Workout Guide comes from Everkinetic under
-CC BY-SA 4.0. Bryl Lim expanded the set with additional exercises, normalized
-assets, structured metadata and animation frames.
-
-## exercises-dataset — instruction text only
+## hasaneyldrm/exercises-dataset — preferred GIF/poster layer
 
 - Repository: https://github.com/hasaneyldrm/exercises-dataset
-- Safely matched instruction records imported: 78
-- Used fields: English instruction text / steps and exercise metadata for exact high-confidence matches.
-- License for code, dataset structure and instruction text: MIT.
-- No images or GIFs from this repository are used by Aura Fit.
+- Pinned source commit: 7455efae41b330c265e7cd4b78dfa848e7ce5ebd
+- Indexed source exercises: 1324
+- Aura Fit exercises evaluated: 302
+- Exact approved matches: 79
+- High-confidence approved matches: 40
+- Review required: 129
+- No safe match: 54
+- Preferred GIFs enabled in the app: 119
 
-The upstream repository explicitly states that its images and GIFs are
-© Gym Visual and are not covered by its MIT license. Aura Fit therefore does
-not copy or hotlink those media files.
+Only `exact` and `high` entries in `src/data/exercise-media-map.json` receive an active GIF/poster. A `review` entry never loads its candidate media automatically.
 
-MIT notice:
+## Runtime media policy
 
-MIT License
+1. Library cards use the static poster for approved mappings; otherwise they use frame 1.
+2. Library cards never load all GIFs.
+3. Exercise detail/workout views load the approved GIF only for the current exercise.
+4. If the GIF/poster fails, the media player falls back to the three Workout Guide frames.
+5. Candidate mappings marked `review` stay disabled until manually promoted.
+6. A media link must agree with the exercise movement, equipment as closely as the catalogs allow, and the target muscle before promotion.
 
-Copyright (c) 2026 Hasan Emir Yıldırım
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation and data files (the "Software"),
-to deal in the Software without restriction, including without limitation the
-rights to use, copy, modify, merge, publish, distribute, sublicense, and/or
-sell copies of the Software, subject to inclusion of the copyright and
-permission notice.
-
-## Other repositories reviewed but not imported
-
-### azilRababe/Exercises_Dataset
-
-The repository metadata describes an MIT project, but its GIF indexes point to
-third-party files hosted on fitnessprogramer.com. The repository alone does
-not establish a reusable license for those third-party media, so Aura Fit does
-not import or hotlink them.
-
-### ExerciseDB/exercisedb-api
-
-The repository code is AGPL-3.0 and its README directs API/media usage to
-separate documentation, plans and Terms of Use. Aura Fit does not copy
-ExerciseDB media or API data in this import.
-
-## Integrity rule
-
-Exercise visual media must be tied to the same canonical exercise record as
-the displayed title. If a trustworthy technical-instruction match is
-unavailable, Aura Fit shows the canonical metadata and exact visual frames
-rather than inventing detailed form instructions.
+The legacy `exercise-gymvisual-media.json` file is retained only as import history; `exercise-media-map.json` is the canonical runtime mapping.

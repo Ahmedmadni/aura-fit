@@ -1,7 +1,7 @@
 import manifest from "../data/workout-guide-manifest.json";
 import instructionEnrichment from "../data/exercise-instructions.json";
 import arabicNames from "../data/exercise-arabic-names.json";
-import preferredMedia from "../data/exercise-gymvisual-media.json";
+import mediaMap from "../data/exercise-media-map.json";
 
 export type Category =
   | "push"
@@ -87,21 +87,29 @@ export type ExerciseType =
   | "distance_duration"
   | "assisted_bodyweight";
 
+export type MatchConfidence = "exact" | "high" | "review" | "none";
+
 export interface ExerciseMedia {
-  kind: "gif" | "frames";
+  preferred: "gif" | "video" | "frames";
+  gif?: string;
+  video?: string;
+  poster: string;
   frames: [string, string, string];
-  attribution: string;
-  license: "CC BY-SA 4.0";
-  licenseUrl: string;
-  sourceUrl: string;
-  sourceCommit: string;
-  preferredGifUrl?: string;
-  preferredImageUrl?: string;
-  preferredSourceId?: string;
-  preferredSourceName?: string;
-  preferredAttribution?: string;
-  preferredSourceUrl?: string;
-  preferredSourceCommit?: string;
+  sourceExerciseId?: string;
+  sourceName?: string;
+  sourceAttribution?: string;
+  sourceUrl?: string;
+  sourceCommit?: string;
+  matchConfidence: MatchConfidence;
+  candidateSourceExerciseId?: string;
+  candidateSourceName?: string;
+  fallback: {
+    attribution: string;
+    license: "CC BY-SA 4.0";
+    licenseUrl: string;
+    sourceUrl: string;
+    sourceCommit: string;
+  };
 }
 
 export interface Exercise {
@@ -167,18 +175,31 @@ type InstructionEnrichment = {
   repository: "hasaneyldrm/exercises-dataset";
 };
 
-type PreferredExerciseMedia = {
-  sourceId: string;
-  sourceName: string;
-  gifUrl: string;
-  imageUrl: string;
-  equipment: string;
-  target: string;
-  muscleGroup: string;
-  attribution: string;
+type MediaMapMeta = {
   sourceRepository: "hasaneyldrm/exercises-dataset";
   sourceCommit: string;
+  rawBase: string;
+  fallbackRepository: "bryllim/workout-guide";
+  generatedFrom: number;
+  auraExerciseCount: number;
 };
+
+type MediaMapEntry = {
+  source?: "hasaneyldrm/exercises-dataset";
+  sourceExerciseId?: string;
+  sourceName?: string;
+  gif?: string;
+  poster?: string;
+  matchConfidence: MatchConfidence;
+  equipment?: string;
+  target?: string;
+  candidateSourceExerciseId?: string;
+  candidateSourceName?: string;
+};
+
+type ExerciseMediaMap = {
+  _meta: MediaMapMeta;
+} & Record<string, MediaMapEntry | MediaMapMeta>;
 
 const SOURCE_COMMIT = "aac599224bb9780305239607ef98540b7e0ce389";
 const SOURCE_REPO = "https://github.com/bryllim/workout-guide";
@@ -189,7 +210,14 @@ const ASSET_BASE =
 
 const SOURCE_MANIFEST = manifest as unknown as SourceExercise[];
 const INSTRUCTIONS = instructionEnrichment as Record<string, InstructionEnrichment>;
-const PREFERRED_MEDIA = preferredMedia as Record<string, PreferredExerciseMedia>;
+const MEDIA_MAP = mediaMap as unknown as ExerciseMediaMap;
+const MEDIA_META = MEDIA_MAP._meta;
+const MEDIA_SOURCE_URL = "https://github.com/" + MEDIA_META.sourceRepository;
+
+function resolvePreferredAsset(path?: string) {
+  if (!path) return undefined;
+  return /^https?:\/\//.test(path) ? path : MEDIA_META.rawBase + path;
+}
 
 const EQUIPMENT_MAP: Record<string, Equipment> = {
   Barbell: "barbell",
@@ -469,7 +497,11 @@ function defaultsFor(raw: SourceExercise) {
 function toExercise(raw: SourceExercise): Exercise {
   const defaults = defaultsFor(raw);
   const sourceInstructions = INSTRUCTIONS[raw.slug];
-  const preferred = PREFERRED_MEDIA[raw.slug];
+  const mediaMapping = MEDIA_MAP[raw.slug] as MediaMapEntry | undefined;
+  const hasVerifiedPreferredMedia =
+    mediaMapping?.source === "hasaneyldrm/exercises-dataset" &&
+    (mediaMapping.matchConfidence === "exact" || mediaMapping.matchConfidence === "high") &&
+    Boolean(mediaMapping.gif && mediaMapping.poster);
   const primary = MUSCLE_MAP[raw.primaryMuscle] ?? ["full-body"];
   const secondary = [...new Set(raw.secondaryMuscles.flatMap((muscle) => MUSCLE_MAP[muscle] ?? []))].filter(
     (muscle) => !primary.includes(muscle),
@@ -481,7 +513,7 @@ function toExercise(raw: SourceExercise): Exercise {
   const nameAr = ARABIC_NAMES[raw.slug] ?? raw.name;
   const cue = raw.isStretch
     ? "نفّذ " + nameAr + " ببطء وبدون ارتداد، وابقَ داخل مدى مريح يمكنك التحكم فيه."
-    : "نفّذ " + nameAr + " بتحكم، واتبع الإطارات 1 ← 2 ← 3 قبل زيادة السرعة أو المقاومة.";
+    : "نفّذ " + nameAr + " بتحكم، واتبع مسار الحركة المعروض قبل زيادة السرعة أو المقاومة.";
 
   return {
     id: raw.slug,
@@ -523,22 +555,29 @@ function toExercise(raw: SourceExercise): Exercise {
     exerciseType: raw.exerciseType,
     isStretch: raw.isStretch,
     media: {
-      kind: preferred ? "gif" : "frames",
+      preferred: hasVerifiedPreferredMedia ? "gif" : "frames",
+      gif: hasVerifiedPreferredMedia ? resolvePreferredAsset(mediaMapping?.gif) : undefined,
+      poster:
+        (hasVerifiedPreferredMedia ? resolvePreferredAsset(mediaMapping?.poster) : undefined) ??
+        frames[0],
       frames,
-      attribution: "Bryl Lim / Everkinetic",
-      license: "CC BY-SA 4.0",
-      licenseUrl: "https://creativecommons.org/licenses/by-sa/4.0/",
-      sourceUrl: SOURCE_REPO,
-      sourceCommit: SOURCE_COMMIT,
-      preferredGifUrl: preferred?.gifUrl,
-      preferredImageUrl: preferred?.imageUrl,
-      preferredSourceId: preferred?.sourceId,
-      preferredSourceName: preferred?.sourceName,
-      preferredAttribution: preferred?.attribution,
-      preferredSourceUrl: preferred
-        ? "https://github.com/hasaneyldrm/exercises-dataset"
+      sourceExerciseId: hasVerifiedPreferredMedia ? mediaMapping?.sourceExerciseId : undefined,
+      sourceName: hasVerifiedPreferredMedia ? mediaMapping?.sourceName : undefined,
+      sourceAttribution: hasVerifiedPreferredMedia
+        ? "© Gym visual — https://gymvisual.com/"
         : undefined,
-      preferredSourceCommit: preferred?.sourceCommit,
+      sourceUrl: hasVerifiedPreferredMedia ? MEDIA_SOURCE_URL : undefined,
+      sourceCommit: hasVerifiedPreferredMedia ? MEDIA_META.sourceCommit : undefined,
+      matchConfidence: mediaMapping?.matchConfidence ?? "none",
+      candidateSourceExerciseId: mediaMapping?.candidateSourceExerciseId,
+      candidateSourceName: mediaMapping?.candidateSourceName,
+      fallback: {
+        attribution: "Bryl Lim / Everkinetic",
+        license: "CC BY-SA 4.0",
+        licenseUrl: "https://creativecommons.org/licenses/by-sa/4.0/",
+        sourceUrl: SOURCE_REPO,
+        sourceCommit: SOURCE_COMMIT,
+      },
     },
     sourceInstructionsEn: sourceInstructions?.instructionsEn || undefined,
     sourceInstructionStepsEn: sourceInstructions?.stepsEn?.length ? sourceInstructions.stepsEn : undefined,

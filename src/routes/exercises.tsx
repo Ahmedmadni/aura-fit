@@ -37,7 +37,7 @@ const categories: Array<{ id: Category | "all"; label: string; icon: typeof Dumb
 
 const LEVEL_BARS = { beginner: 2, intermediate: 3, advanced: 5 } as const;
 const PAGE_SIZE = 48;
-const GIF_COUNT = EXERCISES.filter((exercise) => Boolean(exercise.media.preferredGifUrl)).length;
+const GIF_COUNT = EXERCISES.filter((exercise) => exercise.media.preferred === "gif" && Boolean(exercise.media.gif)).length;
 
 function ExerciseLibrary() {
   const [cat, setCat] = useState<Category | "all">("all");
@@ -134,9 +134,16 @@ function ExerciseLibrary() {
             <div className="relative flex items-center gap-4">
               <div className="size-20 rounded-xl bg-background/60 border border-border grid place-items-center shrink-0 overflow-hidden">
                 <img
-                  src={exercise.media.preferredImageUrl ?? exercise.media.frames[0]}
+                  src={exercise.media.poster ?? exercise.media.frames[0]}
                   alt={"صورة مطابقة لتمرين " + exercise.latin}
                   loading="lazy"
+                  decoding="async"
+                  onError={(event) => {
+                    const fallback = exercise.media.frames[0];
+                    if (event.currentTarget.getAttribute("src") !== fallback) {
+                      event.currentTarget.src = fallback;
+                    }
+                  }}
                   className="size-full object-contain p-1"
                 />
               </div>
@@ -155,7 +162,7 @@ function ExerciseLibrary() {
                     <span className="type-caption text-primary">
                       {CATEGORY_LABEL_AR[exercise.category]}
                     </span>
-                    {exercise.media.preferredGifUrl ? (
+                    {exercise.media.preferred === "gif" ? (
                       <span className="rounded-full border border-primary/25 bg-primary/10 px-2 py-0.5 text-[9px] font-semibold text-primary">
                         GIF
                       </span>
