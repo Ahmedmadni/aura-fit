@@ -1235,24 +1235,44 @@
     "target": "triceps"
   },
   "dumbbell-skull-crusher": {
-    "matchConfidence": "review",
-    "candidateSourceExerciseId": "1741",
-    "candidateSourceName": "dumbbell standing bent over two arm triceps extension"
+    "source": "hasaneyldrm/exercises-dataset",
+    "sourceExerciseId": "0351",
+    "sourceName": "dumbbell lying triceps extension",
+    "gif": "videos/0351-mpKZGWz.gif",
+    "poster": "images/0351-mpKZGWz.jpg",
+    "matchConfidence": "high",
+    "equipment": "dumbbell",
+    "target": "triceps"
   },
   "single-dumbbell-skullcrusher": {
-    "matchConfidence": "review",
-    "candidateSourceExerciseId": "1620",
-    "candidateSourceName": "dumbbell incline one arm hammer press on exercise ball"
+    "source": "hasaneyldrm/exercises-dataset",
+    "sourceExerciseId": "1735",
+    "sourceName": "dumbbell lying single extension",
+    "gif": "videos/1735-6MfS53i.gif",
+    "poster": "images/1735-6MfS53i.jpg",
+    "matchConfidence": "high",
+    "equipment": "dumbbell",
+    "target": "triceps"
   },
   "dumbbell-overhead-tricep-extension": {
-    "matchConfidence": "review",
-    "candidateSourceExerciseId": "1738",
-    "candidateSourceName": "dumbbell seated reverse grip one arm overhead tricep extension"
+    "source": "hasaneyldrm/exercises-dataset",
+    "sourceExerciseId": "2188",
+    "sourceName": "dumbbell seated triceps extension",
+    "gif": "videos/2188-kont8Ut.gif",
+    "poster": "images/2188-kont8Ut.jpg",
+    "matchConfidence": "high",
+    "equipment": "dumbbell",
+    "target": "triceps"
   },
   "single-arm-dumbbell-tricep-extension": {
-    "matchConfidence": "review",
-    "candidateSourceExerciseId": "1738",
-    "candidateSourceName": "dumbbell seated reverse grip one arm overhead tricep extension"
+    "source": "hasaneyldrm/exercises-dataset",
+    "sourceExerciseId": "0430",
+    "sourceName": "dumbbell standing triceps extension",
+    "gif": "videos/0430-PdmaD0N.gif",
+    "poster": "images/0430-PdmaD0N.jpg",
+    "matchConfidence": "high",
+    "equipment": "dumbbell",
+    "target": "triceps"
   },
   "bench-dip": {
     "source": "hasaneyldrm/exercises-dataset",
@@ -1281,9 +1301,14 @@
     "matchConfidence": "none"
   },
   "crunch": {
-    "matchConfidence": "review",
-    "candidateSourceExerciseId": "0634",
-    "candidateSourceName": "negative crunch"
+    "source": "hasaneyldrm/exercises-dataset",
+    "sourceExerciseId": "0274",
+    "sourceName": "crunch floor",
+    "gif": "videos/0274-TFqbd8t.gif",
+    "poster": "images/0274-TFqbd8t.jpg",
+    "matchConfidence": "high",
+    "equipment": "body weight",
+    "target": "abs"
   },
   "reverse-crunch": {
     "source": "hasaneyldrm/exercises-dataset",
@@ -1577,9 +1602,14 @@
     "target": "triceps"
   },
   "chair-dip": {
-    "matchConfidence": "review",
-    "candidateSourceExerciseId": "3289",
-    "candidateSourceName": "impossible dips"
+    "source": "hasaneyldrm/exercises-dataset",
+    "sourceExerciseId": "0815",
+    "sourceName": "triceps dips floor",
+    "gif": "videos/0815-7aVz15j.gif",
+    "poster": "images/0815-7aVz15j.jpg",
+    "matchConfidence": "high",
+    "equipment": "body weight",
+    "target": "triceps"
   },
   "doorway-row": {
     "matchConfidence": "review",
@@ -1852,14 +1882,24 @@
     "matchConfidence": "none"
   },
   "banded-row": {
-    "matchConfidence": "review",
-    "candidateSourceExerciseId": "0988",
-    "candidateSourceName": "band one arm standing low row"
+    "source": "hasaneyldrm/exercises-dataset",
+    "sourceExerciseId": "3144",
+    "sourceName": "resistance band seated straight back row",
+    "gif": "videos/3144-Nu7jqFE.gif",
+    "poster": "images/3144-Nu7jqFE.jpg",
+    "matchConfidence": "high",
+    "equipment": "resistance band",
+    "target": "upper back"
   },
   "banded-lat-pulldown": {
-    "matchConfidence": "review",
-    "candidateSourceExerciseId": "3117",
-    "candidateSourceName": "band fixed back close grip pulldown"
+    "source": "hasaneyldrm/exercises-dataset",
+    "sourceExerciseId": "0974",
+    "sourceName": "band close-grip pulldown",
+    "gif": "videos/0974-DptumMx.gif",
+    "poster": "images/0974-DptumMx.jpg",
+    "matchConfidence": "high",
+    "equipment": "band",
+    "target": "lats"
   },
   "banded-pallof-press": {
     "matchConfidence": "none"
