@@ -58,9 +58,14 @@
     "target": "pectorals"
   },
   "machine-chest-press": {
-    "matchConfidence": "review",
-    "candidateSourceExerciseId": "1301",
-    "candidateSourceName": "machine inner chest press"
+    "source": "hasaneyldrm/exercises-dataset",
+    "sourceExerciseId": "0576",
+    "sourceName": "lever chest press",
+    "gif": "videos/0576-DOoWcnA.gif",
+    "poster": "images/0576-DOoWcnA.jpg",
+    "matchConfidence": "high",
+    "equipment": "leverage machine",
+    "target": "pectorals"
   },
   "pec-deck": {
     "source": "hasaneyldrm/exercises-dataset",
@@ -73,9 +78,14 @@
     "target": "pectorals"
   },
   "cable-fly": {
-    "matchConfidence": "review",
-    "candidateSourceExerciseId": "0227",
-    "candidateSourceName": "cable standing fly"
+    "source": "hasaneyldrm/exercises-dataset",
+    "sourceExerciseId": "0227",
+    "sourceName": "cable standing fly",
+    "gif": "videos/0227-Pr9Rhf4.gif",
+    "poster": "images/0227-Pr9Rhf4.jpg",
+    "matchConfidence": "high",
+    "equipment": "cable",
+    "target": "pectorals"
   },
   "push-up": {
     "source": "hasaneyldrm/exercises-dataset",
@@ -93,9 +103,14 @@
     "candidateSourceName": "weighted drop push up"
   },
   "overhead-press": {
-    "matchConfidence": "review",
-    "candidateSourceExerciseId": "0091",
-    "candidateSourceName": "barbell seated overhead press"
+    "source": "hasaneyldrm/exercises-dataset",
+    "sourceExerciseId": "0091",
+    "sourceName": "barbell seated overhead press",
+    "gif": "videos/0091-kTbSH9h.gif",
+    "poster": "images/0091-kTbSH9h.jpg",
+    "matchConfidence": "high",
+    "equipment": "barbell",
+    "target": "delts"
   },
   "seated-dumbbell-press": {
     "source": "hasaneyldrm/exercises-dataset",
@@ -269,9 +284,14 @@
     "target": "lats"
   },
   "close-grip-lat-pulldown": {
-    "matchConfidence": "review",
-    "candidateSourceExerciseId": "0198",
-    "candidateSourceName": "cable pulldown"
+    "source": "hasaneyldrm/exercises-dataset",
+    "sourceExerciseId": "0818",
+    "sourceName": "twin handle parallel grip lat pulldown",
+    "gif": "videos/0818-rkg41Fb.gif",
+    "poster": "images/0818-rkg41Fb.jpg",
+    "matchConfidence": "high",
+    "equipment": "cable",
+    "target": "lats"
   },
   "straight-arm-pulldown": {
     "source": "hasaneyldrm/exercises-dataset",
@@ -409,9 +429,14 @@
     "target": "hamstrings"
   },
   "hip-thrust": {
-    "matchConfidence": "review",
-    "candidateSourceExerciseId": "0058",
-    "candidateSourceName": "barbell lying lifting (on hip)"
+    "source": "hasaneyldrm/exercises-dataset",
+    "sourceExerciseId": "0058",
+    "sourceName": "barbell lying lifting (on hip)",
+    "gif": "videos/0058-SNFfUff.gif",
+    "poster": "images/0058-SNFfUff.jpg",
+    "matchConfidence": "high",
+    "equipment": "barbell",
+    "target": "glutes"
   },
   "glute-bridge": {
     "source": "hasaneyldrm/exercises-dataset",
@@ -454,9 +479,14 @@
     "target": "calves"
   },
   "bicep-curl": {
-    "matchConfidence": "review",
-    "candidateSourceExerciseId": "1677",
-    "candidateSourceName": "dumbbell seated bicep curl"
+    "source": "hasaneyldrm/exercises-dataset",
+    "sourceExerciseId": "0294",
+    "sourceName": "dumbbell biceps curl",
+    "gif": "videos/0294-NbVPDMW.gif",
+    "poster": "images/0294-NbVPDMW.jpg",
+    "matchConfidence": "high",
+    "equipment": "dumbbell",
+    "target": "biceps"
   },
   "hammer-curl": {
     "source": "hasaneyldrm/exercises-dataset",
@@ -509,14 +539,24 @@
     "target": "forearms"
   },
   "tricep-pushdown": {
-    "matchConfidence": "review",
-    "candidateSourceExerciseId": "1723",
-    "candidateSourceName": "cable one arm tricep pushdown"
+    "source": "hasaneyldrm/exercises-dataset",
+    "sourceExerciseId": "0201",
+    "sourceName": "cable pushdown",
+    "gif": "videos/0201-3ZflifB.gif",
+    "poster": "images/0201-3ZflifB.jpg",
+    "matchConfidence": "high",
+    "equipment": "cable",
+    "target": "triceps"
   },
   "overhead-tricep-extension": {
-    "matchConfidence": "review",
-    "candidateSourceExerciseId": "1727",
-    "candidateSourceName": "cable standing reverse grip one arm overhead tricep extension"
+    "source": "hasaneyldrm/exercises-dataset",
+    "sourceExerciseId": "0194",
+    "sourceName": "cable overhead triceps extension (rope attachment)",
+    "gif": "videos/0194-2IxROQ1.gif",
+    "poster": "images/0194-2IxROQ1.jpg",
+    "matchConfidence": "high",
+    "equipment": "cable",
+    "target": "triceps"
   },
   "skull-crusher": {
     "source": "hasaneyldrm/exercises-dataset",
@@ -574,9 +614,14 @@
     "target": "abs"
   },
   "cable-crunch": {
-    "matchConfidence": "review",
-    "candidateSourceExerciseId": "0223",
-    "candidateSourceName": "cable side crunch"
+    "source": "hasaneyldrm/exercises-dataset",
+    "sourceExerciseId": "0175",
+    "sourceName": "cable kneeling crunch",
+    "gif": "videos/0175-WW95auq.gif",
+    "poster": "images/0175-WW95auq.jpg",
+    "matchConfidence": "high",
+    "equipment": "cable",
+    "target": "abs"
   },
   "ab-wheel": {
     "matchConfidence": "none"
@@ -603,9 +648,14 @@
     "matchConfidence": "none"
   },
   "stair-climber": {
-    "matchConfidence": "review",
-    "candidateSourceExerciseId": "2466",
-    "candidateSourceName": "bridge - mountain climber (cross body)"
+    "source": "hasaneyldrm/exercises-dataset",
+    "sourceExerciseId": "2311",
+    "sourceName": "walking on stepmill",
+    "gif": "videos/2311-j9Q5crt.gif",
+    "poster": "images/2311-j9Q5crt.jpg",
+    "matchConfidence": "high",
+    "equipment": "stepmill machine",
+    "target": "cardiovascular system"
   },
   "dumbbell-fly": {
     "source": "hasaneyldrm/exercises-dataset",
@@ -663,9 +713,14 @@
     "target": "pectorals"
   },
   "weighted-dip": {
-    "matchConfidence": "review",
-    "candidateSourceExerciseId": "1754",
-    "candidateSourceName": "weighted three bench dips"
+    "source": "hasaneyldrm/exercises-dataset",
+    "sourceExerciseId": "1767",
+    "sourceName": "weighted triceps dip on high parallel bars",
+    "gif": "videos/1767-K1vlode.gif",
+    "poster": "images/1767-K1vlode.jpg",
+    "matchConfidence": "high",
+    "equipment": "weighted",
+    "target": "triceps"
   },
   "machine-shoulder-press": {
     "source": "hasaneyldrm/exercises-dataset",
@@ -718,9 +773,14 @@
     "candidateSourceName": "dumbbell seated alternate front raise"
   },
   "bent-over-rear-delt-raise": {
-    "matchConfidence": "review",
-    "candidateSourceExerciseId": "0376",
-    "candidateSourceName": "dumbbell raise"
+    "source": "hasaneyldrm/exercises-dataset",
+    "sourceExerciseId": "2292",
+    "sourceName": "dumbbell rear delt raise",
+    "gif": "videos/2292-mu5Guxt.gif",
+    "poster": "images/2292-mu5Guxt.jpg",
+    "matchConfidence": "high",
+    "equipment": "dumbbell",
+    "target": "delts"
   },
   "cable-rear-delt-fly": {
     "matchConfidence": "review",
@@ -753,9 +813,14 @@
     "candidateSourceName": "barbell one arm bent over row"
   },
   "single-arm-cable-row": {
-    "matchConfidence": "review",
-    "candidateSourceExerciseId": "0159",
-    "candidateSourceName": "cable decline seated wide-grip row"
+    "source": "hasaneyldrm/exercises-dataset",
+    "sourceExerciseId": "0189",
+    "sourceName": "cable one arm bent over row",
+    "gif": "videos/0189-EIsE3u8.gif",
+    "poster": "images/0189-EIsE3u8.jpg",
+    "matchConfidence": "high",
+    "equipment": "cable",
+    "target": "upper back"
   },
   "wide-grip-lat-pulldown": {
     "matchConfidence": "review",
@@ -893,9 +958,14 @@
     "target": "abductors"
   },
   "single-leg-glute-bridge": {
-    "matchConfidence": "review",
-    "candidateSourceExerciseId": "1476",
-    "candidateSourceName": "one leg squat"
+    "source": "hasaneyldrm/exercises-dataset",
+    "sourceExerciseId": "3645",
+    "sourceName": "single leg bridge with outstretched leg",
+    "gif": "videos/3645-rmEukuS.gif",
+    "poster": "images/3645-rmEukuS.jpg",
+    "matchConfidence": "high",
+    "equipment": "body weight",
+    "target": "glutes"
   },
   "barbell-glute-bridge": {
     "source": "hasaneyldrm/exercises-dataset",
@@ -1065,14 +1135,24 @@
     "target": "glutes"
   },
   "donkey-calf-raise": {
-    "matchConfidence": "review",
-    "candidateSourceExerciseId": "1253",
-    "candidateSourceName": "lever donkey calf raise"
+    "source": "hasaneyldrm/exercises-dataset",
+    "sourceExerciseId": "1253",
+    "sourceName": "lever donkey calf raise",
+    "gif": "videos/1253-C9LuR4A.gif",
+    "poster": "images/1253-C9LuR4A.jpg",
+    "matchConfidence": "high",
+    "equipment": "leverage machine",
+    "target": "calves"
   },
   "leg-press-calf-raise": {
-    "matchConfidence": "review",
-    "candidateSourceExerciseId": "1391",
-    "candidateSourceName": "sled calf press on leg press"
+    "source": "hasaneyldrm/exercises-dataset",
+    "sourceExerciseId": "1391",
+    "sourceName": "sled calf press on leg press",
+    "gif": "videos/1391-ykHcWme.gif",
+    "poster": "images/1391-ykHcWme.jpg",
+    "matchConfidence": "high",
+    "equipment": "sled machine",
+    "target": "calves"
   },
   "wall-sit": {
     "matchConfidence": "review",
@@ -1145,9 +1225,14 @@
     "target": "biceps"
   },
   "rope-tricep-pushdown": {
-    "matchConfidence": "review",
-    "candidateSourceExerciseId": "1723",
-    "candidateSourceName": "cable one arm tricep pushdown"
+    "source": "hasaneyldrm/exercises-dataset",
+    "sourceExerciseId": "0200",
+    "sourceName": "cable pushdown (with rope attachment)",
+    "gif": "videos/0200-dU605di.gif",
+    "poster": "images/0200-dU605di.jpg",
+    "matchConfidence": "high",
+    "equipment": "cable",
+    "target": "triceps"
   },
   "dumbbell-skull-crusher": {
     "matchConfidence": "review",
@@ -1170,9 +1255,14 @@
     "candidateSourceName": "dumbbell seated reverse grip one arm overhead tricep extension"
   },
   "bench-dip": {
-    "matchConfidence": "review",
-    "candidateSourceExerciseId": "1753",
-    "candidateSourceName": "three bench dip"
+    "source": "hasaneyldrm/exercises-dataset",
+    "sourceExerciseId": "0129",
+    "sourceName": "bench dip (knees bent)",
+    "gif": "videos/0129-RrLske5.gif",
+    "poster": "images/0129-RrLske5.jpg",
+    "matchConfidence": "high",
+    "equipment": "body weight",
+    "target": "triceps"
   },
   "tricep-kickback": {
     "source": "hasaneyldrm/exercises-dataset",
@@ -1216,9 +1306,14 @@
     "target": "abs"
   },
   "bicycle-crunch": {
-    "matchConfidence": "review",
-    "candidateSourceExerciseId": "0267",
-    "candidateSourceName": "crunch (hands overhead)"
+    "source": "hasaneyldrm/exercises-dataset",
+    "sourceExerciseId": "0003",
+    "sourceName": "air bike",
+    "gif": "videos/0003-1ZFqTDN.gif",
+    "poster": "images/0003-1ZFqTDN.jpg",
+    "matchConfidence": "high",
+    "equipment": "body weight",
+    "target": "abs"
   },
   "mountain-climber": {
     "source": "hasaneyldrm/exercises-dataset",
@@ -1337,14 +1432,24 @@
     "candidateSourceName": "walking on stepmill"
   },
   "treadmill-incline-walk": {
-    "matchConfidence": "review",
-    "candidateSourceExerciseId": "0628",
-    "candidateSourceName": "monster walk"
+    "source": "hasaneyldrm/exercises-dataset",
+    "sourceExerciseId": "3666",
+    "sourceName": "walking on incline treadmill",
+    "gif": "videos/3666-rjiM4L3.gif",
+    "poster": "images/3666-rjiM4L3.jpg",
+    "matchConfidence": "high",
+    "equipment": "leverage machine",
+    "target": "cardiovascular system"
   },
   "battle-ropes": {
-    "matchConfidence": "review",
-    "candidateSourceExerciseId": "0128",
-    "candidateSourceName": "battling ropes"
+    "source": "hasaneyldrm/exercises-dataset",
+    "sourceExerciseId": "0128",
+    "sourceName": "battling ropes",
+    "gif": "videos/0128-RJa4tCo.gif",
+    "poster": "images/0128-RJa4tCo.jpg",
+    "matchConfidence": "high",
+    "equipment": "rope",
+    "target": "delts"
   },
   "incline-push-up": {
     "source": "hasaneyldrm/exercises-dataset",
@@ -1482,9 +1587,14 @@
     "candidateSourceName": "bodyweight standing close-grip one arm row"
   },
   "towel-row": {
-    "matchConfidence": "review",
-    "candidateSourceExerciseId": "3161",
-    "candidateSourceName": "bodyweight standing one arm row (with towel)"
+    "source": "hasaneyldrm/exercises-dataset",
+    "sourceExerciseId": "3165",
+    "sourceName": "bodyweight standing row (with towel)",
+    "gif": "videos/3165-uTv34oq.gif",
+    "poster": "images/3165-uTv34oq.jpg",
+    "matchConfidence": "high",
+    "equipment": "body weight",
+    "target": "upper back"
   },
   "prone-y-raise": {
     "matchConfidence": "none"
@@ -1838,9 +1948,14 @@
     "target": "abs"
   },
   "l-sit-hold": {
-    "matchConfidence": "review",
-    "candidateSourceExerciseId": "0457",
-    "candidateSourceName": "flexion leg sit up (straight arm)"
+    "source": "hasaneyldrm/exercises-dataset",
+    "sourceExerciseId": "3419",
+    "sourceName": "l-sit on floor",
+    "gif": "videos/3419-UpWmA5E.gif",
+    "poster": "images/3419-UpWmA5E.jpg",
+    "matchConfidence": "high",
+    "equipment": "body weight",
+    "target": "abs"
   },
   "seated-knee-tuck": {
     "matchConfidence": "review",

@@ -1,17 +1,17 @@
 {
-  "generatedOn": "2026-09-30",
+  "generatedOn": "2026-10-02",
   "sourceRepository": "hasaneyldrm/exercises-dataset",
   "sourceCommit": "7455efae41b330c265e7cd4b78dfa848e7ce5ebd",
   "sourceExerciseCount": 1324,
   "auraExerciseCount": 302,
   "exact": 79,
-  "high": 40,
-  "review": 129,
+  "high": 63,
+  "review": 106,
   "none": 54,
-  "activePreferredMedia": 119,
-  "previousActiveMedia": 93,
+  "activePreferredMedia": 142,
+  "previousActiveMedia": 119,
   "retainedPreviousMedia": 88,
-  "newlyVerifiedMedia": 31,
+  "newlyVerifiedMedia": 54,
   "demotedForQualityGate": [
     "cable-kickback",
     "donkey-calf-raise",
@@ -19,5 +19,34 @@
     "walking-lunge",
     "weighted-russian-twist"
   ],
-  "rule": "Only exact/high mappings are active. Review/none always use Workout Guide fallback."
+  "rule": "Only exact/high mappings are active. Review/none always use Workout Guide fallback.",
+  "latestReviewBatch": {
+    "promoted": 23,
+    "promotedSlugs": [
+      "machine-chest-press",
+      "cable-fly",
+      "overhead-press",
+      "close-grip-lat-pulldown",
+      "hip-thrust",
+      "bicep-curl",
+      "tricep-pushdown",
+      "overhead-tricep-extension",
+      "cable-crunch",
+      "stair-climber",
+      "weighted-dip",
+      "bent-over-rear-delt-raise",
+      "single-arm-cable-row",
+      "single-leg-glute-bridge",
+      "donkey-calf-raise",
+      "leg-press-calf-raise",
+      "rope-tricep-pushdown",
+      "bench-dip",
+      "towel-row",
+      "l-sit-hold",
+      "treadmill-incline-walk",
+      "battle-ropes",
+      "bicycle-crunch"
+    ],
+    "method": "name + equipment + primary target/muscle + movement/instruction + poster visual review; cardio entries allow cardiovascular-system target"
+  }
 }
