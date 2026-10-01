@@ -1776,9 +1776,14 @@
     "matchConfidence": "none"
   },
   "curtsy-lunge": {
-    "matchConfidence": "review",
-    "candidateSourceExerciseId": "3655",
-    "candidateSourceName": "walking high knees lunge"
+    "source": "hasaneyldrm/exercises-dataset",
+    "sourceExerciseId": "3769",
+    "sourceName": "curtsey squat",
+    "gif": "videos/3769-gUjqdei.gif",
+    "poster": "images/3769-gUjqdei.jpg",
+    "matchConfidence": "high",
+    "equipment": "body weight",
+    "target": "glutes"
   },
   "skater-squat": {
     "matchConfidence": "review",
@@ -1929,9 +1934,14 @@
     "target": "abductors"
   },
   "band-pull-apart": {
-    "matchConfidence": "review",
-    "candidateSourceExerciseId": "0974",
-    "candidateSourceName": "band close-grip pulldown"
+    "source": "hasaneyldrm/exercises-dataset",
+    "sourceExerciseId": "0993",
+    "sourceName": "band reverse fly",
+    "gif": "videos/0993-sTfvVsG.gif",
+    "poster": "images/0993-sTfvVsG.jpg",
+    "matchConfidence": "high",
+    "equipment": "band",
+    "target": "delts"
   },
   "banded-face-pull": {
     "matchConfidence": "none"
@@ -2124,9 +2134,14 @@
     "matchConfidence": "none"
   },
   "fast-feet": {
-    "matchConfidence": "review",
-    "candidateSourceExerciseId": "3552",
-    "candidateSourceName": "quick feet v. 2"
+    "source": "hasaneyldrm/exercises-dataset",
+    "sourceExerciseId": "3552",
+    "sourceName": "quick feet v. 2",
+    "gif": "videos/3552-mweqJin.gif",
+    "poster": "images/3552-mweqJin.jpg",
+    "matchConfidence": "high",
+    "equipment": "body weight",
+    "target": "quads"
   },
   "sprawl": {
     "matchConfidence": "review",

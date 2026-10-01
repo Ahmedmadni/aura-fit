@@ -5,13 +5,13 @@
   "sourceExerciseCount": 1324,
   "auraExerciseCount": 302,
   "exact": 79,
-  "high": 84,
-  "review": 85,
+  "high": 87,
+  "review": 82,
   "none": 54,
-  "activePreferredMedia": 163,
-  "previousActiveMedia": 150,
+  "activePreferredMedia": 166,
+  "previousActiveMedia": 163,
   "retainedPreviousMedia": 88,
-  "newlyVerifiedMedia": 75,
+  "newlyVerifiedMedia": 78,
   "demotedForQualityGate": [
     "cable-kickback",
     "donkey-calf-raise",
@@ -21,23 +21,13 @@
   ],
   "rule": "Only exact/high mappings are active. Review/none always use Workout Guide fallback.",
   "latestReviewBatch": {
-    "promoted": 13,
+    "promoted": 3,
     "promotedSlugs": [
-      "squat",
-      "hack-squat",
-      "leg-press",
-      "dip",
-      "cable-rear-delt-fly",
-      "weighted-chin-up",
-      "single-leg-romanian-deadlift",
-      "pistol-squat",
-      "banded-squat",
-      "butterfly-stretch",
-      "explosive-push-up",
-      "plank-shoulder-tap",
-      "knee-push-up"
+      "curtsy-lunge",
+      "band-pull-apart",
+      "fast-feet"
     ],
-    "method": "strict movement/equipment/muscle-set review using source metadata plus poster/GIF visual verification; ambiguous variants remain review"
+    "method": "visual movement verification + equipment + muscle-set agreement; alternate source naming retained as high confidence"
   },
   "reviewBatches": [
     {
@@ -82,6 +72,25 @@
         "banded-lat-pulldown"
       ],
       "method": "movement/instruction equivalence + equipment + target muscle + poster review"
+    },
+    {
+      "promoted": 13,
+      "promotedSlugs": [
+        "squat",
+        "hack-squat",
+        "leg-press",
+        "dip",
+        "cable-rear-delt-fly",
+        "weighted-chin-up",
+        "single-leg-romanian-deadlift",
+        "pistol-squat",
+        "banded-squat",
+        "butterfly-stretch",
+        "explosive-push-up",
+        "plank-shoulder-tap",
+        "knee-push-up"
+      ],
+      "method": "strict movement/equipment/muscle-set review using source metadata plus poster/GIF visual verification; ambiguous variants remain review"
     }
   ]
 }
