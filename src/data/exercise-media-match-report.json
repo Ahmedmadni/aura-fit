@@ -5,13 +5,13 @@
   "sourceExerciseCount": 1324,
   "auraExerciseCount": 302,
   "exact": 79,
-  "high": 71,
-  "review": 98,
+  "high": 84,
+  "review": 85,
   "none": 54,
-  "activePreferredMedia": 150,
-  "previousActiveMedia": 142,
+  "activePreferredMedia": 163,
+  "previousActiveMedia": 150,
   "retainedPreviousMedia": 88,
-  "newlyVerifiedMedia": 62,
+  "newlyVerifiedMedia": 75,
   "demotedForQualityGate": [
     "cable-kickback",
     "donkey-calf-raise",
@@ -21,18 +21,23 @@
   ],
   "rule": "Only exact/high mappings are active. Review/none always use Workout Guide fallback.",
   "latestReviewBatch": {
-    "promoted": 8,
+    "promoted": 13,
     "promotedSlugs": [
-      "dumbbell-skull-crusher",
-      "single-dumbbell-skullcrusher",
-      "dumbbell-overhead-tricep-extension",
-      "single-arm-dumbbell-tricep-extension",
-      "crunch",
-      "chair-dip",
-      "banded-row",
-      "banded-lat-pulldown"
+      "squat",
+      "hack-squat",
+      "leg-press",
+      "dip",
+      "cable-rear-delt-fly",
+      "weighted-chin-up",
+      "single-leg-romanian-deadlift",
+      "pistol-squat",
+      "banded-squat",
+      "butterfly-stretch",
+      "explosive-push-up",
+      "plank-shoulder-tap",
+      "knee-push-up"
     ],
-    "method": "movement/instruction equivalence + equipment + target muscle + poster review"
+    "method": "strict movement/equipment/muscle-set review using source metadata plus poster/GIF visual verification; ambiguous variants remain review"
   },
   "reviewBatches": [
     {
@@ -63,6 +68,20 @@
         "bicycle-crunch"
       ],
       "method": "name + equipment + primary target/muscle + movement/instruction + poster visual review; cardio entries allow cardiovascular-system target"
+    },
+    {
+      "promoted": 8,
+      "promotedSlugs": [
+        "dumbbell-skull-crusher",
+        "single-dumbbell-skullcrusher",
+        "dumbbell-overhead-tricep-extension",
+        "single-arm-dumbbell-tricep-extension",
+        "crunch",
+        "chair-dip",
+        "banded-row",
+        "banded-lat-pulldown"
+      ],
+      "method": "movement/instruction equivalence + equipment + target muscle + poster review"
     }
   ]
 }

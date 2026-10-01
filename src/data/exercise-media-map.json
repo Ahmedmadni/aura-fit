@@ -354,9 +354,14 @@
     "target": "traps"
   },
   "squat": {
-    "matchConfidence": "review",
-    "candidateSourceExerciseId": "0069",
-    "candidateSourceName": "barbell overhead squat"
+    "source": "hasaneyldrm/exercises-dataset",
+    "sourceExerciseId": "0043",
+    "sourceName": "barbell full squat",
+    "gif": "videos/0043-qXTaZnJ.gif",
+    "poster": "images/0043-qXTaZnJ.jpg",
+    "matchConfidence": "high",
+    "equipment": "barbell",
+    "target": "glutes"
   },
   "front-squat": {
     "source": "hasaneyldrm/exercises-dataset",
@@ -369,14 +374,24 @@
     "target": "glutes"
   },
   "hack-squat": {
-    "matchConfidence": "review",
-    "candidateSourceExerciseId": "0741",
-    "candidateSourceName": "sled closer hack squat"
+    "source": "hasaneyldrm/exercises-dataset",
+    "sourceExerciseId": "0743",
+    "sourceName": "sled hack squat",
+    "gif": "videos/0743-Qa55kX1.gif",
+    "poster": "images/0743-Qa55kX1.jpg",
+    "matchConfidence": "high",
+    "equipment": "sled machine",
+    "target": "glutes"
   },
   "leg-press": {
-    "matchConfidence": "review",
-    "candidateSourceExerciseId": "2287",
-    "candidateSourceName": "lever alternate leg press"
+    "source": "hasaneyldrm/exercises-dataset",
+    "sourceExerciseId": "0739",
+    "sourceName": "sled 45° leg press",
+    "gif": "videos/0739-10Z2DXU.gif",
+    "poster": "images/0739-10Z2DXU.jpg",
+    "matchConfidence": "high",
+    "equipment": "sled machine",
+    "target": "glutes"
   },
   "bulgarian-split-squat": {
     "source": "hasaneyldrm/exercises-dataset",
@@ -579,9 +594,14 @@
     "target": "triceps"
   },
   "dip": {
-    "matchConfidence": "review",
-    "candidateSourceExerciseId": "0639",
-    "candidateSourceName": "one arm dip"
+    "source": "hasaneyldrm/exercises-dataset",
+    "sourceExerciseId": "0814",
+    "sourceName": "triceps dip",
+    "gif": "videos/0814-X6C6i5Y.gif",
+    "poster": "images/0814-X6C6i5Y.jpg",
+    "matchConfidence": "high",
+    "equipment": "body weight",
+    "target": "triceps"
   },
   "assisted-dip": {
     "source": "hasaneyldrm/exercises-dataset",
@@ -783,9 +803,14 @@
     "target": "delts"
   },
   "cable-rear-delt-fly": {
-    "matchConfidence": "review",
-    "candidateSourceExerciseId": "0233",
-    "candidateSourceName": "cable standing rear delt row (with rope)"
+    "source": "hasaneyldrm/exercises-dataset",
+    "sourceExerciseId": "0225",
+    "sourceName": "cable standing cross-over high reverse fly",
+    "gif": "videos/0225-P5p0j8B.gif",
+    "poster": "images/0225-P5p0j8B.jpg",
+    "matchConfidence": "high",
+    "equipment": "cable",
+    "target": "delts"
   },
   "pendlay-row": {
     "source": "hasaneyldrm/exercises-dataset",
@@ -848,9 +873,14 @@
     "target": "lats"
   },
   "weighted-chin-up": {
-    "matchConfidence": "review",
-    "candidateSourceExerciseId": "2987",
-    "candidateSourceName": "weighted close grip chin-up on dip cage"
+    "source": "hasaneyldrm/exercises-dataset",
+    "sourceExerciseId": "2987",
+    "sourceName": "weighted close grip chin-up on dip cage",
+    "gif": "videos/2987-Gk1r408.gif",
+    "poster": "images/2987-Gk1r408.jpg",
+    "matchConfidence": "high",
+    "equipment": "weighted",
+    "target": "lats"
   },
   "rack-pull": {
     "source": "hasaneyldrm/exercises-dataset",
@@ -932,9 +962,14 @@
     "matchConfidence": "none"
   },
   "single-leg-romanian-deadlift": {
-    "matchConfidence": "review",
-    "candidateSourceExerciseId": "1757",
-    "candidateSourceName": "dumbbell single leg deadlift"
+    "source": "hasaneyldrm/exercises-dataset",
+    "sourceExerciseId": "1757",
+    "sourceName": "dumbbell single leg deadlift",
+    "gif": "videos/1757-gKozT8X.gif",
+    "poster": "images/1757-gKozT8X.jpg",
+    "matchConfidence": "high",
+    "equipment": "dumbbell",
+    "target": "glutes"
   },
   "reverse-lunge": {
     "matchConfidence": "none"
@@ -1487,9 +1522,14 @@
     "target": "pectorals"
   },
   "knee-push-up": {
-    "matchConfidence": "review",
-    "candidateSourceExerciseId": "0662",
-    "candidateSourceName": "push-up"
+    "source": "hasaneyldrm/exercises-dataset",
+    "sourceExerciseId": "3211",
+    "sourceName": "kneeling push-up (male)",
+    "gif": "videos/3211-ZOuKWir.gif",
+    "poster": "images/3211-ZOuKWir.jpg",
+    "matchConfidence": "high",
+    "equipment": "body weight",
+    "target": "pectorals"
   },
   "wide-push-up": {
     "source": "hasaneyldrm/exercises-dataset",
@@ -1547,9 +1587,14 @@
     "candidateSourceName": "push-up"
   },
   "explosive-push-up": {
-    "matchConfidence": "review",
-    "candidateSourceExerciseId": "0662",
-    "candidateSourceName": "push-up"
+    "source": "hasaneyldrm/exercises-dataset",
+    "sourceExerciseId": "1306",
+    "sourceName": "plyo push up",
+    "gif": "videos/1306-Snj1wSv.gif",
+    "poster": "images/1306-Snj1wSv.jpg",
+    "matchConfidence": "high",
+    "equipment": "body weight",
+    "target": "pectorals"
   },
   "hindu-push-up": {
     "matchConfidence": "review",
@@ -1683,9 +1728,14 @@
     "candidateSourceName": "bodyweight drop jump squat"
   },
   "pistol-squat": {
-    "matchConfidence": "review",
-    "candidateSourceExerciseId": "1759",
-    "candidateSourceName": "single leg squat (pistol) male"
+    "source": "hasaneyldrm/exercises-dataset",
+    "sourceExerciseId": "1759",
+    "sourceName": "single leg squat (pistol) male",
+    "gif": "videos/1759-nqs5HGV.gif",
+    "poster": "images/1759-nqs5HGV.jpg",
+    "matchConfidence": "high",
+    "equipment": "body weight",
+    "target": "glutes"
   },
   "assisted-pistol-squat": {
     "matchConfidence": "review",
@@ -1845,9 +1895,14 @@
     "matchConfidence": "none"
   },
   "banded-squat": {
-    "matchConfidence": "review",
-    "candidateSourceExerciseId": "1004",
-    "candidateSourceName": "band squat"
+    "source": "hasaneyldrm/exercises-dataset",
+    "sourceExerciseId": "1004",
+    "sourceName": "band squat",
+    "gif": "videos/1004-TUZLh71.gif",
+    "poster": "images/1004-TUZLh71.jpg",
+    "matchConfidence": "high",
+    "equipment": "band",
+    "target": "glutes"
   },
   "banded-donkey-kick": {
     "matchConfidence": "none"
@@ -1950,9 +2005,14 @@
     "target": "abs"
   },
   "plank-shoulder-tap": {
-    "matchConfidence": "review",
-    "candidateSourceExerciseId": "3239",
-    "candidateSourceName": "kneeling plank tap shoulder (male)"
+    "source": "hasaneyldrm/exercises-dataset",
+    "sourceExerciseId": "3699",
+    "sourceName": "shoulder tap",
+    "gif": "videos/3699-yRpV5TC.gif",
+    "poster": "images/3699-yRpV5TC.jpg",
+    "matchConfidence": "high",
+    "equipment": "body weight",
+    "target": "abs"
   },
   "plank-jack": {
     "matchConfidence": "review",
@@ -2151,8 +2211,13 @@
     "target": "calves"
   },
   "butterfly-stretch": {
-    "matchConfidence": "review",
-    "candidateSourceExerciseId": "1548",
-    "candidateSourceName": "chair leg extended stretch"
+    "source": "hasaneyldrm/exercises-dataset",
+    "sourceExerciseId": "1494",
+    "sourceName": "butterfly yoga pose",
+    "gif": "videos/1494-bWlZvXh.gif",
+    "poster": "images/1494-bWlZvXh.jpg",
+    "matchConfidence": "high",
+    "equipment": "body weight",
+    "target": "adductors"
   }
 }
