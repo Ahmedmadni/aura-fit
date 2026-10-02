@@ -1,5 +1,6 @@
 import {
   generateWeeklyPlan,
+  generateWeeklySchedule,
   getWeeklyMuscleCoverage,
   getWeeklyVolumeStatus,
   MAJOR_MUSCLES,
@@ -46,6 +47,22 @@ for (const daysPerWeek of [2, 3, 4, 5, 6]) {
   };
 
   const plan = generateWeeklyPlan(profile);
+  const schedule = generateWeeklySchedule(profile);
+  if (schedule.length !== 7) {
+    fail(`${daysPerWeek}d: weekly schedule must contain 7 calendar days`);
+  }
+  const scheduledTrainingDays = schedule.filter((day) => !day.isRest);
+  if (scheduledTrainingDays.length !== daysPerWeek) {
+    fail(
+      `${daysPerWeek}d: expected ${daysPerWeek} scheduled training days, got ${scheduledTrainingDays.length}`,
+    );
+  }
+  for (const day of scheduledTrainingDays) {
+    if (day.workoutIndex === undefined || !day.workout) {
+      fail(`${daysPerWeek}d: scheduled training day is missing its workout`);
+    }
+  }
+
   if (plan.length !== daysPerWeek) {
     fail(`${daysPerWeek}d: expected ${daysPerWeek} workouts, got ${plan.length}`);
   }

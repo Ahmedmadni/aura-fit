@@ -68,6 +68,14 @@ export interface MuscleVolumeStatus extends MuscleCoverage, MuscleVolumeTarget {
   status: "low" | "target" | "high";
 }
 
+export interface WeeklyScheduleDay {
+  weekday: number;
+  dayLabel: string;
+  isRest: boolean;
+  workoutIndex?: number;
+  workout?: GeneratedWorkout;
+}
+
 type DayBlueprint = {
   key: string;
   title: string;
@@ -80,6 +88,25 @@ type DayBlueprint = {
 };
 
 const LEVEL_RANK: Record<Level, number> = { beginner: 1, intermediate: 2, advanced: 3 };
+
+export const WEEKDAY_LABEL_AR = [
+  "الأحد",
+  "الاثنين",
+  "الثلاثاء",
+  "الأربعاء",
+  "الخميس",
+  "الجمعة",
+  "السبت",
+] as const;
+
+const TRAINING_DAY_PATTERNS: Record<number, number[]> = {
+  1: [0],
+  2: [0, 3],
+  3: [0, 2, 4],
+  4: [0, 1, 3, 4],
+  5: [0, 1, 2, 4, 5],
+  6: [0, 1, 2, 3, 4, 5],
+};
 
 export const PHASE_LABEL_AR: Record<TrainingPhase, string> = {
   warmup: "إحماء",
@@ -774,18 +801,55 @@ function buildWeeklyPlan(profile: UserProfile, week: number) {
   return tuneWeeklyVolume(base, profile);
 }
 
+export function generateWeeklySchedule(
+  profile: UserProfile,
+  week = Math.floor(Date.now() / (1000 * 60 * 60 * 24 * 7)),
+): WeeklyScheduleDay[] {
+  const weekly = buildWeeklyPlan(profile, week);
+  const trainingDays =
+    TRAINING_DAY_PATTERNS[Math.max(1, Math.min(6, weekly.length))] ?? [0, 2, 4];
+  const workoutByWeekday = new Map(
+    trainingDays.map((weekday, workoutIndex) => [weekday, workoutIndex]),
+  );
+
+  return WEEKDAY_LABEL_AR.map((dayLabel, weekday) => {
+    const workoutIndex = workoutByWeekday.get(weekday);
+    if (workoutIndex === undefined) {
+      return { weekday, dayLabel, isRest: true };
+    }
+    return {
+      weekday,
+      dayLabel,
+      isRest: false,
+      workoutIndex,
+      workout: weekly[workoutIndex],
+    };
+  });
+}
+
 export function generateWorkout(
   profile: UserProfile,
   opts: { day?: number; week?: number } = {},
 ): GeneratedWorkout {
-  const weekdayIndex = (new Date().getDay() + 6) % 7;
   const week = opts.week ?? Math.floor(Date.now() / (1000 * 60 * 60 * 24 * 7));
   const weekly = buildWeeklyPlan(profile, week);
-  const dayIndex =
-    opts.day === undefined
-      ? weekdayIndex % weekly.length
-      : Math.max(0, Math.floor(opts.day)) % weekly.length;
-  return weekly[dayIndex];
+
+  if (opts.day !== undefined) {
+    const dayIndex = Math.max(0, Math.floor(opts.day)) % weekly.length;
+    return weekly[dayIndex];
+  }
+
+  const today = new Date().getDay();
+  const schedule = generateWeeklySchedule(profile, week);
+  const todayEntry = schedule[today];
+  if (todayEntry?.workout) return todayEntry.workout;
+
+  for (let offset = 1; offset < 7; offset += 1) {
+    const upcoming = schedule[(today + offset) % 7];
+    if (upcoming?.workout) return upcoming.workout;
+  }
+
+  return weekly[0];
 }
 
 export function generateWeeklyPlan(profile: UserProfile): GeneratedWorkout[] {

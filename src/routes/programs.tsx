@@ -17,6 +17,7 @@ import { PageShell, PageHeader } from "@/components/page-shell";
 import {
   PHASE_LABEL_AR,
   generateWeeklyPlan,
+  generateWeeklySchedule,
   getWeeklyMuscleCoverage,
   getWeeklyVolumeStatus,
 } from "@/lib/workout-engine";
@@ -72,6 +73,7 @@ function Programs() {
   }, []);
 
   const weekly = useMemo(() => generateWeeklyPlan(profile), [profile]);
+  const schedule = useMemo(() => generateWeeklySchedule(profile), [profile]);
   const coverage = useMemo(() => getWeeklyMuscleCoverage(weekly), [weekly]);
   const volume = useMemo(
     () => getWeeklyVolumeStatus(weekly, profile),
@@ -131,7 +133,29 @@ function Programs() {
         </div>
 
         <div className="space-y-3">
-          {weekly.map((workout, index) => {
+          {schedule.map((day) => {
+            if (day.isRest || !day.workout) {
+              return (
+                <article
+                  key={day.weekday}
+                  className="rounded-2xl border border-dashed border-border bg-background/40 p-4"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="grid size-10 shrink-0 place-items-center rounded-xl border border-border text-xs font-black text-muted-foreground">
+                      {day.dayLabel.slice(0, 2)}
+                    </div>
+                    <div>
+                      <p className="type-card-title">{day.dayLabel} · راحة</p>
+                      <p className="type-caption mt-1 text-muted-foreground">
+                        استشفاء ومشي خفيف أو حركة بسيطة حسب الجاهزية.
+                      </p>
+                    </div>
+                  </div>
+                </article>
+              );
+            }
+
+            const workout = day.workout;
             const phaseCounts = workout.exercises.reduce<Record<string, number>>(
               (all, item) => {
                 all[item.phase] = (all[item.phase] ?? 0) + 1;
@@ -139,26 +163,29 @@ function Programs() {
               },
               {},
             );
+
             return (
               <article
-                key={workout.id}
+                key={day.weekday}
                 className="rounded-2xl border border-border bg-surface/70 p-4"
               >
                 <div className="flex items-start gap-3">
-                  <div className="grid size-10 shrink-0 place-items-center rounded-xl bg-primary text-sm font-black text-primary-foreground">
-                    {index + 1}
+                  <div className="grid size-10 shrink-0 place-items-center rounded-xl bg-primary text-xs font-black text-primary-foreground">
+                    {day.dayLabel.slice(0, 2)}
                   </div>
                   <div className="min-w-0 flex-1">
                     <div className="flex items-start justify-between gap-3">
                       <div>
-                        <p className="type-card-title">{workout.title}</p>
+                        <p className="type-card-title">
+                          {day.dayLabel} · {workout.title}
+                        </p>
                         <p className="type-caption mt-1 text-muted-foreground">
                           {workout.estimatedMinutes} دقيقة · ≈ {workout.estimatedCalories} سعرة
                         </p>
                       </div>
                       <Link
                         to="/workout"
-                        search={{ day: index }}
+                        search={{ day: day.workoutIndex }}
                         className="grid size-9 shrink-0 place-items-center rounded-full bg-primary text-primary-foreground"
                         aria-label={"ابدأ " + workout.title}
                       >
