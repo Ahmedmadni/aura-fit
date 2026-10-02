@@ -1413,9 +1413,14 @@
     "matchConfidence": "none"
   },
   "hanging-knee-raise": {
-    "matchConfidence": "review",
-    "candidateSourceExerciseId": "0011",
-    "candidateSourceName": "assisted hanging knee raise"
+    "source": "hasaneyldrm/exercises-dataset",
+    "sourceExerciseId": "0011",
+    "sourceName": "assisted hanging knee raise",
+    "gif": "videos/0011-03lzqwk.gif",
+    "poster": "images/0011-03lzqwk.jpg",
+    "matchConfidence": "high",
+    "equipment": "assisted (source metadata); pull-up bar in instructions/media",
+    "target": "abs"
   },
   "captains-chair-knee-raise": {
     "matchConfidence": "review",
@@ -2211,9 +2216,14 @@
     "matchConfidence": "none"
   },
   "cross-body-shoulder-stretch": {
-    "matchConfidence": "review",
-    "candidateSourceExerciseId": "3699",
-    "candidateSourceName": "shoulder tap"
+    "source": "hasaneyldrm/exercises-dataset",
+    "sourceExerciseId": "0669",
+    "sourceName": "rear deltoid stretch",
+    "gif": "videos/0669-xifhB5W.gif",
+    "poster": "images/0669-xifhB5W.jpg",
+    "matchConfidence": "high",
+    "equipment": "body weight",
+    "target": "delts"
   },
   "wall-calf-stretch": {
     "source": "hasaneyldrm/exercises-dataset",

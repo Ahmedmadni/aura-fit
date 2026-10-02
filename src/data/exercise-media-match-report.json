@@ -5,13 +5,13 @@
   "sourceExerciseCount": 1324,
   "auraExerciseCount": 302,
   "exact": 79,
-  "high": 87,
-  "review": 82,
+  "high": 89,
+  "review": 80,
   "none": 54,
-  "activePreferredMedia": 166,
-  "previousActiveMedia": 163,
+  "activePreferredMedia": 168,
+  "previousActiveMedia": 166,
   "retainedPreviousMedia": 88,
-  "newlyVerifiedMedia": 78,
+  "newlyVerifiedMedia": 80,
   "demotedForQualityGate": [
     "cable-kickback",
     "donkey-calf-raise",
@@ -21,13 +21,12 @@
   ],
   "rule": "Only exact/high mappings are active. Review/none always use Workout Guide fallback.",
   "latestReviewBatch": {
-    "promoted": 3,
+    "promoted": 2,
     "promotedSlugs": [
-      "curtsy-lunge",
-      "band-pull-apart",
-      "fast-feet"
+      "hanging-knee-raise",
+      "cross-body-shoulder-stretch"
     ],
-    "method": "visual movement verification + equipment + muscle-set agreement; alternate source naming retained as high confidence"
+    "method": "full local-dataset audit using source name, English instructions, equipment shown in media/instructions, target muscle and poster verification"
   },
   "reviewBatches": [
     {
@@ -91,6 +90,15 @@
         "knee-push-up"
       ],
       "method": "strict movement/equipment/muscle-set review using source metadata plus poster/GIF visual verification; ambiguous variants remain review"
+    },
+    {
+      "promoted": 3,
+      "promotedSlugs": [
+        "curtsy-lunge",
+        "band-pull-apart",
+        "fast-feet"
+      ],
+      "method": "visual movement verification + equipment + muscle-set agreement; alternate source naming retained as high confidence"
     }
   ]
 }
