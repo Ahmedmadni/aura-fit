@@ -674,9 +674,13 @@ function tuneWeeklyVolume(
     }
   }
 
-  // Final normalization pass: later muscle adjustments can change the
-  // secondary-set contribution of muscles tuned earlier in the loop.
-  for (let pass = 0; pass < 3; pass += 1) {
+  // Final normalization pass. A compound movement can push a muscle over
+  // its cap as a secondary contributor after another muscle was tuned.
+  // We may trim either direct or secondary-contributing sets, but only when
+  // every affected major muscle remains at or above its weekly minimum.
+  const targetByMuscle = new Map(targets.map((item) => [item.muscle, item]));
+
+  for (let pass = 0; pass < 5; pass += 1) {
     for (const target of targets) {
       let effective = effectiveSetsForMuscle(cloned, target.muscle);
       if (effective <= target.max) continue;
@@ -687,26 +691,52 @@ function tuneWeeklyVolume(
             workoutIndex,
             exerciseIndex,
             item,
+            contribution: item.exercise.primary.includes(target.muscle)
+              ? 1
+              : item.exercise.secondary.includes(target.muscle)
+                ? 0.5
+                : 0,
           })),
         )
         .filter(
-          ({ item }) =>
+          ({ item, contribution }) =>
+            contribution > 0 &&
             (item.phase === "main" ||
               item.phase === "accessory" ||
-              item.phase === "core") &&
-            item.exercise.primary.includes(target.muscle),
+              item.phase === "core"),
         )
-        .sort((a, b) => b.item.sets - a.item.sets);
+        .sort((a, b) => {
+          // Prefer trimming secondary contribution first, then larger set blocks.
+          return (
+            a.contribution - b.contribution ||
+            b.item.sets - a.item.sets
+          );
+        });
 
       let cursor = 0;
-      while (effective > target.max && candidates.length && cursor < 32) {
+      while (effective > target.max && cursor < candidates.length * 4) {
         const candidate = candidates[cursor % candidates.length];
         const item =
           cloned[candidate.workoutIndex].exercises[candidate.exerciseIndex];
         const floor = item.phase === "main" ? 2 : 1;
+
         if (item.sets > floor) {
-          item.sets -= 1;
-          effective = effectiveSetsForMuscle(cloned, target.muscle);
+          const affected = new Set<Muscle>([
+            ...item.exercise.primary,
+            ...item.exercise.secondary,
+          ]);
+          const keepsMinimums = Array.from(affected).every((muscle) => {
+            const muscleTarget = targetByMuscle.get(muscle);
+            if (!muscleTarget) return true;
+            const current = effectiveSetsForMuscle(cloned, muscle);
+            const decrement = item.exercise.primary.includes(muscle) ? 1 : 0.5;
+            return current - decrement >= muscleTarget.min;
+          });
+
+          if (keepsMinimums) {
+            item.sets -= 1;
+            effective = effectiveSetsForMuscle(cloned, target.muscle);
+          }
         }
         cursor += 1;
       }
