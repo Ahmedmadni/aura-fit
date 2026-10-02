@@ -4,7 +4,12 @@ import { TrendingDown, TrendingUp, Target, Calendar, Trophy } from "lucide-react
 import { BottomNav } from "@/components/bottom-nav";
 import { PageShell, PageHeader } from "@/components/page-shell";
 import { getExercise } from "@/lib/exercise-db";
-import { dailyExerciseBests, loadHistory } from "@/lib/user-profile";
+import {
+  dailyExerciseBests,
+  loadHistory,
+  loadProfile,
+} from "@/lib/user-profile";
+import { getTrainingAdaptation } from "@/lib/workout-engine";
 
 export const Route = createFileRoute("/progress")({
   head: () => ({
@@ -31,6 +36,11 @@ const habits = [
 function Progress() {
   const [selectedDay, setSelectedDay] = useState(() => localDateKey(new Date()));
   const history = useMemo(() => loadHistory(), []);
+  const profile = useMemo(() => loadProfile(), []);
+  const adaptation = useMemo(
+    () => getTrainingAdaptation(profile, history),
+    [profile, history],
+  );
   const dailyBests = useMemo(
     () => dailyExerciseBests(history, selectedDay),
     [history, selectedDay],
@@ -100,6 +110,51 @@ function Progress() {
             <p className="mt-1 text-xs text-muted-foreground">أكمل جلسة وسجّل تكراراتك لتظهر هنا.</p>
           </div>
         )}
+      </section>
+
+      <section className="relative px-6 mb-6 animate-enter [animation-delay:90ms]">
+        <div
+          className={
+            "rounded-2xl border p-4 " +
+            (adaptation.mode === "progress"
+              ? "border-primary/30 bg-primary/10"
+              : adaptation.mode === "recovery"
+                ? "border-cyan/30 bg-cyan/10"
+                : "border-border bg-surface/60")
+          }
+        >
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <p className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
+                استجابة البرنامج
+              </p>
+              <h3 className="mt-1 text-lg font-black">
+                {adaptation.mode === "progress"
+                  ? "جاهز للتقدم"
+                  : adaptation.mode === "recovery"
+                    ? "الأولوية للاستشفاء"
+                    : "ثبات وبناء تدريجي"}
+              </h3>
+            </div>
+            <div className="text-left">
+              <p className="font-mono text-2xl font-black">{adaptation.readinessScore}%</p>
+              <p className="text-[9px] text-muted-foreground">جاهزية</p>
+            </div>
+          </div>
+          <p className="mt-3 text-xs leading-relaxed text-muted-foreground">
+            {adaptation.reason}
+          </p>
+          <div className="mt-3 grid grid-cols-2 gap-2 border-t border-border pt-3">
+            <div>
+              <p className="text-[9px] text-muted-foreground">متوسط الأداء الحديث</p>
+              <p className="font-mono text-sm font-black">{adaptation.recentPerformance}%</p>
+            </div>
+            <div>
+              <p className="text-[9px] text-muted-foreground">جلسات محللة</p>
+              <p className="font-mono text-sm font-black">{adaptation.recentSessions}</p>
+            </div>
+          </div>
+        </div>
       </section>
 
       {/* Score cards */}

@@ -6,7 +6,7 @@ import { PageShell, PageHeader } from "@/components/page-shell";
 import { BottomNav } from "@/components/bottom-nav";
 import { EXERCISES, getExercise, type Category, type Exercise } from "@/lib/exercise-db";
 import { generateWorkout } from "@/lib/workout-engine";
-import { loadProfile } from "@/lib/user-profile";
+import { loadHistory, loadProfile } from "@/lib/user-profile";
 
 export const Route = createFileRoute("/builder")({
   component: BuilderPage,
@@ -62,7 +62,7 @@ function BuilderPage() {
   }
 
   function aiGenerate() {
-    const w = generateWorkout(loadProfile());
+    const w = generateWorkout(loadProfile(), { history: loadHistory() });
     setSlots(
       w.exercises.map((p) => ({
         key: `${p.exercise.id}-${Math.random()}`,

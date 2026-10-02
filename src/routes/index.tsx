@@ -58,8 +58,14 @@ function Dashboard() {
     setHistory(loadHistory());
   }, []);
 
-  const weekly = useMemo(() => generateWeeklyPlan(profile), [profile]);
-  const schedule = useMemo(() => generateWeeklySchedule(profile), [profile]);
+  const weekly = useMemo(
+    () => generateWeeklyPlan(profile, history),
+    [profile, history],
+  );
+  const schedule = useMemo(
+    () => generateWeeklySchedule(profile, undefined, history),
+    [profile, history],
+  );
   const volume = useMemo(
     () => getWeeklyVolumeStatus(weekly, profile),
     [weekly, profile],

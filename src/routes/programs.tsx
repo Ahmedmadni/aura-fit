@@ -24,7 +24,9 @@ import {
 import { MUSCLE_LABEL_AR, type Goal } from "@/lib/exercise-db";
 import {
   DEFAULT_PROFILE,
+  loadHistory,
   loadProfile,
+  type CompletedWorkout,
   type UserProfile,
 } from "@/lib/user-profile";
 
@@ -67,13 +69,21 @@ const GOAL_LABELS: Record<Goal, string> = {
 
 function Programs() {
   const [profile, setProfile] = useState<UserProfile>(DEFAULT_PROFILE);
+  const [history, setHistory] = useState<CompletedWorkout[]>([]);
 
   useEffect(() => {
     setProfile(loadProfile());
+    setHistory(loadHistory());
   }, []);
 
-  const weekly = useMemo(() => generateWeeklyPlan(profile), [profile]);
-  const schedule = useMemo(() => generateWeeklySchedule(profile), [profile]);
+  const weekly = useMemo(
+    () => generateWeeklyPlan(profile, history),
+    [profile, history],
+  );
+  const schedule = useMemo(
+    () => generateWeeklySchedule(profile, undefined, history),
+    [profile, history],
+  );
   const coverage = useMemo(() => getWeeklyMuscleCoverage(weekly), [weekly]);
   const volume = useMemo(
     () => getWeeklyVolumeStatus(weekly, profile),

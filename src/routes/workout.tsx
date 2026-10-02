@@ -18,7 +18,7 @@ import {
   generateWorkout,
   type PlannedExercise,
 } from "@/lib/workout-engine";
-import { loadProfile, recordWorkout } from "@/lib/user-profile";
+import { loadHistory, loadProfile, recordWorkout } from "@/lib/user-profile";
 import { checkNewAchievements } from "@/lib/achievements";
 
 export const Route = createFileRoute("/workout")({
@@ -37,7 +37,11 @@ function WorkoutPlayer() {
 
   // Build a stable session from the selected weekly-plan day.
   const workout = useMemo(
-    () => generateWorkout(loadProfile(), { day }),
+    () =>
+      generateWorkout(loadProfile(), {
+        day,
+        history: loadHistory(),
+      }),
     [day],
   );
   const plan = workout.exercises;
@@ -160,12 +164,15 @@ function WorkoutPlayer() {
         reps: p.reps,
         completed: completed.has(p.exercise.id),
         setReps: setReps[p.exercise.id],
+        progressionAction: p.progressionAction,
       })),
       durationSec,
       activeSec,
       calories,
       intensity: workout.intensity,
       performance: Math.round((completed.size / total) * 100),
+      adaptationMode: workout.adaptation.mode,
+      readinessScore: workout.adaptation.readinessScore,
     });
     checkNewAchievements([]);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -288,6 +295,41 @@ function WorkoutPlayer() {
               {running ? "⏸" : "▶"}
             </button>
           </div>
+        </div>
+
+        <div
+          className={
+            "mb-4 rounded-2xl border p-3 " +
+            (workout.adaptation.mode === "progress"
+              ? "border-primary/30 bg-primary/10"
+              : workout.adaptation.mode === "recovery"
+                ? "border-cyan/30 bg-cyan/10"
+                : "border-border bg-surface/50")
+          }
+        >
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
+                استجابة الخطة
+              </p>
+              <p className="mt-1 text-sm font-black">
+                {workout.adaptation.mode === "progress"
+                  ? "تقدّم تدريجي"
+                  : workout.adaptation.mode === "recovery"
+                    ? "استشفاء محسوب"
+                    : "ثبات وبناء"}
+              </p>
+            </div>
+            <div className="text-left">
+              <p className="font-mono text-xl font-black">
+                {workout.adaptation.readinessScore}%
+              </p>
+              <p className="text-[9px] text-muted-foreground">جاهزية</p>
+            </div>
+          </div>
+          <p className="mt-2 text-[10px] leading-relaxed text-muted-foreground">
+            {workout.adaptation.reason}
+          </p>
         </div>
 
         {/* progress bar */}
@@ -482,6 +524,25 @@ function WorkoutPlayer() {
               {current.exercise.cue}
             </p>
           </div>
+
+          {(current.phase === "main" ||
+            current.phase === "accessory" ||
+            current.phase === "core") && (
+            <div className="mt-3 rounded-xl border border-primary/20 bg-primary/5 p-3">
+              <p className="text-[10px] font-mono uppercase tracking-widest text-primary">
+                {current.progressionAction === "increase-load"
+                  ? "↑ ارفع المقاومة"
+                  : current.progressionAction === "build-reps"
+                    ? "↗ ابنِ التكرارات"
+                    : current.progressionAction === "reduce"
+                      ? "↓ خفّض الحمل"
+                      : "→ ثبّت الحمل"}
+              </p>
+              <p className="mt-1 text-xs leading-relaxed text-foreground/80">
+                {current.progressionNote}
+              </p>
+            </div>
+          )}
 
           <button
             type="button"

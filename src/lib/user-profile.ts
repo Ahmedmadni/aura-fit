@@ -31,12 +31,17 @@ export interface CompletedWorkout {
     completed: boolean;
     /** Actual repetitions completed in each set. Absent on legacy/timed entries. */
     setReps?: number[];
+    /** Prescription used for this session; optional for legacy entries. */
+    progressionAction?: "build-reps" | "increase-load" | "hold" | "reduce";
   }[];
   durationSec: number;
   activeSec: number;
   calories: number;
   intensity: number; // 0-100
   performance: number; // 0-100
+  /** Adaptive programming snapshot used for this completed session. */
+  adaptationMode?: "progress" | "maintain" | "recovery";
+  readinessScore?: number;
 }
 
 const P_KEY = "kp.profile";

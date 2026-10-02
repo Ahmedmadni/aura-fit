@@ -1,6 +1,8 @@
 import {
   generateWeeklyPlan,
   generateWeeklySchedule,
+  getExerciseProgressionPrescription,
+  getTrainingAdaptation,
   getWeeklyMuscleCoverage,
   getWeeklyVolumeStatus,
   MAJOR_MUSCLES,
@@ -8,6 +10,7 @@ import {
 import { type Equipment, type Goal } from "../src/lib/exercise-db";
 import {
   DEFAULT_PROFILE,
+  type CompletedWorkout,
   type UserProfile,
 } from "../src/lib/user-profile";
 
@@ -34,6 +37,116 @@ const FULL_EQUIPMENT: Equipment[] = [
 
 const failures: string[] = [];
 const fail = (message: string) => failures.push(message);
+
+function historyEntry(
+  id: string,
+  performance: number,
+  exerciseId = "bench-press",
+  setReps: number[] = [10, 10, 10],
+): CompletedWorkout {
+  return {
+    id,
+    date: new Date().toISOString(),
+    exercises: [
+      {
+        id: exerciseId,
+        sets: setReps.length,
+        reps: "8-12",
+        completed: true,
+        setReps,
+      },
+    ],
+    durationSec: 1800,
+    activeSec: 1200,
+    calories: 250,
+    intensity: 70,
+    performance,
+  };
+}
+
+const strongProfile: UserProfile = {
+  ...DEFAULT_PROFILE,
+  level: "intermediate",
+  sleepQuality: 5,
+  fatigue: 1,
+  equipment: FULL_EQUIPMENT,
+  daysPerWeek: 4,
+  sessionMinutes: 45,
+};
+const strongHistory = [
+  historyEntry("strong-1", 94, "bench-press", [12, 12, 12]),
+  historyEntry("strong-2", 91, "bench-press", [12, 12, 12]),
+  historyEntry("strong-3", 90, "bench-press", [11, 12, 12]),
+];
+const progressAdaptation = getTrainingAdaptation(strongProfile, strongHistory);
+if (progressAdaptation.mode !== "progress") {
+  fail(`strong history should produce progress mode, got ${progressAdaptation.mode}`);
+}
+
+const loadPrescription = getExerciseProgressionPrescription(
+  "bench-press",
+  "8-12",
+  strongHistory.slice(0, 2),
+  "progress",
+);
+if (loadPrescription.action !== "increase-load") {
+  fail(
+    `two top-range sessions should request increase-load, got ${loadPrescription.action}`,
+  );
+}
+
+const poorProfile: UserProfile = {
+  ...strongProfile,
+  sleepQuality: 2,
+  fatigue: 5,
+};
+const poorHistory = [
+  historyEntry("poor-1", 58, "bench-press", [6, 6, 7]),
+  historyEntry("poor-2", 62, "bench-press", [6, 7, 6]),
+  historyEntry("poor-3", 60, "bench-press", [7, 6, 6]),
+];
+const recoveryAdaptation = getTrainingAdaptation(poorProfile, poorHistory);
+if (recoveryAdaptation.mode !== "recovery") {
+  fail(`poor recovery history should produce recovery mode, got ${recoveryAdaptation.mode}`);
+}
+
+const reducePrescription = getExerciseProgressionPrescription(
+  "bench-press",
+  "8-12",
+  poorHistory.slice(0, 2),
+  "recovery",
+);
+if (reducePrescription.action !== "reduce") {
+  fail(
+    `recovery prescription should request reduce, got ${reducePrescription.action}`,
+  );
+}
+
+const progressPlan = generateWeeklyPlan(strongProfile, strongHistory);
+if (!progressPlan.every((workout) => workout.adaptation.mode === "progress")) {
+  fail("progress history was not propagated to every generated workout");
+}
+const recoveryPlan = generateWeeklyPlan(poorProfile, poorHistory);
+if (!recoveryPlan.every((workout) => workout.adaptation.mode === "recovery")) {
+  fail("recovery history was not propagated to every generated workout");
+}
+const progressStrengthSets = progressPlan
+  .flatMap((workout) => workout.exercises)
+  .filter((item) => ["main", "accessory", "core"].includes(item.phase))
+  .reduce((sum, item) => sum + item.sets, 0);
+const recoveryStrengthSets = recoveryPlan
+  .flatMap((workout) => workout.exercises)
+  .filter((item) => ["main", "accessory", "core"].includes(item.phase))
+  .reduce((sum, item) => sum + item.sets, 0);
+if (recoveryStrengthSets >= progressStrengthSets) {
+  fail(
+    `recovery volume should be lower than progress volume: ${recoveryStrengthSets} vs ${progressStrengthSets}`,
+  );
+}
+
+console.log(
+  `adaptive checks: progress readiness=${progressAdaptation.readinessScore}, recovery readiness=${recoveryAdaptation.readinessScore}, strength sets ${progressStrengthSets}->${recoveryStrengthSets}`,
+);
 
 for (const daysPerWeek of [2, 3, 4, 5, 6]) {
   const goals: Goal[] = daysPerWeek >= 5 ? ["muscle-gain"] : ["general-fitness"];
