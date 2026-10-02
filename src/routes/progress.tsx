@@ -20,6 +20,7 @@ import {
   exerciseStrengthAnalyses,
   loadHistory,
   loadProfile,
+  loadTodayReadiness,
 } from "@/lib/user-profile";
 import {
   PERIODIZATION_PHASE_LABEL_AR,
@@ -54,17 +55,20 @@ function Progress() {
   );
   const history = useMemo(() => loadHistory(), []);
   const profile = useMemo(() => loadProfile(), []);
+  const readinessCheckIn = useMemo(() => loadTodayReadiness(), []);
   const adaptation = useMemo(
-    () => getTrainingAdaptation(profile, history),
-    [profile, history],
+    () => getTrainingAdaptation(profile, history, readinessCheckIn),
+    [profile, history, readinessCheckIn],
   );
   const strength = useMemo(
     () => exerciseStrengthAnalyses(history),
     [history],
   );
   const currentPeriodization = useMemo(
-    () => generateWeeklyPlan(profile, history)[0]?.periodization,
-    [profile, history],
+    () =>
+      generateWeeklyPlan(profile, history, readinessCheckIn)[0]
+        ?.periodization,
+    [profile, history, readinessCheckIn],
   );
   const dailyBests = useMemo(
     () => dailyExerciseBests(history, selectedDay),

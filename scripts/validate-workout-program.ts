@@ -21,7 +21,11 @@ import {
   analyzeExerciseStrength,
   estimateOneRepMaxKg,
   exerciseStrengthSummaries,
+  normalizeReadinessCheckIn,
+  readinessDateKey,
+  readinessForDate,
   type CompletedWorkout,
+  type DailyReadinessCheckIn,
   type UserProfile,
 } from "../src/lib/user-profile";
 
@@ -94,6 +98,117 @@ const strongHistory = [
   historyEntry("strong-2", 91, "bench-press", [12, 12, 12]),
   historyEntry("strong-3", 90, "bench-press", [11, 12, 12]),
 ];
+const fixedToday = "2026-10-02";
+const dailyStrong: DailyReadinessCheckIn = normalizeReadinessCheckIn({
+  dateKey: fixedToday,
+  recordedAt: "2026-10-02T08:00:00.000Z",
+  sleepQuality: 5,
+  fatigue: 1,
+  muscleSoreness: 1,
+  energy: 5,
+});
+const dailyProgressAdaptation = getTrainingAdaptation(
+  strongProfile,
+  strongHistory,
+  dailyStrong,
+  fixedToday,
+);
+if (
+  dailyProgressAdaptation.mode !== "progress" ||
+  dailyProgressAdaptation.readinessSource !== "daily-checkin"
+) {
+  fail(
+    `strong today's check-in should produce daily progress, got ${dailyProgressAdaptation.mode}/${dailyProgressAdaptation.readinessSource}`,
+  );
+}
+
+const dailyPoor: DailyReadinessCheckIn = normalizeReadinessCheckIn({
+  dateKey: fixedToday,
+  recordedAt: "2026-10-02T08:05:00.000Z",
+  sleepQuality: 2,
+  fatigue: 5,
+  muscleSoreness: 5,
+  energy: 1,
+});
+const dailyRecoveryAdaptation = getTrainingAdaptation(
+  strongProfile,
+  strongHistory,
+  dailyPoor,
+  fixedToday,
+);
+if (
+  dailyRecoveryAdaptation.mode !== "recovery" ||
+  dailyRecoveryAdaptation.readinessSource !== "daily-checkin"
+) {
+  fail(
+    `poor today's check-in should force recovery, got ${dailyRecoveryAdaptation.mode}/${dailyRecoveryAdaptation.readinessSource}`,
+  );
+}
+
+const stalePoor = {
+  ...dailyPoor,
+  dateKey: "2026-10-01",
+};
+const staleAdaptation = getTrainingAdaptation(
+  strongProfile,
+  strongHistory,
+  stalePoor,
+  fixedToday,
+);
+if (
+  staleAdaptation.mode !== "progress" ||
+  staleAdaptation.readinessSource !== "profile"
+) {
+  fail(
+    `stale check-in must be ignored; expected profile progress, got ${staleAdaptation.mode}/${staleAdaptation.readinessSource}`,
+  );
+}
+
+const selectedToday = readinessForDate(
+  [stalePoor, dailyStrong],
+  fixedToday,
+);
+if (selectedToday?.dateKey !== fixedToday) {
+  fail("readinessForDate must select only the exact requested date");
+}
+
+const clampedReadiness = normalizeReadinessCheckIn({
+  dateKey: fixedToday,
+  recordedAt: "2026-10-02T09:00:00.000Z",
+  sleepQuality: 9,
+  fatigue: 0,
+  muscleSoreness: 7,
+  energy: -2,
+});
+if (
+  clampedReadiness.sleepQuality !== 5 ||
+  clampedReadiness.fatigue !== 1 ||
+  clampedReadiness.muscleSoreness !== 5 ||
+  clampedReadiness.energy !== 1
+) {
+  fail("daily readiness values must be clamped to the 1-5 scale");
+}
+
+const currentPoor: DailyReadinessCheckIn = {
+  ...dailyPoor,
+  dateKey: readinessDateKey(),
+};
+const dailyRecoveryPlan = generateWeeklyPlan(
+  strongProfile,
+  strongHistory,
+  currentPoor,
+);
+if (
+  !dailyRecoveryPlan.every(
+    (workout) =>
+      workout.adaptation.mode === "recovery" &&
+      workout.adaptation.readinessSource === "daily-checkin" &&
+      workout.periodization.phase === "deload",
+  )
+) {
+  fail("today's poor check-in must propagate recovery/deload across the current weekly plan");
+}
+
 const progressAdaptation = getTrainingAdaptation(strongProfile, strongHistory);
 if (progressAdaptation.mode !== "progress") {
   fail(`strong history should produce progress mode, got ${progressAdaptation.mode}`);
@@ -595,7 +710,7 @@ if (recoveryStrengthSets >= progressStrengthSets) {
 }
 
 console.log(
-  `adaptive checks: progress readiness=${progressAdaptation.readinessScore}, recovery readiness=${recoveryAdaptation.readinessScore}, strength sets ${progressStrengthSets}->${recoveryStrengthSets}, load 70->${loadPrescription.suggestedLoadKg}kg, e1RM=${e1rm}kg, plateau=${plateauAnalysis?.plateau}, trend=${risingAnalysis?.trend}, cycle=${cyclePhases.join(">")}, cycleSets=${phaseStrengthSets.join(">")}, recoveryPhase=${recoveryPeriodization.phase}, plateauTrigger=${plateauPeriodization.trigger}, accessoryRotation=${rotationAccessoryBase?.id ?? "none"}, mainRotation=${rotationMainBase?.id ?? "none"}`,
+  `adaptive checks: progress readiness=${progressAdaptation.readinessScore}, recovery readiness=${recoveryAdaptation.readinessScore}, daily=${dailyProgressAdaptation.readinessScore}->${dailyRecoveryAdaptation.readinessScore}, staleSource=${staleAdaptation.readinessSource}, strength sets ${progressStrengthSets}->${recoveryStrengthSets}, load 70->${loadPrescription.suggestedLoadKg}kg, e1RM=${e1rm}kg, plateau=${plateauAnalysis?.plateau}, trend=${risingAnalysis?.trend}, cycle=${cyclePhases.join(">")}, cycleSets=${phaseStrengthSets.join(">")}, recoveryPhase=${recoveryPeriodization.phase}, plateauTrigger=${plateauPeriodization.trigger}, accessoryRotation=${rotationAccessoryBase?.id ?? "none"}, mainRotation=${rotationMainBase?.id ?? "none"}`,
 );
 
 for (const daysPerWeek of [2, 3, 4, 5, 6]) {

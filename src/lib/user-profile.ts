@@ -21,6 +21,39 @@ export interface UserProfile {
   gender?: "male" | "female";
 }
 
+export interface DailyReadinessCheckIn {
+  dateKey: string;
+  recordedAt: string;
+  sleepQuality: number; // 1-5
+  fatigue: number; // 1-5
+  muscleSoreness: number; // 1-5
+  energy: number; // 1-5
+}
+
+export function readinessDateKey(date = new Date()) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function clampFive(value: number) {
+  return Math.max(1, Math.min(5, Math.round(value)));
+}
+
+export function normalizeReadinessCheckIn(
+  value: DailyReadinessCheckIn,
+): DailyReadinessCheckIn {
+  return {
+    dateKey: value.dateKey,
+    recordedAt: value.recordedAt,
+    sleepQuality: clampFive(value.sleepQuality),
+    fatigue: clampFive(value.fatigue),
+    muscleSoreness: clampFive(value.muscleSoreness),
+    energy: clampFive(value.energy),
+  };
+}
+
 export interface CompletedWorkout {
   id: string;
   date: string; // ISO
@@ -62,6 +95,7 @@ export interface CompletedWorkout {
 
 const P_KEY = "kp.profile";
 const H_KEY = "kp.history";
+const R_KEY = "kp.readiness";
 
 export const DEFAULT_PROFILE: UserProfile = {
   level: "beginner",
@@ -107,6 +141,59 @@ export function recordWorkout(w: CompletedWorkout) {
   const all = loadHistory();
   all.unshift(w);
   localStorage.setItem(H_KEY, JSON.stringify(all.slice(0, 200)));
+}
+
+export function loadReadinessHistory(): DailyReadinessCheckIn[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = localStorage.getItem(R_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw) as DailyReadinessCheckIn[];
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .filter(
+        (item) =>
+          item &&
+          typeof item.dateKey === "string" &&
+          typeof item.recordedAt === "string",
+      )
+      .map(normalizeReadinessCheckIn)
+      .slice(0, 90);
+  } catch {
+    return [];
+  }
+}
+
+export function readinessForDate(
+  entries: DailyReadinessCheckIn[],
+  dateKey: string,
+): DailyReadinessCheckIn | undefined {
+  return entries.find((item) => item.dateKey === dateKey);
+}
+
+export function loadTodayReadiness(
+  date = new Date(),
+): DailyReadinessCheckIn | undefined {
+  return readinessForDate(loadReadinessHistory(), readinessDateKey(date));
+}
+
+export function saveDailyReadiness(
+  values: Omit<DailyReadinessCheckIn, "recordedAt"> &
+    Partial<Pick<DailyReadinessCheckIn, "recordedAt">>,
+) {
+  if (typeof window === "undefined") return;
+  const next = normalizeReadinessCheckIn({
+    ...values,
+    recordedAt: values.recordedAt ?? new Date().toISOString(),
+  });
+  const all = loadReadinessHistory().filter(
+    (item) => item.dateKey !== next.dateKey,
+  );
+  localStorage.setItem(
+    R_KEY,
+    JSON.stringify([next, ...all].slice(0, 90)),
+  );
+  return next;
 }
 
 export interface ExerciseStrengthPoint {

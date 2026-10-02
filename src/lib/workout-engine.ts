@@ -19,7 +19,9 @@ import {
 import {
   analyzeExerciseStrength,
   exerciseStrengthAnalyses,
+  readinessDateKey,
   type CompletedWorkout,
+  type DailyReadinessCheckIn,
   type UserProfile,
 } from "./user-profile";
 
@@ -71,6 +73,11 @@ export interface ExerciseRotationDecision {
 export interface TrainingAdaptation {
   mode: AdaptationMode;
   readinessScore: number;
+  readinessSource: "daily-checkin" | "profile";
+  sleepQuality: number;
+  fatigue: number;
+  muscleSoreness: number | null;
+  energy: number | null;
   recentPerformance: number;
   recentSessions: number;
   recentAverageRir: number | null;
@@ -380,6 +387,8 @@ function attemptAverageRir(attempt: CompletedWorkout["exercises"][number]) {
 export function getTrainingAdaptation(
   profile: UserProfile,
   history: CompletedWorkout[] = [],
+  readiness?: DailyReadinessCheckIn,
+  asOfDateKey = readinessDateKey(),
 ): TrainingAdaptation {
   const recent = history.slice(0, 3);
   const recentPerformance = recent.length
@@ -390,67 +399,105 @@ export function getTrainingAdaptation(
     : 75;
   const averageRir = recentAverageRir(history);
   const effortAdjustment =
-    averageRir === null ? 0 : averageRir < 0.75 ? -8 : averageRir < 1.25 ? -4 : 0;
+    averageRir === null
+      ? 0
+      : averageRir < 0.75
+        ? -8
+        : averageRir < 1.25
+          ? -4
+          : 0;
+
+  // Daily readiness is deliberately date-scoped. A check-in from yesterday
+  // must never silently alter today's training prescription.
+  const daily =
+    readiness?.dateKey === asOfDateKey ? readiness : undefined;
+  const sleepQuality = daily?.sleepQuality ?? profile.sleepQuality;
+  const fatigue = daily?.fatigue ?? profile.fatigue;
+  const muscleSoreness = daily?.muscleSoreness ?? null;
+  const energy = daily?.energy ?? null;
+  const dailyAdjustment = daily
+    ? (daily.energy - 3) * 7 - (daily.muscleSoreness - 2) * 6
+    : 0;
 
   const readinessScore = clampScore(
     50 +
-      (profile.sleepQuality - 3) * 10 -
-      (profile.fatigue - 3) * 10 +
+      (sleepQuality - 3) * 10 -
+      (fatigue - 3) * 10 +
       (recentPerformance - 75) * 0.3 +
-      effortAdjustment,
+      effortAdjustment +
+      dailyAdjustment,
   );
+
+  const dailyRecoverySignal =
+    Boolean(daily) &&
+    ((muscleSoreness ?? 0) >= 5 ||
+      (energy ?? 5) <= 1 ||
+      ((muscleSoreness ?? 0) >= 4 && (energy ?? 5) <= 2));
 
   const recoveryRequired =
     readinessScore < 55 ||
-    profile.sleepQuality <= 2 ||
-    profile.fatigue >= 4 ||
+    sleepQuality <= 2 ||
+    fatigue >= 4 ||
+    dailyRecoverySignal ||
     (recent.length >= 2 && recentPerformance < 65) ||
     (recent.length >= 2 && averageRir !== null && averageRir < 0.5);
+
+  const dailySupportsProgress =
+    !daily ||
+    ((muscleSoreness ?? 5) <= 2 && (energy ?? 0) >= 4);
 
   const progressReady =
     recent.length >= 2 &&
     readinessScore >= 80 &&
     recentPerformance >= 85 &&
-    profile.sleepQuality >= 4 &&
-    profile.fatigue <= 2;
+    sleepQuality >= 4 &&
+    fatigue <= 2 &&
+    dailySupportsProgress;
+
+  const common = {
+    readinessScore,
+    readinessSource: daily ? ("daily-checkin" as const) : ("profile" as const),
+    sleepQuality,
+    fatigue,
+    muscleSoreness,
+    energy,
+    recentPerformance,
+    recentSessions: recent.length,
+    recentAverageRir: averageRir,
+  };
 
   if (recoveryRequired) {
     return {
+      ...common,
       mode: "recovery",
-      readinessScore,
-      recentPerformance,
-      recentSessions: recent.length,
-      recentAverageRir: averageRir,
       volumeFactor: 0.78,
       restFactor: 1.25,
-      reason:
-        "تم خفض الجرعة التدريبية مؤقتًا لأن مؤشرات النوم/الإجهاد أو الأداء الحديث تشير إلى حاجة أكبر للاستشفاء.",
+      reason: daily
+        ? "تقييم اليوم يشير إلى حاجة أكبر للاستشفاء؛ تم خفض الجرعة بناءً على النوم والتعب وألم العضلات والطاقة مع الأداء الحديث."
+        : "تم خفض الجرعة التدريبية مؤقتًا لأن مؤشرات النوم/الإجهاد أو الأداء الحديث تشير إلى حاجة أكبر للاستشفاء.",
     };
   }
 
   if (progressReady) {
     return {
+      ...common,
       mode: "progress",
-      readinessScore,
-      recentPerformance,
-      recentSessions: recent.length,
-      recentAverageRir: averageRir,
       volumeFactor: 1.05,
       restFactor: 1,
-      reason:
-        "الأداء الحديث مستقر والجاهزية مرتفعة؛ تُستخدم زيادة تدريجية محافظة في التكرارات أو المقاومة.",
+      reason: daily
+        ? "تقييم اليوم والأداء الحديث يدعمان التقدم؛ تُستخدم زيادة تدريجية محافظة مع مراقبة RIR."
+        : "الأداء الحديث مستقر والجاهزية مرتفعة؛ تُستخدم زيادة تدريجية محافظة في التكرارات أو المقاومة.",
     };
   }
 
   return {
+    ...common,
     mode: "maintain",
-    readinessScore,
-    recentPerformance,
-    recentSessions: recent.length,
     volumeFactor: 1,
     restFactor: 1,
-    reason:
-      recent.length < 2
+    reason: daily
+      ? "تقييم اليوم لا يستدعي خفضًا أو تصعيدًا؛ تستمر الخطة على جرعتها الحالية مع بناء تدريجي."
+      : recent.length < 2
         ? "لا توجد بيانات أداء كافية للزيادة التلقائية بعد؛ تستمر الخطة على جرعتها الحالية."
         : "مؤشرات الأداء والاستشفاء متوازنة؛ تستمر الخطة على الجرعة الحالية مع بناء التكرارات تدريجيًا.",
   };
@@ -1653,10 +1700,11 @@ function buildWeeklyPlan(
   profile: UserProfile,
   week: number,
   history: CompletedWorkout[] = [],
+  readiness?: DailyReadinessCheckIn,
 ) {
   const blueprints = blueprintsFor(profile.daysPerWeek);
   const usedAcrossWeek = new Set<string>();
-  const adaptation = getTrainingAdaptation(profile, history);
+  const adaptation = getTrainingAdaptation(profile, history, readiness);
   const periodization = getPeriodizationPlan(
     week,
     profile,
@@ -1682,8 +1730,9 @@ export function generateWeeklySchedule(
   profile: UserProfile,
   week = Math.floor(Date.now() / (1000 * 60 * 60 * 24 * 7)),
   history: CompletedWorkout[] = [],
+  readiness?: DailyReadinessCheckIn,
 ): WeeklyScheduleDay[] {
-  const weekly = buildWeeklyPlan(profile, week, history);
+  const weekly = buildWeeklyPlan(profile, week, history, readiness);
   const trainingDays =
     TRAINING_DAY_PATTERNS[Math.max(1, Math.min(6, weekly.length))] ?? [0, 2, 4];
   const workoutByWeekday = new Map(
@@ -1707,11 +1756,21 @@ export function generateWeeklySchedule(
 
 export function generateWorkout(
   profile: UserProfile,
-  opts: { day?: number; week?: number; history?: CompletedWorkout[] } = {},
+  opts: {
+    day?: number;
+    week?: number;
+    history?: CompletedWorkout[];
+    readiness?: DailyReadinessCheckIn;
+  } = {},
 ): GeneratedWorkout {
   const week = opts.week ?? Math.floor(Date.now() / (1000 * 60 * 60 * 24 * 7));
   const history = opts.history ?? [];
-  const weekly = buildWeeklyPlan(profile, week, history);
+  const weekly = buildWeeklyPlan(
+    profile,
+    week,
+    history,
+    opts.readiness,
+  );
 
   if (opts.day !== undefined) {
     const dayIndex = Math.max(0, Math.floor(opts.day)) % weekly.length;
@@ -1719,7 +1778,12 @@ export function generateWorkout(
   }
 
   const today = new Date().getDay();
-  const schedule = generateWeeklySchedule(profile, week, history);
+  const schedule = generateWeeklySchedule(
+    profile,
+    week,
+    history,
+    opts.readiness,
+  );
   const todayEntry = schedule[today];
   if (todayEntry?.workout) return todayEntry.workout;
 
@@ -1734,9 +1798,10 @@ export function generateWorkout(
 export function generateWeeklyPlan(
   profile: UserProfile,
   history: CompletedWorkout[] = [],
+  readiness?: DailyReadinessCheckIn,
 ): GeneratedWorkout[] {
   const week = Math.floor(Date.now() / (1000 * 60 * 60 * 24 * 7));
-  return buildWeeklyPlan(profile, week, history);
+  return buildWeeklyPlan(profile, week, history, readiness);
 }
 
 export function generateMonthlyProgram(

@@ -20,7 +20,12 @@ import {
   type PlannedExercise,
 } from "@/lib/workout-engine";
 import { getExercise } from "@/lib/exercise-db";
-import { loadHistory, loadProfile, recordWorkout } from "@/lib/user-profile";
+import {
+  loadHistory,
+  loadProfile,
+  loadTodayReadiness,
+  recordWorkout,
+} from "@/lib/user-profile";
 import { checkNewAchievements } from "@/lib/achievements";
 
 export const Route = createFileRoute("/workout")({
@@ -43,6 +48,7 @@ function WorkoutPlayer() {
       generateWorkout(loadProfile(), {
         day,
         history: loadHistory(),
+        readiness: loadTodayReadiness(),
       }),
     [day],
   );
@@ -396,6 +402,20 @@ function WorkoutPlayer() {
             </p>
           )}
         </div>
+
+        {workout.adaptation.readinessSource === "profile" && (
+          <div className="mb-4 rounded-xl border border-dashed border-border bg-background/40 p-3">
+            <p className="text-[10px] font-bold text-muted-foreground">
+              لم يتم تسجيل Check-in اليوم؛ الجرعة الحالية تستخدم خط الأساس من ملفك الشخصي.
+            </p>
+            <Link
+              to="/"
+              className="mt-2 inline-block text-[10px] font-black text-primary"
+            >
+              سجّل تقييم اليوم
+            </Link>
+          </div>
+        )}
 
         {current.rotatedFromId && (
           <div className="mb-4 rounded-2xl border border-amber-400/25 bg-amber-400/5 p-3">

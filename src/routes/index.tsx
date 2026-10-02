@@ -20,6 +20,7 @@ import programMobility from "@/assets/program-mobility.jpg";
 import programCardio from "@/assets/program-cardio.jpg";
 import { BottomNav } from "@/components/bottom-nav";
 import { PageShell } from "@/components/page-shell";
+import { ReadinessCheckInCard } from "@/components/readiness-check-in";
 import {
   EXERCISES,
   MUSCLE_LABEL_AR,
@@ -34,7 +35,9 @@ import {
   currentStreak,
   loadHistory,
   loadProfile,
+  loadTodayReadiness,
   type CompletedWorkout,
+  type DailyReadinessCheckIn,
   type UserProfile,
 } from "@/lib/user-profile";
 
@@ -51,20 +54,29 @@ const programs = [
 function Dashboard() {
   const [profile, setProfile] = useState<UserProfile>(DEFAULT_PROFILE);
   const [history, setHistory] = useState<CompletedWorkout[]>([]);
+  const [readinessCheckIn, setReadinessCheckIn] =
+    useState<DailyReadinessCheckIn>();
   const [now] = useState(() => new Date());
 
   useEffect(() => {
     setProfile(loadProfile());
     setHistory(loadHistory());
+    setReadinessCheckIn(loadTodayReadiness());
   }, []);
 
   const weekly = useMemo(
-    () => generateWeeklyPlan(profile, history),
-    [profile, history],
+    () => generateWeeklyPlan(profile, history, readinessCheckIn),
+    [profile, history, readinessCheckIn],
   );
   const schedule = useMemo(
-    () => generateWeeklySchedule(profile, undefined, history),
-    [profile, history],
+    () =>
+      generateWeeklySchedule(
+        profile,
+        undefined,
+        history,
+        readinessCheckIn,
+      ),
+    [profile, history, readinessCheckIn],
   );
   const volume = useMemo(
     () => getWeeklyVolumeStatus(weekly, profile),
@@ -82,17 +94,8 @@ function Dashboard() {
     return undefined;
   }, [now, schedule, today, todayWorkout]);
 
-  const readiness = Math.max(
-    25,
-    Math.min(
-      100,
-      Math.round(
-        72 +
-          (profile.sleepQuality - 3) * 8 -
-          (profile.fatigue - 2) * 10,
-      ),
-    ),
-  );
+  const adaptation = weekly[0]?.adaptation;
+  const readiness = adaptation?.readinessScore ?? 50;
   const weeklyCalories = weekly.reduce(
     (sum, workout) => sum + workout.estimatedCalories,
     0,
@@ -150,21 +153,38 @@ function Dashboard() {
           <div className="space-y-4">
             <div className="space-y-1">
               <p className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest">
-                جاهزية تقديرية
+                {adaptation?.readinessSource === "daily-checkin"
+                  ? "جاهزية من تقييم اليوم"
+                  : "جاهزية تقديرية من خط الأساس"}
               </p>
               <p className="text-4xl font-black text-primary leading-none" dir="ltr">
                 {readiness}%
               </p>
             </div>
             <div className="flex gap-4">
-              <Stat icon={Moon} label="النوم" value={profile.sleepQuality + "/5"} />
+              <Stat
+                icon={Moon}
+                label="النوم"
+                value={(adaptation?.sleepQuality ?? profile.sleepQuality) + "/5"}
+              />
               <div className="border-r border-border pr-4">
-                <Stat icon={Heart} label="الإجهاد" value={profile.fatigue + "/5"} />
+                <Stat
+                  icon={Heart}
+                  label="التعب"
+                  value={(adaptation?.fatigue ?? profile.fatigue) + "/5"}
+                />
               </div>
             </div>
           </div>
           <ReadinessRings readiness={readiness} />
         </div>
+      </section>
+
+      <section className="relative px-6 mb-6 animate-enter [animation-delay:120ms]">
+        <ReadinessCheckInCard
+          value={readinessCheckIn}
+          onSaved={setReadinessCheckIn}
+        />
       </section>
 
       <section className="relative px-6 mb-8 animate-enter [animation-delay:150ms]">

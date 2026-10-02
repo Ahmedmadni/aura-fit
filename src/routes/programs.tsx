@@ -27,7 +27,9 @@ import {
   DEFAULT_PROFILE,
   loadHistory,
   loadProfile,
+  loadTodayReadiness,
   type CompletedWorkout,
+  type DailyReadinessCheckIn,
   type UserProfile,
 } from "@/lib/user-profile";
 
@@ -71,19 +73,28 @@ const GOAL_LABELS: Record<Goal, string> = {
 function Programs() {
   const [profile, setProfile] = useState<UserProfile>(DEFAULT_PROFILE);
   const [history, setHistory] = useState<CompletedWorkout[]>([]);
+  const [readinessCheckIn, setReadinessCheckIn] =
+    useState<DailyReadinessCheckIn>();
 
   useEffect(() => {
     setProfile(loadProfile());
     setHistory(loadHistory());
+    setReadinessCheckIn(loadTodayReadiness());
   }, []);
 
   const weekly = useMemo(
-    () => generateWeeklyPlan(profile, history),
-    [profile, history],
+    () => generateWeeklyPlan(profile, history, readinessCheckIn),
+    [profile, history, readinessCheckIn],
   );
   const schedule = useMemo(
-    () => generateWeeklySchedule(profile, undefined, history),
-    [profile, history],
+    () =>
+      generateWeeklySchedule(
+        profile,
+        undefined,
+        history,
+        readinessCheckIn,
+      ),
+    [profile, history, readinessCheckIn],
   );
   const coverage = useMemo(() => getWeeklyMuscleCoverage(weekly), [weekly]);
   const volume = useMemo(
