@@ -1,6 +1,7 @@
 import {
   generateWeeklyPlan,
   getWeeklyMuscleCoverage,
+  getWeeklyVolumeStatus,
   MAJOR_MUSCLES,
 } from "../src/lib/workout-engine";
 import { type Equipment, type Goal } from "../src/lib/exercise-db";
@@ -79,6 +80,20 @@ for (const daysPerWeek of [2, 3, 4, 5, 6]) {
     }
   });
 
+  const volume = getWeeklyVolumeStatus(plan, profile);
+  for (const item of volume) {
+    if (item.status === "low") {
+      fail(
+        `${daysPerWeek}d: ${item.muscle} effective volume ${item.effectiveSets} is below minimum ${item.min}`,
+      );
+    }
+    if (item.status === "high") {
+      fail(
+        `${daysPerWeek}d: ${item.muscle} effective volume ${item.effectiveSets} exceeds maximum ${item.max}`,
+      );
+    }
+  }
+
   const coverage = getWeeklyMuscleCoverage(plan);
   for (const muscle of MAJOR_MUSCLES) {
     const item = coverage.find((entry) => entry.muscle === muscle);
@@ -92,7 +107,9 @@ for (const daysPerWeek of [2, 3, 4, 5, 6]) {
       coverage
         .filter((item) => MAJOR_MUSCLES.includes(item.muscle))
         .map((item) => `${item.muscle}=${item.days}x`)
-        .join(", "),
+        .join(", ") +
+      " | volume " +
+      volume.map((item) => `${item.muscle}=${item.effectiveSets}/${item.min}-${item.max}`).join(", "),
   );
 }
 

@@ -18,6 +18,7 @@ import {
   PHASE_LABEL_AR,
   generateWeeklyPlan,
   getWeeklyMuscleCoverage,
+  getWeeklyVolumeStatus,
 } from "@/lib/workout-engine";
 import { MUSCLE_LABEL_AR, type Goal } from "@/lib/exercise-db";
 import {
@@ -72,12 +73,17 @@ function Programs() {
 
   const weekly = useMemo(() => generateWeeklyPlan(profile), [profile]);
   const coverage = useMemo(() => getWeeklyMuscleCoverage(weekly), [weekly]);
+  const volume = useMemo(
+    () => getWeeklyVolumeStatus(weekly, profile),
+    [weekly, profile],
+  );
   const majorCoverage = coverage.filter((item) =>
     ["chest", "back", "shoulders", "quads", "hamstrings", "glutes", "core"].includes(
       item.muscle,
     ),
   );
   const coveredTwice = majorCoverage.filter((item) => item.days >= 2).length;
+  const volumeOnTarget = volume.filter((item) => item.status === "target").length;
 
   return (
     <PageShell>
@@ -98,9 +104,10 @@ function Programs() {
             <CalendarDays className="size-6 shrink-0 text-primary" />
           </div>
 
-          <div className="mt-4 grid grid-cols-3 gap-2">
+          <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
             <SummaryStat label="جلسات" value={String(weekly.length)} />
             <SummaryStat label="تغطية 2×" value={coveredTwice + "/" + majorCoverage.length} />
+            <SummaryStat label="حجم مناسب" value={volumeOnTarget + "/" + volume.length} />
             <SummaryStat
               label="متوسط الجلسة"
               value={
@@ -215,6 +222,69 @@ function Programs() {
           <p className="type-caption mt-4 text-muted-foreground">
             الهدف الافتراضي هو تكرار تعريض المجموعات العضلية الرئيسية مرتين أسبوعيًا متى سمح عدد أيام التدريب والمعدات.
           </p>
+        </div>
+      </section>
+
+      <section className="px-6 mb-8 animate-enter [animation-delay:180ms]">
+        <div className="mb-4">
+          <p className="type-eyebrow text-muted-foreground">الحجم التدريبي</p>
+          <h3 className="type-section-title">المجموعات الأسبوعية الفعالة</h3>
+          <p className="type-small mt-2 text-muted-foreground">
+            المجموعة المباشرة = 1.0، والمساهمة الثانوية = 0.5. النطاق يتغير تلقائيًا حسب المستوى والهدف.
+          </p>
+        </div>
+
+        <div className="space-y-2">
+          {volume.map((item) => {
+            const pct = Math.min(100, Math.round((item.effectiveSets / item.max) * 100));
+            const statusLabel =
+              item.status === "low"
+                ? "أقل من المطلوب"
+                : item.status === "high"
+                  ? "أعلى من النطاق"
+                  : "ضمن النطاق";
+            return (
+              <div
+                key={item.muscle}
+                className="rounded-2xl border border-border bg-surface/70 p-3.5"
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-xs font-bold">{MUSCLE_LABEL_AR[item.muscle]}</p>
+                    <p className="mt-0.5 text-[9px] text-muted-foreground">
+                      المستهدف {item.min}–{item.max} · الأفضل ≈ {item.target}
+                    </p>
+                  </div>
+                  <div className="text-left">
+                    <p className="font-mono text-lg font-black">
+                      {item.effectiveSets}
+                    </p>
+                    <p
+                      className={
+                        "text-[9px] font-bold " +
+                        (item.status === "target"
+                          ? "text-primary"
+                          : "text-amber-400")
+                      }
+                    >
+                      {statusLabel}
+                    </p>
+                  </div>
+                </div>
+                <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-background">
+                  <div
+                    className="h-full rounded-full bg-primary transition-all"
+                    style={{ width: pct + "%" }}
+                  />
+                </div>
+                <div className="mt-2 flex justify-between text-[9px] text-muted-foreground">
+                  <span>{item.directSets} مباشر</span>
+                  <span>{item.indirectSets} مساعد</span>
+                  <span>{item.days} أيام</span>
+                </div>
+              </div>
+            );
+          })}
         </div>
       </section>
 

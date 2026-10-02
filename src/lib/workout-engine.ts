@@ -56,6 +56,18 @@ export interface MuscleCoverage {
   indirectSets: number;
 }
 
+export interface MuscleVolumeTarget {
+  muscle: Muscle;
+  min: number;
+  target: number;
+  max: number;
+}
+
+export interface MuscleVolumeStatus extends MuscleCoverage, MuscleVolumeTarget {
+  effectiveSets: number;
+  status: "low" | "target" | "high";
+}
+
 type DayBlueprint = {
   key: string;
   title: string;
@@ -87,6 +99,47 @@ export const MAJOR_MUSCLES: Muscle[] = [
   "glutes",
   "core",
 ];
+
+const SMALLER_MUSCLES: Muscle[] = ["biceps", "triceps", "calves", "forearms"];
+
+function baseVolumeForLevel(level: Level) {
+  if (level === "beginner") return { min: 4, target: 6, max: 9 };
+  if (level === "advanced") return { min: 8, target: 12, max: 18 };
+  return { min: 6, target: 9, max: 14 };
+}
+
+function goalVolumeAdjustment(goals: Goal[]) {
+  if (goals.includes("muscle-gain")) return { min: 1, target: 3, max: 4 };
+  if (goals.includes("strength")) return { min: 0, target: 1, max: 2 };
+  if (goals.includes("endurance")) return { min: 0, target: 1, max: 2 };
+  return { min: 0, target: 0, max: 0 };
+}
+
+export function getWeeklyVolumeTargets(
+  profile: UserProfile,
+  isDeload = false,
+): MuscleVolumeTarget[] {
+  const base = baseVolumeForLevel(profile.level);
+  const adjustment = goalVolumeAdjustment(profile.goals);
+  const deloadFactor = isDeload ? 0.65 : 1;
+
+  return MAJOR_MUSCLES.map((muscle) => {
+    const coreFactor = muscle === "core" ? 0.75 : 1;
+    const min = Math.max(
+      2,
+      Math.round((base.min + adjustment.min) * coreFactor * deloadFactor),
+    );
+    const target = Math.max(
+      min,
+      Math.round((base.target + adjustment.target) * coreFactor * deloadFactor),
+    );
+    const max = Math.max(
+      target + 1,
+      Math.round((base.max + adjustment.max) * coreFactor * deloadFactor),
+    );
+    return { muscle, min, target, max };
+  });
+}
 
 const ALL_FULL_BODY: Muscle[] = [
   "chest",
@@ -514,47 +567,168 @@ function generateForBlueprint(
   };
 }
 
+function effectiveSetsForMuscle(
+  workouts: GeneratedWorkout[],
+  muscle: Muscle,
+) {
+  let effective = 0;
+  workouts.forEach((workout) => {
+    workout.exercises.forEach((item) => {
+      if (
+        item.phase === "warmup" ||
+        item.phase === "cooldown" ||
+        item.phase === "cardio"
+      ) {
+        return;
+      }
+      if (item.exercise.primary.includes(muscle)) {
+        effective += item.sets;
+      } else if (item.exercise.secondary.includes(muscle)) {
+        effective += item.sets * 0.5;
+      }
+    });
+  });
+  return effective;
+}
+
+function tuneWeeklyVolume(
+  workouts: GeneratedWorkout[],
+  profile: UserProfile,
+): GeneratedWorkout[] {
+  const isDeload = workouts.length > 0 && workouts.every((workout) => workout.isDeload);
+  const targets = getWeeklyVolumeTargets(profile, isDeload);
+  const cloned = workouts.map((workout) => ({
+    ...workout,
+    exercises: workout.exercises.map((item) => ({ ...item })),
+  }));
+
+  for (const target of targets) {
+    let effective = effectiveSetsForMuscle(cloned, target.muscle);
+
+    if (effective < target.target) {
+      const candidates = cloned
+        .flatMap((workout, workoutIndex) =>
+          workout.exercises.map((item, exerciseIndex) => ({
+            workoutIndex,
+            exerciseIndex,
+            item,
+          })),
+        )
+        .filter(
+          ({ item }) =>
+            (item.phase === "main" ||
+              item.phase === "accessory" ||
+              item.phase === "core") &&
+            item.exercise.primary.includes(target.muscle),
+        )
+        .sort((a, b) => {
+          const aPriority = a.item.phase === "main" ? 0 : a.item.phase === "core" ? 1 : 2;
+          const bPriority = b.item.phase === "main" ? 0 : b.item.phase === "core" ? 1 : 2;
+          return aPriority - bPriority || a.item.sets - b.item.sets;
+        });
+
+      let cursor = 0;
+      while (effective < target.target && candidates.length && cursor < 24) {
+        const candidate = candidates[cursor % candidates.length];
+        const item = cloned[candidate.workoutIndex].exercises[candidate.exerciseIndex];
+        const perExerciseCap =
+          item.phase === "main" ? 5 : item.phase === "core" ? 3 : 4;
+        if (item.sets < perExerciseCap) {
+          item.sets += 1;
+          effective += 1;
+        }
+        cursor += 1;
+      }
+    }
+
+    if (effective > target.max) {
+      const candidates = cloned
+        .flatMap((workout, workoutIndex) =>
+          workout.exercises.map((item, exerciseIndex) => ({
+            workoutIndex,
+            exerciseIndex,
+            item,
+          })),
+        )
+        .filter(
+          ({ item }) =>
+            (item.phase === "main" ||
+              item.phase === "accessory" ||
+              item.phase === "core") &&
+            item.exercise.primary.includes(target.muscle),
+        )
+        .sort((a, b) => b.item.sets - a.item.sets);
+
+      let cursor = 0;
+      while (effective > target.max && candidates.length && cursor < 24) {
+        const candidate = candidates[cursor % candidates.length];
+        const item = cloned[candidate.workoutIndex].exercises[candidate.exerciseIndex];
+        const floor = item.phase === "main" ? 2 : 1;
+        if (item.sets > floor) {
+          item.sets -= 1;
+          effective -= 1;
+        }
+        cursor += 1;
+      }
+    }
+  }
+
+  return cloned.map((workout) => {
+    const estimatedMinutes = Math.round(
+      workout.exercises.reduce(
+        (sum, item) =>
+          sum +
+          item.workSeconds * item.sets +
+          item.restSeconds * Math.max(0, item.sets - 1),
+        0,
+      ) / 60,
+    );
+    const estimatedCalories = Math.round(
+      workout.exercises.reduce(
+        (sum, item) =>
+          sum +
+          (item.exercise.caloriesPerMin * item.workSeconds * item.sets) / 60,
+        0,
+      ),
+    );
+    return { ...workout, estimatedMinutes, estimatedCalories };
+  });
+}
+
+function buildWeeklyPlan(profile: UserProfile, week: number) {
+  const blueprints = blueprintsFor(profile.daysPerWeek);
+  const usedAcrossWeek = new Set<string>();
+  const base = blueprints.map((blueprint, index) =>
+    generateForBlueprint(profile, blueprint, index, week, usedAcrossWeek),
+  );
+  return tuneWeeklyVolume(base, profile);
+}
+
 export function generateWorkout(
   profile: UserProfile,
   opts: { day?: number; week?: number } = {},
 ): GeneratedWorkout {
-  const blueprints = blueprintsFor(profile.daysPerWeek);
   const weekdayIndex = (new Date().getDay() + 6) % 7;
+  const week = opts.week ?? Math.floor(Date.now() / (1000 * 60 * 60 * 24 * 7));
+  const weekly = buildWeeklyPlan(profile, week);
   const dayIndex =
     opts.day === undefined
-      ? weekdayIndex % blueprints.length
-      : Math.max(0, Math.floor(opts.day)) % blueprints.length;
-  const week = opts.week ?? Math.floor(Date.now() / (1000 * 60 * 60 * 24 * 7));
-  return generateForBlueprint(profile, blueprints[dayIndex], dayIndex, week, new Set<string>());
+      ? weekdayIndex % weekly.length
+      : Math.max(0, Math.floor(opts.day)) % weekly.length;
+  return weekly[dayIndex];
 }
 
 export function generateWeeklyPlan(profile: UserProfile): GeneratedWorkout[] {
-  const blueprints = blueprintsFor(profile.daysPerWeek);
   const week = Math.floor(Date.now() / (1000 * 60 * 60 * 24 * 7));
-  const usedAcrossWeek = new Set<string>();
-  return blueprints.map((blueprint, index) =>
-    generateForBlueprint(profile, blueprint, index, week, usedAcrossWeek),
-  );
+  return buildWeeklyPlan(profile, week);
 }
 
 export function generateMonthlyProgram(profile: UserProfile): GeneratedWorkout[][] {
-  const blueprints = blueprintsFor(profile.daysPerWeek);
-  return Array.from({ length: 4 }, (_, week) => {
-    const usedAcrossWeek = new Set<string>();
-    return blueprints.map((blueprint, day) =>
-      generateForBlueprint(profile, blueprint, day, week, usedAcrossWeek),
-    );
-  });
+  return Array.from({ length: 4 }, (_, week) => buildWeeklyPlan(profile, week));
 }
 
 export function getWeeklyMuscleCoverage(workouts: GeneratedWorkout[]): MuscleCoverage[] {
-  const muscles = new Set<Muscle>([
-    ...MAJOR_MUSCLES,
-    "biceps",
-    "triceps",
-    "calves",
-    "forearms",
-  ]);
+  const muscles = new Set<Muscle>([...MAJOR_MUSCLES, ...SMALLER_MUSCLES]);
 
   return Array.from(muscles).map((muscle) => {
     const days = new Set<number>();
@@ -563,7 +737,13 @@ export function getWeeklyMuscleCoverage(workouts: GeneratedWorkout[]): MuscleCov
 
     workouts.forEach((workout, dayIndex) => {
       workout.exercises.forEach((item) => {
-        if (item.phase === "warmup" || item.phase === "cooldown" || item.phase === "cardio") return;
+        if (
+          item.phase === "warmup" ||
+          item.phase === "cooldown" ||
+          item.phase === "cardio"
+        ) {
+          return;
+        }
         if (item.exercise.primary.includes(muscle)) {
           days.add(dayIndex);
           directSets += item.sets;
@@ -575,6 +755,41 @@ export function getWeeklyMuscleCoverage(workouts: GeneratedWorkout[]): MuscleCov
     });
 
     return { muscle, days: days.size, directSets, indirectSets };
+  });
+}
+
+export function getWeeklyVolumeStatus(
+  workouts: GeneratedWorkout[],
+  profile: UserProfile,
+): MuscleVolumeStatus[] {
+  const coverage = getWeeklyMuscleCoverage(workouts);
+  const isDeload = workouts.length > 0 && workouts.every((workout) => workout.isDeload);
+  const targets = getWeeklyVolumeTargets(profile, isDeload);
+
+  return targets.map((target) => {
+    const current =
+      coverage.find((entry) => entry.muscle === target.muscle) ?? {
+        muscle: target.muscle,
+        days: 0,
+        directSets: 0,
+        indirectSets: 0,
+      };
+    const effectiveSets = Math.round(
+      (current.directSets + current.indirectSets * 0.5) * 10,
+    ) / 10;
+    const status =
+      effectiveSets < target.min
+        ? "low"
+        : effectiveSets > target.max
+          ? "high"
+          : "target";
+
+    return {
+      ...current,
+      ...target,
+      effectiveSets,
+      status,
+    };
   });
 }
 
