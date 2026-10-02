@@ -1,5 +1,5 @@
 import { createFileRoute, Link, notFound } from "@tanstack/react-router";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
   AlertTriangle,
   CheckCircle2,
@@ -10,6 +10,8 @@ import {
   Repeat,
   Shield,
   Target,
+  TrendingDown,
+  TrendingUp,
   Wind,
 } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
@@ -28,6 +30,15 @@ import {
   MUSCLE_LABEL_AR,
   type Injury,
 } from "@/lib/exercise-db";
+import {
+  analyzeExerciseStrength,
+  loadHistory,
+  loadProfile,
+} from "@/lib/user-profile";
+import {
+  getExerciseProgressionPrescription,
+  getTrainingAdaptation,
+} from "@/lib/workout-engine";
 
 export const Route = createFileRoute("/exercise/$id")({
   component: ExerciseDetail,
@@ -49,6 +60,26 @@ function ExerciseDetail() {
   if (!exercise) throw notFound();
 
   const [tab, setTab] = useState<"overview" | "motion" | "safety" | "source">("overview");
+  const history = useMemo(() => loadHistory(), []);
+  const profile = useMemo(() => loadProfile(), []);
+  const adaptation = useMemo(
+    () => getTrainingAdaptation(profile, history),
+    [profile, history],
+  );
+  const strength = useMemo(
+    () => analyzeExerciseStrength(history, exercise.id),
+    [history, exercise.id],
+  );
+  const progression = useMemo(
+    () =>
+      getExerciseProgressionPrescription(
+        exercise.id,
+        exercise.recommendedReps,
+        history,
+        adaptation.mode,
+      ),
+    [adaptation.mode, exercise.id, exercise.recommendedReps, history],
+  );
   const primary = exercise.primary.map((muscle) => MUSCLE_LABEL_AR[muscle]).join("، ");
   const secondary = exercise.secondary.map((muscle) => MUSCLE_LABEL_AR[muscle]).join("، ");
   const equipment = exercise.equipment.map((item) => EQUIPMENT_LABEL_AR[item]).join("، ");
@@ -178,6 +209,106 @@ function ExerciseDetail() {
                     <p><span className="font-semibold text-foreground">الهدف:</span> {exercise.goals.map((goal) => GOAL_LABEL_AR[goal]).join("، ")}</p>
                   </div>
                 </Card>
+
+                {strength && (
+                  <Card className={strength.plateau ? "border-amber-400/30" : "border-primary/20"}>
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <CardHeader label="تقدمك في هذا التمرين" icon={TrendingUp} />
+                        <p className="text-sm font-black">
+                          {strength.trend === "up"
+                            ? "القوة في اتجاه صاعد"
+                            : strength.trend === "down"
+                              ? "القوة انخفضت مؤخرًا"
+                              : "القوة مستقرة مؤخرًا"}
+                        </p>
+                        <p className="mt-1 text-[10px] text-muted-foreground">
+                          {strength.sessions} جلسات مسجلة ·{" "}
+                          {strength.trendPercent > 0 ? "+" : ""}
+                          {strength.trendPercent}% عبر آخر التسجيلات
+                        </p>
+                      </div>
+                      {strength.trend === "up" ? (
+                        <TrendingUp className="size-5 text-primary" />
+                      ) : strength.trend === "down" ? (
+                        <TrendingDown className="size-5 text-cyan" />
+                      ) : (
+                        <Target className="size-5 text-muted-foreground" />
+                      )}
+                    </div>
+
+                    <div className="mt-4 h-16 rounded-xl bg-background/50 px-2 py-1">
+                      <ExerciseStrengthSparkline
+                        values={strength.points
+                          .slice(-8)
+                          .map((point) => point.bestEstimated1RmKg)}
+                      />
+                    </div>
+
+                    <div className="mt-3 grid grid-cols-3 gap-2">
+                      <DetailMetric
+                        label="آخر حمل"
+                        value={strength.lastLoadKg + " كجم"}
+                      />
+                      <DetailMetric
+                        label="أفضل e1RM"
+                        value={strength.bestEstimated1RmKg + " كجم"}
+                      />
+                      <DetailMetric
+                        label="حجم آخر جلسة"
+                        value={strength.latestLoadVolumeKgReps + ""}
+                      />
+                    </div>
+
+                    {(strength.latestLoadIsPr ||
+                      strength.latestEstimated1RmIsPr) &&
+                      strength.sessions > 1 && (
+                        <div className="mt-3 rounded-xl border border-primary/20 bg-primary/5 p-3 text-[10px] font-bold text-primary">
+                          رقم شخصي جديد:
+                          {strength.latestLoadIsPr ? " أعلى حمل" : ""}
+                          {strength.latestLoadIsPr &&
+                          strength.latestEstimated1RmIsPr
+                            ? " +"
+                            : ""}
+                          {strength.latestEstimated1RmIsPr
+                            ? " أعلى e1RM تقديري"
+                            : ""}
+                        </div>
+                      )}
+
+                    {strength.plateau && (
+                      <div className="mt-3 rounded-xl border border-amber-400/20 bg-amber-400/5 p-3">
+                        <p className="text-[10px] font-bold text-amber-400">
+                          Plateau محتمل
+                        </p>
+                        <p className="mt-1 text-[10px] leading-relaxed text-muted-foreground">
+                          آخر أربع تسجيلات تحركت ضمن نطاق ضيق. راجع النوم وRIR
+                          والحجم قبل تغيير التمرين أو إضافة حمل.
+                        </p>
+                      </div>
+                    )}
+
+                    <div className="mt-3 border-t border-border pt-3">
+                      <p className="text-[10px] font-mono uppercase tracking-widest text-primary">
+                        التوصية التالية
+                      </p>
+                      <p className="mt-1 text-xs leading-relaxed text-foreground/85">
+                        {progression.note}
+                      </p>
+                      {progression.suggestedLoadKg !== undefined && (
+                        <p className="mt-2 font-mono text-sm font-black">
+                          الحمل المقترح: {progression.suggestedLoadKg} كجم · RIR{" "}
+                          {progression.targetRir}
+                        </p>
+                      )}
+                    </div>
+
+                    <p className="mt-3 text-[9px] leading-relaxed text-muted-foreground">
+                      e1RM وحجم الحمل مؤشرات تدريبية تقديرية مشتقة من الوزن
+                      والتكرارات وRIR، وليست اختبار قوة مباشر.
+                    </p>
+                  </Card>
+                )}
 
                 <Card>
                   <CardHeader label="تنبيه المدرب" />
@@ -459,6 +590,62 @@ function QuickStat({
   );
 }
 
+
+function DetailMetric({
+  label,
+  value,
+}: {
+  label: string;
+  value: string;
+}) {
+  return (
+    <div className="rounded-xl bg-background/60 p-2.5 text-center">
+      <p className="font-mono text-[11px] font-black">{value}</p>
+      <p className="mt-0.5 text-[8px] text-muted-foreground">{label}</p>
+    </div>
+  );
+}
+
+function ExerciseStrengthSparkline({ values }: { values: number[] }) {
+  if (!values.length) return null;
+  if (values.length === 1) {
+    return (
+      <div className="flex h-full items-center">
+        <div className="h-1 w-full rounded-full bg-primary/40" />
+      </div>
+    );
+  }
+
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  const span = max - min || 1;
+  const points = values
+    .map((value, index) => {
+      const x = (index / (values.length - 1)) * 100;
+      const y = 44 - ((value - min) / span) * 34;
+      return x + "," + y;
+    })
+    .join(" ");
+
+  return (
+    <svg
+      viewBox="0 0 100 48"
+      preserveAspectRatio="none"
+      className="h-full w-full"
+      aria-label="اتجاه القوة التقديرية"
+    >
+      <polyline
+        points={points}
+        fill="none"
+        stroke="var(--brand)"
+        strokeWidth="2.4"
+        vectorEffect="non-scaling-stroke"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
 
 function InfoChip({ children }: { children: React.ReactNode }) {
   return (

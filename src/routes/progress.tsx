@@ -1,12 +1,23 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import { TrendingDown, TrendingUp, Target, Calendar, Trophy } from "lucide-react";
+import {
+  Activity,
+  AlertTriangle,
+  Calendar,
+  Dumbbell,
+  Minus,
+  Scale,
+  Target,
+  TrendingDown,
+  TrendingUp,
+  Trophy,
+} from "lucide-react";
 import { BottomNav } from "@/components/bottom-nav";
 import { PageShell, PageHeader } from "@/components/page-shell";
 import { getExercise } from "@/lib/exercise-db";
 import {
   dailyExerciseBests,
-  exerciseStrengthSummaries,
+  exerciseStrengthAnalyses,
   loadHistory,
   loadProfile,
 } from "@/lib/user-profile";
@@ -15,10 +26,17 @@ import { getTrainingAdaptation } from "@/lib/workout-engine";
 export const Route = createFileRoute("/progress")({
   head: () => ({
     meta: [
-      { title: "التقدم اليومي | كينيتك" },
-      { name: "description", content: "تابع أفضل مجموعة يومية وأرقامك القياسية في تمارين كينيتك." },
-      { property: "og:title", content: "التقدم اليومي | كينيتك" },
-      { property: "og:description", content: "تقرير يومي لأفضل مجموعة في كل تمرين." },
+      { title: "تحليل القوة والتقدم | Aura Fit" },
+      {
+        name: "description",
+        content:
+          "تابع التكرارات والأحمال وRIR وe1RM واتجاه القوة من سجل تدريبك الفعلي.",
+      },
+      { property: "og:title", content: "تحليل القوة والتقدم | Aura Fit" },
+      {
+        property: "og:description",
+        content: "تحليل ديناميكي للأحمال والقوة والأرقام الشخصية.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
@@ -26,16 +44,10 @@ export const Route = createFileRoute("/progress")({
   component: Progress,
 });
 
-const weightPoints = [78, 77.5, 77.2, 76.8, 76.5, 76.2, 76];
-const habits = [
-  { name: "تدريب", done: 5, target: 6 },
-  { name: "شرب الماء", done: 7, target: 8 },
-  { name: "نوم ٧س+", done: 5, target: 7 },
-  { name: "تأمل", done: 3, target: 5 },
-];
-
 function Progress() {
-  const [selectedDay, setSelectedDay] = useState(() => localDateKey(new Date()));
+  const [selectedDay, setSelectedDay] = useState(() =>
+    localDateKey(new Date()),
+  );
   const history = useMemo(() => loadHistory(), []);
   const profile = useMemo(() => loadProfile(), []);
   const adaptation = useMemo(
@@ -43,20 +55,30 @@ function Progress() {
     [profile, history],
   );
   const strength = useMemo(
-    () => exerciseStrengthSummaries(history),
+    () => exerciseStrengthAnalyses(history),
     [history],
   );
   const dailyBests = useMemo(
     () => dailyExerciseBests(history, selectedDay),
     [history, selectedDay],
   );
-  const min = Math.min(...weightPoints);
-  const max = Math.max(...weightPoints);
+
+  const recentPrs = strength.filter(
+    (item) =>
+      item.sessions > 1 &&
+      (item.latestLoadIsPr || item.latestEstimated1RmIsPr),
+  ).length;
+  const plateaus = strength.filter((item) => item.plateau).length;
+  const totalLoadVolume = strength.reduce(
+    (sum, item) => sum + item.totalLoadVolumeKgReps,
+    0,
+  );
+
   return (
     <PageShell>
       <PageHeader
-        eyebrow="التحليلات"
-        title={"تقدمك\nخلال الوقت"}
+        eyebrow="التحليلات الفعلية"
+        title={"قوتك\nخلال الوقت"}
         action={
           <button
             type="button"
@@ -68,56 +90,32 @@ function Progress() {
         }
       />
 
-      <section className="relative px-6 mb-6 animate-enter [animation-delay:80ms]">
-        <div className="mb-3 flex items-end justify-between gap-3">
-          <div>
-            <p className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">تقرير اليوم</p>
-            <h2 className="mt-1 text-xl font-black">أفضل مجموعة لكل تمرين</h2>
-          </div>
-          <label className="sr-only" htmlFor="progress-day">اختر اليوم</label>
-          <input
-            id="progress-day"
-            type="date"
-            value={selectedDay}
-            max={localDateKey(new Date())}
-            onChange={(event) => setSelectedDay(event.target.value)}
-            className="h-10 max-w-36 rounded-md border border-input bg-background px-2 text-xs text-foreground"
-          />
-        </div>
-        {dailyBests.length ? (
-          <div className="divide-y divide-border rounded-2xl border border-border bg-surface/60">
-            {dailyBests.map((item) => {
-              const exercise = getExercise(item.exerciseId);
-              const change = item.previousBest === null ? null : item.bestSet - item.previousBest;
-              return (
-                <div key={item.exerciseId} className="flex items-center gap-3 p-4">
-                  <div className={`grid size-10 shrink-0 place-items-center rounded-full ${item.isPersonalBest ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}>
-                    <Trophy className="size-4" />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-bold">{exercise?.name ?? item.exerciseId}</p>
-                    <p className="mt-1 text-[10px] text-muted-foreground">{item.totalSets} مجموعات مسجلة</p>
-                  </div>
-                  <div className="text-left">
-                    <p className="text-2xl font-black tabular-nums">{item.bestSet}</p>
-                    <p className={`text-[10px] font-bold ${item.isPersonalBest ? "text-primary" : "text-muted-foreground"}`}>
-                      {item.previousBest === null ? "أول تسجيل" : item.isPersonalBest ? `رقم جديد +${change}` : `السابق ${item.previousBest}`}
-                    </p>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        ) : (
-          <div className="rounded-2xl border border-dashed border-border px-5 py-8 text-center">
-            <Target className="mx-auto size-5 text-muted-foreground" />
-            <p className="mt-3 text-sm font-bold">لا توجد مجموعات مسجلة في هذا اليوم</p>
-            <p className="mt-1 text-xs text-muted-foreground">أكمل جلسة وسجّل تكراراتك لتظهر هنا.</p>
-          </div>
-        )}
+      <section className="relative px-6 mb-6 grid grid-cols-2 gap-3 animate-enter">
+        <SummaryCard
+          icon={Activity}
+          label="جلسات مسجلة"
+          value={String(history.length)}
+        />
+        <SummaryCard
+          icon={Dumbbell}
+          label="تمارين بأحمال"
+          value={String(strength.length)}
+        />
+        <SummaryCard
+          icon={Trophy}
+          label="PR حديثة"
+          value={String(recentPrs)}
+          accent={recentPrs > 0}
+        />
+        <SummaryCard
+          icon={AlertTriangle}
+          label="Plateau"
+          value={String(plateaus)}
+          warn={plateaus > 0}
+        />
       </section>
 
-      <section className="relative px-6 mb-6 animate-enter [animation-delay:90ms]">
+      <section className="relative px-6 mb-6 animate-enter [animation-delay:60ms]">
         <div
           className={
             "rounded-2xl border p-4 " +
@@ -142,199 +140,424 @@ function Progress() {
               </h3>
             </div>
             <div className="text-left">
-              <p className="font-mono text-2xl font-black">{adaptation.readinessScore}%</p>
+              <p className="font-mono text-2xl font-black">
+                {adaptation.readinessScore}%
+              </p>
               <p className="text-[9px] text-muted-foreground">جاهزية</p>
             </div>
           </div>
+
           <p className="mt-3 text-xs leading-relaxed text-muted-foreground">
             {adaptation.reason}
           </p>
-          <div className="mt-3 grid grid-cols-2 gap-2 border-t border-border pt-3">
-            <div>
-              <p className="text-[9px] text-muted-foreground">متوسط الأداء الحديث</p>
-              <p className="font-mono text-sm font-black">{adaptation.recentPerformance}%</p>
-            </div>
-            <div>
-              <p className="text-[9px] text-muted-foreground">جلسات محللة</p>
-              <p className="font-mono text-sm font-black">{adaptation.recentSessions}</p>
-            </div>
+
+          <div className="mt-3 grid grid-cols-3 gap-2 border-t border-border pt-3">
+            <MiniMetric
+              label="الأداء"
+              value={adaptation.recentPerformance + "%"}
+            />
+            <MiniMetric
+              label="RIR حديث"
+              value={
+                adaptation.recentAverageRir === null
+                  ? "—"
+                  : String(adaptation.recentAverageRir)
+              }
+            />
+            <MiniMetric
+              label="جلسات محللة"
+              value={String(adaptation.recentSessions)}
+            />
           </div>
         </div>
       </section>
 
-      <section className="relative px-6 mb-6 animate-enter [animation-delay:95ms]">
-        <div className="mb-3">
-          <p className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
-            سجل القوة
-          </p>
-          <h2 className="mt-1 text-xl font-black">الحمل والقوة التقديرية</h2>
+      <section className="relative px-6 mb-7 animate-enter [animation-delay:80ms]">
+        <div className="mb-3 flex items-end justify-between gap-3">
+          <div>
+            <p className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
+              تقرير اليوم
+            </p>
+            <h2 className="mt-1 text-xl font-black">أفضل مجموعة لكل تمرين</h2>
+          </div>
+          <label className="sr-only" htmlFor="progress-day">
+            اختر اليوم
+          </label>
+          <input
+            id="progress-day"
+            type="date"
+            value={selectedDay}
+            max={localDateKey(new Date())}
+            onChange={(event) => setSelectedDay(event.target.value)}
+            className="h-10 max-w-36 rounded-md border border-input bg-background px-2 text-xs text-foreground"
+          />
+        </div>
+
+        {dailyBests.length ? (
+          <div className="divide-y divide-border rounded-2xl border border-border bg-surface/60">
+            {dailyBests.map((item) => {
+              const exercise = getExercise(item.exerciseId);
+              const change =
+                item.previousBest === null
+                  ? null
+                  : item.bestSet - item.previousBest;
+              return (
+                <div
+                  key={item.exerciseId}
+                  className="flex items-center gap-3 p-4"
+                >
+                  <div
+                    className={
+                      "grid size-10 shrink-0 place-items-center rounded-full " +
+                      (item.isPersonalBest
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-muted text-muted-foreground")
+                    }
+                  >
+                    <Trophy className="size-4" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    {exercise ? (
+                      <Link
+                        to="/exercise/$id"
+                        params={{ id: exercise.id }}
+                        className="truncate text-sm font-bold hover:text-primary"
+                      >
+                        {exercise.name}
+                      </Link>
+                    ) : (
+                      <p className="truncate text-sm font-bold">
+                        {item.exerciseId}
+                      </p>
+                    )}
+                    <p className="mt-1 text-[10px] text-muted-foreground">
+                      {item.totalSets} مجموعات مسجلة
+                    </p>
+                  </div>
+                  <div className="text-left">
+                    <p className="text-2xl font-black tabular-nums">
+                      {item.bestSet}
+                    </p>
+                    <p
+                      className={
+                        "text-[10px] font-bold " +
+                        (item.isPersonalBest
+                          ? "text-primary"
+                          : "text-muted-foreground")
+                      }
+                    >
+                      {item.previousBest === null
+                        ? "أول تسجيل"
+                        : item.isPersonalBest
+                          ? "رقم جديد +" + change
+                          : "السابق " + item.previousBest}
+                    </p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <EmptyState
+            icon={Target}
+            title="لا توجد مجموعات مسجلة في هذا اليوم"
+            body="أكمل جلسة وسجّل تكراراتك لتظهر هنا."
+          />
+        )}
+      </section>
+
+      <section className="relative px-6 mb-7 animate-enter [animation-delay:100ms]">
+        <div className="mb-4 flex items-end justify-between gap-3">
+          <div>
+            <p className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
+              سجل القوة
+            </p>
+            <h2 className="mt-1 text-xl font-black">اتجاه e1RM والحمل</h2>
+          </div>
+          {totalLoadVolume > 0 && (
+            <div className="text-left">
+              <p className="font-mono text-sm font-black">
+                {formatCompact(totalLoadVolume)}
+              </p>
+              <p className="text-[8px] text-muted-foreground">
+                كجم×تكرار مسجل
+              </p>
+            </div>
+          )}
         </div>
 
         {strength.length ? (
-          <div className="space-y-2">
-            {strength.slice(0, 6).map((item) => {
+          <div className="space-y-3">
+            {strength.slice(0, 10).map((item) => {
               const exercise = getExercise(item.exerciseId);
+              const trendLabel =
+                item.trend === "up"
+                  ? "صاعد"
+                  : item.trend === "down"
+                    ? "هابط"
+                    : "مستقر";
+
               return (
                 <article
                   key={item.exerciseId}
-                  className="rounded-2xl border border-border bg-surface/60 p-4"
+                  className={
+                    "rounded-2xl border bg-surface/60 p-4 " +
+                    (item.plateau
+                      ? "border-amber-400/30"
+                      : "border-border")
+                  }
                 >
                   <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-black">
-                        {exercise?.name ?? item.exerciseId}
-                      </p>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        {exercise ? (
+                          <Link
+                            to="/exercise/$id"
+                            params={{ id: exercise.id }}
+                            className="truncate text-sm font-black hover:text-primary"
+                          >
+                            {exercise.name}
+                          </Link>
+                        ) : (
+                          <p className="truncate text-sm font-black">
+                            {item.exerciseId}
+                          </p>
+                        )}
+
+                        {item.sessions > 1 &&
+                          item.latestEstimated1RmIsPr && (
+                            <Badge tone="success">e1RM PR</Badge>
+                          )}
+                        {item.sessions > 1 && item.latestLoadIsPr && (
+                          <Badge tone="success">Load PR</Badge>
+                        )}
+                        {item.plateau && (
+                          <Badge tone="warn">Plateau</Badge>
+                        )}
+                      </div>
+
                       <p className="mt-1 text-[10px] text-muted-foreground">
-                        {item.sessions} جلسات مسجلة
-                        {item.averageRir !== null
-                          ? " · متوسط RIR " + item.averageRir
-                          : ""}
+                        {item.sessions} جلسات · متوسط RIR{" "}
+                        {item.averageRir ?? "—"}
                       </p>
                     </div>
+
                     <div className="text-left">
-                      <p className="font-mono text-xl font-black">
-                        {item.lastLoadKg} كجم
-                      </p>
-                      <p className="text-[9px] text-muted-foreground">
-                        آخر حمل
+                      <div className="flex items-center justify-end gap-1">
+                        {item.trend === "up" ? (
+                          <TrendingUp className="size-3.5 text-primary" />
+                        ) : item.trend === "down" ? (
+                          <TrendingDown className="size-3.5 text-cyan" />
+                        ) : (
+                          <Minus className="size-3.5 text-muted-foreground" />
+                        )}
+                        <span
+                          className={
+                            "font-mono text-sm font-black " +
+                            (item.trend === "up"
+                              ? "text-primary"
+                              : item.trend === "down"
+                                ? "text-cyan"
+                                : "")
+                          }
+                        >
+                          {item.trendPercent > 0 ? "+" : ""}
+                          {item.trendPercent}%
+                        </span>
+                      </div>
+                      <p className="text-[8px] text-muted-foreground">
+                        {trendLabel} · آخر 4
                       </p>
                     </div>
                   </div>
 
-                  <div className="mt-3 grid grid-cols-3 gap-2 border-t border-border pt-3">
+                  <div className="mt-4 h-16 rounded-xl bg-background/40 px-2 py-1">
+                    <StrengthSparkline
+                      values={item.points
+                        .slice(-8)
+                        .map((point) => point.bestEstimated1RmKg)}
+                    />
+                  </div>
+
+                  <div className="mt-3 grid grid-cols-4 gap-2">
                     <StrengthMetric
-                      label="أعلى حمل"
-                      value={item.bestLoadKg + " كجم"}
+                      label="آخر حمل"
+                      value={item.lastLoadKg + " كجم"}
                     />
                     <StrengthMetric
-                      label="e1RM الأفضل"
+                      label="أفضل e1RM"
                       value={item.bestEstimated1RmKg + " كجم"}
                     />
                     <StrengthMetric
                       label="e1RM الأخير"
                       value={item.latestEstimated1RmKg + " كجم"}
                     />
+                    <StrengthMetric
+                      label="حجم آخر جلسة"
+                      value={formatCompact(item.latestLoadVolumeKgReps)}
+                    />
                   </div>
+
+                  {item.plateau && (
+                    <div className="mt-3 flex items-start gap-2 rounded-xl border border-amber-400/20 bg-amber-400/5 p-3">
+                      <AlertTriangle className="mt-0.5 size-3.5 shrink-0 text-amber-400" />
+                      <p className="text-[10px] leading-relaxed text-muted-foreground">
+                        القوة التقديرية تحركت أقل من 1.5% عبر آخر أربع
+                        تسجيلات. لا يغيّر التطبيق البرنامج تلقائيًا بسبب
+                        Plateau وحده؛ تُراجع الجاهزية وRIR والحجم أولًا.
+                      </p>
+                    </div>
+                  )}
                 </article>
               );
             })}
+
             <p className="px-1 text-[9px] leading-relaxed text-muted-foreground">
-              e1RM تقدير تدريبي مبني على الحمل والتكرارات وRIR، وليس اختبار 1RM مباشر.
+              e1RM تقدير تدريبي مبني على الحمل والتكرارات وRIR. حجم الحمل
+              هنا = الوزن المسجل × التكرارات، لذلك هو مؤشر مقارنة داخل
+              التطبيق وليس قياسًا ميكانيكيًا كاملاً لكل تمرين.
             </p>
           </div>
         ) : (
-          <div className="rounded-2xl border border-dashed border-border px-5 py-7 text-center">
-            <p className="text-sm font-bold">لا توجد أحمال مسجلة بعد</p>
-            <p className="mt-1 text-xs text-muted-foreground">
-              سجّل الوزن وRIR داخل جلسة المقاومة ليبدأ سجل القوة.
-            </p>
-          </div>
+          <EmptyState
+            icon={Dumbbell}
+            title="لا توجد أحمال مسجلة بعد"
+            body="سجّل الوزن والتكرارات وRIR داخل جلسة المقاومة ليبدأ منحنى القوة."
+          />
         )}
       </section>
 
-      {/* Score cards */}
-      <section className="relative px-6 mb-6 grid grid-cols-2 gap-3 animate-enter [animation-delay:100ms]">
-        <ScoreCard label="نقاط اللياقة" value="847" delta="+23" up />
-        <ScoreCard label="نقاط الصحة" value="92" delta="+4" up />
-      </section>
-
-      {/* Weight chart */}
-      <section className="relative px-6 mb-6 animate-enter [animation-delay:200ms]">
-        <div className="bg-surface border border-border rounded-3xl p-5 backdrop-blur-xl">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <p className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
-                الوزن · ٧ أيام
-              </p>
-              <div className="flex items-baseline gap-2 mt-1">
-                <span className="text-3xl font-black" dir="ltr">
-                  76.0
-                </span>
-                <span className="text-xs text-muted-foreground">كجم</span>
-              </div>
-            </div>
-            <span className="inline-flex items-center gap-1 text-xs text-primary font-bold bg-primary/10 px-2 py-1 rounded-full">
-              <TrendingDown className="size-3" /> -٢.٠ كجم
-            </span>
-          </div>
-          <svg viewBox="0 0 300 100" className="w-full h-24">
-            <defs>
-              <linearGradient id="wg" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="var(--brand)" stopOpacity="0.4" />
-                <stop offset="100%" stopColor="var(--brand)" stopOpacity="0" />
-              </linearGradient>
-            </defs>
-            <path
-              d={`M 0 100 ${weightPoints
-                .map((v, i) => {
-                  const x = (i / (weightPoints.length - 1)) * 300;
-                  const y = 100 - ((v - min) / (max - min || 1)) * 80 - 10;
-                  return `L ${x} ${y}`;
-                })
-                .join(" ")} L 300 100 Z`}
-              fill="url(#wg)"
-            />
-            <path
-              d={weightPoints
-                .map((v, i) => {
-                  const x = (i / (weightPoints.length - 1)) * 300;
-                  const y = 100 - ((v - min) / (max - min || 1)) * 80 - 10;
-                  return `${i === 0 ? "M" : "L"} ${x} ${y}`;
-                })
-                .join(" ")}
-              fill="none"
-              stroke="var(--brand)"
-              strokeWidth="2.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              style={{ filter: "drop-shadow(0 0 6px rgba(204,255,0,0.5))" }}
-            />
-          </svg>
+      <section className="relative px-6 mb-8 animate-enter [animation-delay:140ms]">
+        <div className="mb-3">
+          <p className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
+            بيانات الملف
+          </p>
+          <h2 className="mt-1 text-xl font-black">قياسات مسجلة فعليًا</h2>
         </div>
-      </section>
 
-      {/* Body measurements */}
-      <section className="relative px-6 mb-6 animate-enter [animation-delay:300ms]">
-        <h3 className="text-[10px] font-mono uppercase tracking-[0.2em] text-muted-foreground mb-3">
-          قياسات الجسم
-        </h3>
         <div className="grid grid-cols-3 gap-3">
-          <MeasureCard label="خصر" value="82" unit="سم" delta="-3" />
-          <MeasureCard label="صدر" value="102" unit="سم" delta="+2" up />
-          <MeasureCard label="ذراع" value="36" unit="سم" delta="+1" up />
+          <ProfileMetric
+            icon={Scale}
+            label="الوزن"
+            value={
+              profile.weightKg === undefined
+                ? "—"
+                : profile.weightKg + " كجم"
+            }
+          />
+          <ProfileMetric
+            icon={Activity}
+            label="الطول"
+            value={
+              profile.heightCm === undefined
+                ? "—"
+                : profile.heightCm + " سم"
+            }
+          />
+          <ProfileMetric
+            icon={Target}
+            label="العمر"
+            value={
+              profile.age === undefined ? "—" : profile.age + " سنة"
+            }
+          />
         </div>
+        <p className="mt-3 text-[9px] text-muted-foreground">
+          لا يعرض Aura Fit قيمًا افتراضية للوزن أو القياسات إذا لم يسجلها
+          المستخدم.
+        </p>
       </section>
 
-      {/* Habits */}
-      <section className="relative px-6 mb-8 animate-enter [animation-delay:400ms]">
-        <h3 className="text-[10px] font-mono uppercase tracking-[0.2em] text-muted-foreground mb-3">
-          العادات هذا الأسبوع
-        </h3>
-        <div className="bg-surface border border-border rounded-2xl divide-y divide-border backdrop-blur-xl">
-          {habits.map((h) => {
-            const pct = (h.done / h.target) * 100;
-            return (
-              <div key={h.name} className="p-4">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm font-bold">{h.name}</span>
-                  <span className="text-xs font-mono text-muted-foreground" dir="ltr">
-                    {h.done}/{h.target}
-                  </span>
+      {history.length > 0 && (
+        <section className="relative px-6 mb-8 animate-enter [animation-delay:160ms]">
+          <div className="mb-3">
+            <p className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
+              آخر الجلسات
+            </p>
+            <h2 className="mt-1 text-xl font-black">سجل الأداء</h2>
+          </div>
+
+          <div className="divide-y divide-border rounded-2xl border border-border bg-surface/60">
+            {history.slice(0, 5).map((workout) => (
+              <div
+                key={workout.id}
+                className="flex items-center justify-between gap-3 p-4"
+              >
+                <div>
+                  <p className="text-sm font-bold">
+                    {formatDate(workout.date)}
+                  </p>
+                  <p className="mt-1 text-[10px] text-muted-foreground">
+                    {workout.exercises.filter((item) => item.completed).length}
+                    /{workout.exercises.length} تمارين ·{" "}
+                    {Math.round(workout.durationSec / 60)} دقيقة
+                  </p>
                 </div>
-                <div className="h-1.5 bg-white/5 rounded-full overflow-hidden" dir="ltr">
-                  <div
-                    className="h-full bg-primary rounded-full transition-all"
-                    style={{ width: `${pct}%` }}
-                  />
+                <div className="text-left">
+                  <p className="font-mono text-lg font-black">
+                    {workout.performance}%
+                  </p>
+                  <p className="text-[9px] text-muted-foreground">
+                    {workout.adaptationMode === "progress"
+                      ? "تقدّم"
+                      : workout.adaptationMode === "recovery"
+                        ? "استشفاء"
+                        : "ثبات"}
+                  </p>
                 </div>
               </div>
-            );
-          })}
-        </div>
-      </section>
+            ))}
+          </div>
+        </section>
+      )}
 
       <BottomNav />
     </PageShell>
+  );
+}
+
+function SummaryCard({
+  icon: Icon,
+  label,
+  value,
+  accent,
+  warn,
+}: {
+  icon: React.ComponentType<{ className?: string }>;
+  label: string;
+  value: string;
+  accent?: boolean;
+  warn?: boolean;
+}) {
+  return (
+    <div
+      className={
+        "rounded-2xl border p-4 " +
+        (warn
+          ? "border-amber-400/30 bg-amber-400/5"
+          : accent
+            ? "border-primary/30 bg-primary/10"
+            : "border-border bg-surface/60")
+      }
+    >
+      <Icon
+        className={
+          "size-4 " +
+          (warn ? "text-amber-400" : accent ? "text-primary" : "text-muted-foreground")
+        }
+      />
+      <p className="mt-3 font-mono text-2xl font-black">{value}</p>
+      <p className="mt-1 text-[9px] text-muted-foreground">{label}</p>
+    </div>
+  );
+}
+
+function MiniMetric({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <p className="text-[9px] text-muted-foreground">{label}</p>
+      <p className="mt-0.5 font-mono text-sm font-black">{value}</p>
+    </div>
   );
 }
 
@@ -347,78 +570,127 @@ function StrengthMetric({
 }) {
   return (
     <div className="rounded-xl bg-background/50 p-2.5 text-center">
-      <p className="font-mono text-sm font-black">{value}</p>
+      <p className="font-mono text-[11px] font-black">{value}</p>
       <p className="mt-0.5 text-[8px] text-muted-foreground">{label}</p>
     </div>
   );
+}
+
+function Badge({
+  children,
+  tone,
+}: {
+  children: React.ReactNode;
+  tone: "success" | "warn";
+}) {
+  return (
+    <span
+      className={
+        "rounded-full border px-2 py-0.5 text-[8px] font-black " +
+        (tone === "success"
+          ? "border-primary/25 bg-primary/10 text-primary"
+          : "border-amber-400/25 bg-amber-400/10 text-amber-400")
+      }
+    >
+      {children}
+    </span>
+  );
+}
+
+function StrengthSparkline({ values }: { values: number[] }) {
+  if (!values.length) return null;
+  if (values.length === 1) {
+    return (
+      <div className="flex h-full items-center">
+        <div className="h-1 w-full rounded-full bg-primary/40" />
+      </div>
+    );
+  }
+
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  const span = max - min || 1;
+  const points = values
+    .map((value, index) => {
+      const x = (index / (values.length - 1)) * 100;
+      const y = 44 - ((value - min) / span) * 34;
+      return x + "," + y;
+    })
+    .join(" ");
+
+  return (
+    <svg
+      viewBox="0 0 100 48"
+      preserveAspectRatio="none"
+      className="h-full w-full"
+      aria-label="اتجاه القوة التقديرية"
+    >
+      <polyline
+        points={points}
+        fill="none"
+        stroke="var(--brand)"
+        strokeWidth="2.4"
+        vectorEffect="non-scaling-stroke"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function ProfileMetric({
+  icon: Icon,
+  label,
+  value,
+}: {
+  icon: React.ComponentType<{ className?: string }>;
+  label: string;
+  value: string;
+}) {
+  return (
+    <div className="rounded-2xl border border-border bg-surface/60 p-3">
+      <Icon className="size-3.5 text-primary" />
+      <p className="mt-2 text-[8px] text-muted-foreground">{label}</p>
+      <p className="mt-1 text-xs font-black">{value}</p>
+    </div>
+  );
+}
+
+function EmptyState({
+  icon: Icon,
+  title,
+  body,
+}: {
+  icon: React.ComponentType<{ className?: string }>;
+  title: string;
+  body: string;
+}) {
+  return (
+    <div className="rounded-2xl border border-dashed border-border px-5 py-8 text-center">
+      <Icon className="mx-auto size-5 text-muted-foreground" />
+      <p className="mt-3 text-sm font-bold">{title}</p>
+      <p className="mt-1 text-xs text-muted-foreground">{body}</p>
+    </div>
+  );
+}
+
+function formatCompact(value: number) {
+  return new Intl.NumberFormat("ar", {
+    notation: value >= 1000 ? "compact" : "standard",
+    maximumFractionDigits: 1,
+  }).format(value);
+}
+
+function formatDate(iso: string) {
+  return new Intl.DateTimeFormat("ar-SA-u-ca-gregory", {
+    day: "numeric",
+    month: "short",
+  }).format(new Date(iso));
 }
 
 function localDateKey(date: Date) {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, "0");
   const day = String(date.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
-}
-
-function ScoreCard({
-  label,
-  value,
-  delta,
-  up,
-}: {
-  label: string;
-  value: string;
-  delta: string;
-  up?: boolean;
-}) {
-  return (
-    <div className="bg-surface border border-border rounded-2xl p-4 backdrop-blur-xl">
-      <div className="flex items-center gap-1 text-muted-foreground mb-2">
-        <Target className="size-3" />
-        <p className="text-[10px] font-mono uppercase tracking-widest">{label}</p>
-      </div>
-      <p className="text-3xl font-black leading-none mb-2" dir="ltr">
-        {value}
-      </p>
-      <span
-        className={`inline-flex items-center gap-1 text-[10px] font-bold ${
-          up ? "text-primary" : "text-cyan"
-        }`}
-      >
-        {up ? <TrendingUp className="size-3" /> : <TrendingDown className="size-3" />}
-        {delta}
-      </span>
-    </div>
-  );
-}
-
-function MeasureCard({
-  label,
-  value,
-  unit,
-  delta,
-  up,
-}: {
-  label: string;
-  value: string;
-  unit: string;
-  delta: string;
-  up?: boolean;
-}) {
-  return (
-    <div className="bg-surface border border-border rounded-2xl p-3 backdrop-blur-xl">
-      <p className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground mb-1">
-        {label}
-      </p>
-      <div className="flex items-baseline gap-1">
-        <span className="text-xl font-black" dir="ltr">
-          {value}
-        </span>
-        <span className="text-[10px] text-muted-foreground">{unit}</span>
-      </div>
-      <span className={`text-[10px] font-bold ${up ? "text-primary" : "text-cyan"}`} dir="ltr">
-        {delta}
-      </span>
-    </div>
-  );
+  return year + "-" + month + "-" + day;
 }

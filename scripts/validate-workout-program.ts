@@ -10,6 +10,7 @@ import {
 import { type Equipment, type Goal } from "../src/lib/exercise-db";
 import {
   DEFAULT_PROFILE,
+  analyzeExerciseStrength,
   estimateOneRepMaxKg,
   exerciseStrengthSummaries,
   type CompletedWorkout,
@@ -176,6 +177,76 @@ if (reducePrescription.targetRir !== "3-4") {
   fail(`recovery target RIR should be 3-4, got ${reducePrescription.targetRir}`);
 }
 
+const noEffortHistory = [
+  historyEntry("no-rir-1", 90, "bench-press", [12, 12, 12], 70, 2),
+  historyEntry("no-rir-2", 90, "bench-press", [12, 12, 12], 70, 2),
+];
+for (const workout of noEffortHistory) {
+  delete workout.exercises[0].setRir;
+  delete workout.exercises[0].setRpe;
+}
+const noEffortPrescription = getExerciseProgressionPrescription(
+  "bench-press",
+  "8-12",
+  noEffortHistory,
+  "progress",
+);
+if (noEffortPrescription.action !== "hold") {
+  fail(
+    `top-range sets without RIR must hold load, got ${noEffortPrescription.action}`,
+  );
+}
+
+const plateauHistory: CompletedWorkout[] = [
+  historyEntry("plateau-new", 86, "bench-press", [10, 10, 10], 70, 2),
+  historyEntry("plateau-3", 86, "bench-press", [10, 10, 10], 70, 2),
+  historyEntry("plateau-2", 86, "bench-press", [10, 10, 10], 70, 2),
+  historyEntry("plateau-old", 86, "bench-press", [10, 10, 10], 70, 2),
+];
+plateauHistory[0].date = "2026-09-04T10:00:00.000Z";
+plateauHistory[1].date = "2026-09-03T10:00:00.000Z";
+plateauHistory[2].date = "2026-09-02T10:00:00.000Z";
+plateauHistory[3].date = "2026-09-01T10:00:00.000Z";
+const plateauAnalysis = analyzeExerciseStrength(
+  plateauHistory,
+  "bench-press",
+);
+if (!plateauAnalysis?.plateau) {
+  fail("four flat strength sessions should be detected as a plateau");
+}
+if (plateauAnalysis?.trend !== "flat") {
+  fail(`flat strength history should have flat trend, got ${plateauAnalysis?.trend}`);
+}
+if (plateauAnalysis?.latestLoadVolumeKgReps !== 2100) {
+  fail(
+    `70kg x 10 x 3 should produce 2100 kg-reps, got ${plateauAnalysis?.latestLoadVolumeKgReps}`,
+  );
+}
+
+const risingHistory: CompletedWorkout[] = [
+  historyEntry("rise-new", 90, "bench-press", [10, 10, 10], 72.5, 2),
+  historyEntry("rise-3", 89, "bench-press", [10, 10, 10], 70, 2),
+  historyEntry("rise-2", 88, "bench-press", [10, 10, 10], 67.5, 2),
+  historyEntry("rise-old", 87, "bench-press", [10, 10, 10], 65, 2),
+];
+risingHistory[0].date = "2026-09-04T10:00:00.000Z";
+risingHistory[1].date = "2026-09-03T10:00:00.000Z";
+risingHistory[2].date = "2026-09-02T10:00:00.000Z";
+risingHistory[3].date = "2026-09-01T10:00:00.000Z";
+const risingAnalysis = analyzeExerciseStrength(
+  risingHistory,
+  "bench-press",
+);
+if (risingAnalysis?.trend !== "up") {
+  fail(`rising strength history should trend up, got ${risingAnalysis?.trend}`);
+}
+if (!risingAnalysis?.latestLoadIsPr || !risingAnalysis.latestEstimated1RmIsPr) {
+  fail("latest higher-load session should be detected as both load and e1RM PR");
+}
+if (risingAnalysis?.plateau) {
+  fail("rising strength history must not be marked as plateau");
+}
+
 const progressPlan = generateWeeklyPlan(strongProfile, strongHistory);
 if (!progressPlan.every((workout) => workout.adaptation.mode === "progress")) {
   fail("progress history was not propagated to every generated workout");
@@ -199,7 +270,7 @@ if (recoveryStrengthSets >= progressStrengthSets) {
 }
 
 console.log(
-  `adaptive checks: progress readiness=${progressAdaptation.readinessScore}, recovery readiness=${recoveryAdaptation.readinessScore}, strength sets ${progressStrengthSets}->${recoveryStrengthSets}, load 70->${loadPrescription.suggestedLoadKg}kg, e1RM=${e1rm}kg`,
+  `adaptive checks: progress readiness=${progressAdaptation.readinessScore}, recovery readiness=${recoveryAdaptation.readinessScore}, strength sets ${progressStrengthSets}->${recoveryStrengthSets}, load 70->${loadPrescription.suggestedLoadKg}kg, e1RM=${e1rm}kg, plateau=${plateauAnalysis?.plateau}, trend=${risingAnalysis?.trend}`,
 );
 
 for (const daysPerWeek of [2, 3, 4, 5, 6]) {

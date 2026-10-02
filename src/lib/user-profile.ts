@@ -99,6 +99,33 @@ export function recordWorkout(w: CompletedWorkout) {
   localStorage.setItem(H_KEY, JSON.stringify(all.slice(0, 200)));
 }
 
+export interface ExerciseStrengthPoint {
+  workoutId: string;
+  date: string;
+  bestLoadKg: number;
+  bestEstimated1RmKg: number;
+  loadVolumeKgReps: number;
+  averageRir: number | null;
+}
+
+export interface ExerciseStrengthAnalysis {
+  exerciseId: string;
+  points: ExerciseStrengthPoint[];
+  sessions: number;
+  lastLoadKg: number;
+  bestLoadKg: number;
+  latestEstimated1RmKg: number;
+  bestEstimated1RmKg: number;
+  latestLoadVolumeKgReps: number;
+  totalLoadVolumeKgReps: number;
+  averageRir: number | null;
+  trendPercent: number;
+  trend: "up" | "flat" | "down";
+  plateau: boolean;
+  latestLoadIsPr: boolean;
+  latestEstimated1RmIsPr: boolean;
+}
+
 export interface ExerciseStrengthSummary {
   exerciseId: string;
   sessions: number;
@@ -215,6 +242,190 @@ export function exerciseStrengthSummaries(
       b.bestEstimated1RmKg - a.bestEstimated1RmKg ||
       b.sessions - a.sessions,
   );
+}
+
+function validEffortValues(
+  exercise: CompletedWorkout["exercises"][number],
+) {
+  return (
+    exercise.setRir ??
+    (exercise.setRpe ?? []).map((rpe) =>
+      Math.max(0, Math.min(5, 10 - rpe)),
+    )
+  ).filter((value) => Number.isFinite(value));
+}
+
+export function exerciseStrengthPoints(
+  history: CompletedWorkout[],
+  exerciseId: string,
+): ExerciseStrengthPoint[] {
+  const points: ExerciseStrengthPoint[] = [];
+
+  for (const workout of history) {
+    const exercise = workout.exercises.find((item) => item.id === exerciseId);
+    if (!exercise) continue;
+
+    const loads = exercise.setLoadsKg ?? [];
+    const reps = exercise.setReps ?? [];
+    const rirs =
+      exercise.setRir ??
+      (exercise.setRpe ?? []).map((rpe) =>
+        Math.max(0, Math.min(5, 10 - rpe)),
+      );
+
+    let bestLoadKg = 0;
+    let bestEstimated1RmKg = 0;
+    let loadVolumeKgReps = 0;
+
+    for (let index = 0; index < loads.length; index += 1) {
+      const load = Number(loads[index] ?? 0);
+      const repCount = Number(reps[index] ?? 0);
+      const rir = Number(rirs[index] ?? 0);
+      if (!Number.isFinite(load) || load <= 0) continue;
+
+      bestLoadKg = Math.max(bestLoadKg, load);
+      if (Number.isFinite(repCount) && repCount > 0) {
+        loadVolumeKgReps += load * repCount;
+        bestEstimated1RmKg = Math.max(
+          bestEstimated1RmKg,
+          estimateOneRepMaxKg(
+            load,
+            repCount,
+            Number.isFinite(rir) ? rir : 0,
+          ),
+        );
+      } else {
+        bestEstimated1RmKg = Math.max(bestEstimated1RmKg, load);
+      }
+    }
+
+    if (bestLoadKg <= 0) continue;
+    const validRir = validEffortValues(exercise);
+    points.push({
+      workoutId: workout.id,
+      date: workout.date,
+      bestLoadKg: Math.round(bestLoadKg * 10) / 10,
+      bestEstimated1RmKg: Math.round(bestEstimated1RmKg * 10) / 10,
+      loadVolumeKgReps: Math.round(loadVolumeKgReps),
+      averageRir: validRir.length
+        ? Math.round(
+            (validRir.reduce((sum, value) => sum + value, 0) /
+              validRir.length) *
+              10,
+          ) / 10
+        : null,
+    });
+  }
+
+  return points.sort(
+    (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime(),
+  );
+}
+
+export function analyzeExerciseStrength(
+  history: CompletedWorkout[],
+  exerciseId: string,
+): ExerciseStrengthAnalysis | null {
+  const points = exerciseStrengthPoints(history, exerciseId);
+  if (!points.length) return null;
+
+  const latest = points[points.length - 1];
+  const previous = points.slice(0, -1);
+  const previousBestLoad = previous.length
+    ? Math.max(...previous.map((point) => point.bestLoadKg))
+    : 0;
+  const previousBestE1rm = previous.length
+    ? Math.max(...previous.map((point) => point.bestEstimated1RmKg))
+    : 0;
+
+  const recent = points.slice(-4);
+  const firstRecent = recent[0]?.bestEstimated1RmKg ?? 0;
+  const lastRecent = recent[recent.length - 1]?.bestEstimated1RmKg ?? 0;
+  const trendPercent =
+    firstRecent > 0
+      ? Math.round(((lastRecent - firstRecent) / firstRecent) * 1000) / 10
+      : 0;
+  const trend =
+    trendPercent > 2 ? "up" : trendPercent < -2 ? "down" : "flat";
+
+  const recentMean =
+    recent.reduce((sum, point) => sum + point.bestEstimated1RmKg, 0) /
+    Math.max(1, recent.length);
+  const recentSpreadPercent =
+    recentMean > 0
+      ? ((Math.max(...recent.map((point) => point.bestEstimated1RmKg)) -
+          Math.min(...recent.map((point) => point.bestEstimated1RmKg))) /
+          recentMean) *
+        100
+      : 0;
+
+  const latestEstimated1RmIsPr =
+    previous.length === 0 ||
+    latest.bestEstimated1RmKg > previousBestE1rm + 0.05;
+  const latestLoadIsPr =
+    previous.length === 0 || latest.bestLoadKg > previousBestLoad + 0.05;
+  const plateau =
+    recent.length >= 4 &&
+    !latestEstimated1RmIsPr &&
+    Math.abs(trendPercent) <= 1.5 &&
+    recentSpreadPercent <= 3;
+
+  const allRir = points
+    .map((point) => point.averageRir)
+    .filter((value): value is number => value !== null);
+
+  return {
+    exerciseId,
+    points,
+    sessions: points.length,
+    lastLoadKg: latest.bestLoadKg,
+    bestLoadKg: Math.max(...points.map((point) => point.bestLoadKg)),
+    latestEstimated1RmKg: latest.bestEstimated1RmKg,
+    bestEstimated1RmKg: Math.max(
+      ...points.map((point) => point.bestEstimated1RmKg),
+    ),
+    latestLoadVolumeKgReps: latest.loadVolumeKgReps,
+    totalLoadVolumeKgReps: points.reduce(
+      (sum, point) => sum + point.loadVolumeKgReps,
+      0,
+    ),
+    averageRir: allRir.length
+      ? Math.round(
+          (allRir.reduce((sum, value) => sum + value, 0) / allRir.length) *
+            10,
+        ) / 10
+      : null,
+    trendPercent,
+    trend,
+    plateau,
+    latestLoadIsPr,
+    latestEstimated1RmIsPr,
+  };
+}
+
+export function exerciseStrengthAnalyses(
+  history: CompletedWorkout[],
+): ExerciseStrengthAnalysis[] {
+  const ids = new Set<string>();
+  for (const workout of history) {
+    for (const exercise of workout.exercises) {
+      if ((exercise.setLoadsKg ?? []).some((load) => load > 0)) {
+        ids.add(exercise.id);
+      }
+    }
+  }
+
+  return Array.from(ids)
+    .map((exerciseId) => analyzeExerciseStrength(history, exerciseId))
+    .filter(
+      (analysis): analysis is ExerciseStrengthAnalysis =>
+        analysis !== null,
+    )
+    .sort(
+      (a, b) =>
+        b.sessions - a.sessions ||
+        b.bestEstimated1RmKg - a.bestEstimated1RmKg,
+    );
 }
 
 export interface DailyExerciseBest {
