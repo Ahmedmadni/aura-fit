@@ -1728,9 +1728,14 @@
     "candidateSourceName": "pull-up"
   },
   "bodyweight-squat": {
-    "matchConfidence": "review",
-    "candidateSourceExerciseId": "3543",
-    "candidateSourceName": "bodyweight drop jump squat"
+    "source": "hasaneyldrm/exercises-dataset",
+    "sourceExerciseId": "3119",
+    "sourceName": "potty squat",
+    "gif": "videos/3119-75Bgtjy.gif",
+    "poster": "images/3119-75Bgtjy.jpg",
+    "matchConfidence": "high",
+    "equipment": "body weight",
+    "target": "abs (source target); quadriceps muscle group with glutes secondary"
   },
   "pistol-squat": {
     "source": "hasaneyldrm/exercises-dataset",
