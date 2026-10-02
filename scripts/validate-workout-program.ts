@@ -10,6 +10,8 @@ import {
 import { type Equipment, type Goal } from "../src/lib/exercise-db";
 import {
   DEFAULT_PROFILE,
+  estimateOneRepMaxKg,
+  exerciseStrengthSummaries,
   type CompletedWorkout,
   type UserProfile,
 } from "../src/lib/user-profile";
@@ -43,6 +45,8 @@ function historyEntry(
   performance: number,
   exerciseId = "bench-press",
   setReps: number[] = [10, 10, 10],
+  loadKg = 70,
+  rir = 2,
 ): CompletedWorkout {
   return {
     id,
@@ -54,6 +58,9 @@ function historyEntry(
         reps: "8-12",
         completed: true,
         setReps,
+        setLoadsKg: setReps.map(() => loadKg),
+        setRir: setReps.map(() => rir),
+        setRpe: setReps.map(() => 10 - rir),
       },
     ],
     durationSec: 1800,
@@ -94,6 +101,42 @@ if (loadPrescription.action !== "increase-load") {
     `two top-range sessions should request increase-load, got ${loadPrescription.action}`,
   );
 }
+if (loadPrescription.lastLoadKg !== 70 || loadPrescription.suggestedLoadKg !== 72.5) {
+  fail(
+    `70kg barbell progression should suggest 72.5kg, got last=${loadPrescription.lastLoadKg} next=${loadPrescription.suggestedLoadKg}`,
+  );
+}
+if (loadPrescription.targetRir !== "2-3") {
+  fail(`progress target RIR should be 2-3, got ${loadPrescription.targetRir}`);
+}
+
+const nearFailureHistory = [
+  historyEntry("grind-1", 90, "bench-press", [12, 12, 12], 70, 0),
+  historyEntry("grind-2", 90, "bench-press", [12, 12, 12], 70, 1),
+];
+const nearFailurePrescription = getExerciseProgressionPrescription(
+  "bench-press",
+  "8-12",
+  nearFailureHistory,
+  "progress",
+);
+if (nearFailurePrescription.action === "increase-load") {
+  fail("near-failure top-range sets must not trigger an automatic load increase");
+}
+
+const e1rm = estimateOneRepMaxKg(70, 10, 2);
+if (e1rm !== 98) {
+  fail(`expected Epley-style 70x10@RIR2 e1RM=98kg, got ${e1rm}`);
+}
+const strengthSummary = exerciseStrengthSummaries(strongHistory).find(
+  (item) => item.exerciseId === "bench-press",
+);
+if (!strengthSummary || strengthSummary.lastLoadKg !== 70) {
+  fail("strength summary should retain the latest 70kg working load");
+}
+if (!strengthSummary || strengthSummary.bestEstimated1RmKg <= 70) {
+  fail("strength summary should calculate an estimated 1RM above working load");
+}
 
 const poorProfile: UserProfile = {
   ...strongProfile,
@@ -121,6 +164,17 @@ if (reducePrescription.action !== "reduce") {
     `recovery prescription should request reduce, got ${reducePrescription.action}`,
   );
 }
+if (
+  reducePrescription.suggestedLoadKg === undefined ||
+  reducePrescription.suggestedLoadKg >= 70
+) {
+  fail(
+    `recovery prescription should reduce a 70kg working load, got ${reducePrescription.suggestedLoadKg}`,
+  );
+}
+if (reducePrescription.targetRir !== "3-4") {
+  fail(`recovery target RIR should be 3-4, got ${reducePrescription.targetRir}`);
+}
 
 const progressPlan = generateWeeklyPlan(strongProfile, strongHistory);
 if (!progressPlan.every((workout) => workout.adaptation.mode === "progress")) {
@@ -145,7 +199,7 @@ if (recoveryStrengthSets >= progressStrengthSets) {
 }
 
 console.log(
-  `adaptive checks: progress readiness=${progressAdaptation.readinessScore}, recovery readiness=${recoveryAdaptation.readinessScore}, strength sets ${progressStrengthSets}->${recoveryStrengthSets}`,
+  `adaptive checks: progress readiness=${progressAdaptation.readinessScore}, recovery readiness=${recoveryAdaptation.readinessScore}, strength sets ${progressStrengthSets}->${recoveryStrengthSets}, load 70->${loadPrescription.suggestedLoadKg}kg, e1RM=${e1rm}kg`,
 );
 
 for (const daysPerWeek of [2, 3, 4, 5, 6]) {

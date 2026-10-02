@@ -38,6 +38,7 @@ export interface TrainingAdaptation {
   readinessScore: number;
   recentPerformance: number;
   recentSessions: number;
+  recentAverageRir: number | null;
   volumeFactor: number;
   restFactor: number;
   reason: string;
@@ -52,6 +53,11 @@ export interface PlannedExercise {
   workSeconds: number;
   progressionAction: ProgressionAction;
   progressionNote: string;
+  trackLoad: boolean;
+  lastLoadKg?: number;
+  suggestedLoadKg?: number;
+  loadStepKg?: number;
+  targetRir: string;
 }
 
 export interface GeneratedWorkout {
@@ -132,6 +138,89 @@ function clampScore(value: number) {
   return Math.max(0, Math.min(100, Math.round(value)));
 }
 
+function recentAverageRir(history: CompletedWorkout[], workoutLimit = 3) {
+  const values: number[] = [];
+  for (const workout of history.slice(0, workoutLimit)) {
+    for (const exercise of workout.exercises) {
+      const rirs =
+        exercise.setRir ??
+        (exercise.setRpe ?? []).map((rpe) =>
+          Math.max(0, Math.min(5, 10 - rpe)),
+        );
+      for (const rir of rirs) {
+        if (Number.isFinite(rir)) values.push(Math.max(0, Math.min(5, rir)));
+      }
+    }
+  }
+  if (!values.length) return null;
+  return (
+    Math.round(
+      (values.reduce((sum, value) => sum + value, 0) / values.length) * 10,
+    ) / 10
+  );
+}
+
+const LOAD_TRACKED_EQUIPMENT = new Set<Equipment>([
+  "dumbbells",
+  "barbell",
+  "kettlebell",
+  "machine",
+  "cable",
+  "weight-plate",
+]);
+
+export function tracksExternalLoad(exercise: Exercise) {
+  return (
+    exercise.exerciseType === "weight_reps" ||
+    exercise.equipment.some((item) => LOAD_TRACKED_EQUIPMENT.has(item))
+  );
+}
+
+export function getLoadStepKg(exercise: Exercise) {
+  if (exercise.equipment.includes("dumbbells")) return 1;
+  if (exercise.equipment.includes("weight-plate")) return 1.25;
+  if (exercise.equipment.includes("kettlebell")) return 2;
+  if (
+    exercise.equipment.includes("barbell") ||
+    exercise.equipment.includes("machine") ||
+    exercise.equipment.includes("cable")
+  ) {
+    return 2.5;
+  }
+  return 1;
+}
+
+function roundToStep(value: number, step: number) {
+  if (!Number.isFinite(value) || value <= 0) return 0;
+  return Math.round(value / step) * step;
+}
+
+function positiveLoads(attempt: CompletedWorkout["exercises"][number]) {
+  return (attempt.setLoadsKg ?? []).filter(
+    (value) => Number.isFinite(value) && value > 0,
+  );
+}
+
+function representativeLoad(attempt: CompletedWorkout["exercises"][number]) {
+  const loads = positiveLoads(attempt).sort((a, b) => a - b);
+  if (!loads.length) return undefined;
+  const middle = Math.floor(loads.length / 2);
+  return loads.length % 2 === 0
+    ? (loads[middle - 1] + loads[middle]) / 2
+    : loads[middle];
+}
+
+function attemptAverageRir(attempt: CompletedWorkout["exercises"][number]) {
+  const rirs =
+    attempt.setRir ??
+    (attempt.setRpe ?? []).map((rpe) =>
+      Math.max(0, Math.min(5, 10 - rpe)),
+    );
+  const valid = rirs.filter((value) => Number.isFinite(value));
+  if (!valid.length) return undefined;
+  return valid.reduce((sum, value) => sum + value, 0) / valid.length;
+}
+
 export function getTrainingAdaptation(
   profile: UserProfile,
   history: CompletedWorkout[] = [],
@@ -143,19 +232,24 @@ export function getTrainingAdaptation(
           recent.length,
       )
     : 75;
+  const averageRir = recentAverageRir(history);
+  const effortAdjustment =
+    averageRir === null ? 0 : averageRir < 0.75 ? -8 : averageRir < 1.25 ? -4 : 0;
 
   const readinessScore = clampScore(
     50 +
       (profile.sleepQuality - 3) * 10 -
       (profile.fatigue - 3) * 10 +
-      (recentPerformance - 75) * 0.3,
+      (recentPerformance - 75) * 0.3 +
+      effortAdjustment,
   );
 
   const recoveryRequired =
     readinessScore < 55 ||
     profile.sleepQuality <= 2 ||
     profile.fatigue >= 4 ||
-    (recent.length >= 2 && recentPerformance < 65);
+    (recent.length >= 2 && recentPerformance < 65) ||
+    (recent.length >= 2 && averageRir !== null && averageRir < 0.5);
 
   const progressReady =
     recent.length >= 2 &&
@@ -170,6 +264,7 @@ export function getTrainingAdaptation(
       readinessScore,
       recentPerformance,
       recentSessions: recent.length,
+      recentAverageRir: averageRir,
       volumeFactor: 0.78,
       restFactor: 1.25,
       reason:
@@ -183,6 +278,7 @@ export function getTrainingAdaptation(
       readinessScore,
       recentPerformance,
       recentSessions: recent.length,
+      recentAverageRir: averageRir,
       volumeFactor: 1.05,
       restFactor: 1,
       reason:
@@ -241,27 +337,69 @@ export function getExerciseProgressionPrescription(
   reps: string;
   action: ProgressionAction;
   note: string;
+  trackLoad: boolean;
+  lastLoadKg?: number;
+  suggestedLoadKg?: number;
+  loadStepKg?: number;
+  targetRir: string;
 } {
+  const exercise = getExercise(exerciseId);
+  const trackLoad = exercise ? tracksExternalLoad(exercise) : false;
+  const loadStepKg = exercise && trackLoad ? getLoadStepKg(exercise) : undefined;
   const range = parseRepRange(baseReps);
+  const attempts = exerciseAttempts(exerciseId, history, 2);
+  const lastLoadKg =
+    attempts.map(representativeLoad).find((value) => value !== undefined) ??
+    undefined;
+  const targetRir = adaptationMode === "recovery" ? "3-4" : "2-3";
+
+  const withLoad = (
+    result: {
+      reps: string;
+      action: ProgressionAction;
+      note: string;
+      suggestedLoadKg?: number;
+    },
+  ) => ({
+    ...result,
+    trackLoad,
+    lastLoadKg,
+    suggestedLoadKg: result.suggestedLoadKg,
+    loadStepKg,
+    targetRir,
+  });
+
   if (!range) {
-    return {
+    return withLoad({
       reps: baseReps,
       action: adaptationMode === "recovery" ? "reduce" : "hold",
       note:
         adaptationMode === "recovery"
           ? "حافظ على شدة مريحة اليوم ولا تطارد زيادة في السرعة أو المقاومة."
           : "حافظ على التقنية والزمن المستهدف قبل رفع الشدة.",
-    };
+      suggestedLoadKg:
+        trackLoad && lastLoadKg && loadStepKg
+          ? roundToStep(
+              adaptationMode === "recovery" ? lastLoadKg * 0.9 : lastLoadKg,
+              loadStepKg,
+            )
+          : lastLoadKg,
+    });
   }
-
-  const attempts = exerciseAttempts(exerciseId, history, 2);
   if (adaptationMode === "recovery") {
-    return {
+    return withLoad({
       reps: baseReps,
       action: "reduce",
       note:
-        "استخدم مقاومة أخف من المعتاد إذا لزم، واترك 2–4 تكرارات احتياطية مع الحفاظ على نفس التقنية.",
-    };
+        "استخدم مقاومة أخف من المعتاد إذا لزم، واترك 3–4 تكرارات احتياطية مع الحفاظ على نفس التقنية.",
+      suggestedLoadKg:
+        trackLoad && lastLoadKg && loadStepKg
+          ? Math.max(
+              loadStepKg,
+              roundToStep(lastLoadKg * 0.9, loadStepKg),
+            )
+          : lastLoadKg,
+    });
   }
 
   if (attempts.length >= 2) {
@@ -271,14 +409,48 @@ export function getExerciseProgressionPrescription(
         (attempt.setReps?.length ?? 0) >= Math.max(1, attempt.sets) &&
         (attempt.setReps ?? []).every((reps) => reps >= range.high),
     );
+    const effortKnown = attempts.every(
+      (attempt) => attemptAverageRir(attempt) !== undefined,
+    );
+    const effortControlled =
+      effortKnown &&
+      attempts.every((attempt) => (attemptAverageRir(attempt) ?? 0) >= 1.5);
 
-    if (bothHitTop) {
-      return {
+    if (bothHitTop && trackLoad && effortControlled) {
+      const suggestedLoadKg =
+        lastLoadKg && loadStepKg
+          ? roundToStep(lastLoadKg + loadStepKg, loadStepKg)
+          : undefined;
+      return withLoad({
         reps: baseReps,
         action: "increase-load",
         note:
-          "بلغت الحد الأعلى للنطاق في آخر جلستين: ارفع المقاومة أصغر خطوة متاحة ثم ابدأ من الحد الأدنى للنطاق.",
-      };
+          suggestedLoadKg
+            ? `بلغت الحد الأعلى للنطاق في آخر جلستين مع RIR مناسب: ابدأ الجلسة القادمة عند ${suggestedLoadKg} كجم وارجع إلى الحد الأدنى للنطاق.`
+            : "بلغت الحد الأعلى للنطاق في آخر جلستين مع RIR مناسب: ارفع المقاومة أصغر خطوة متاحة ثم ابدأ من الحد الأدنى للنطاق.",
+        suggestedLoadKg,
+      });
+    }
+
+    if (bothHitTop && trackLoad && !effortControlled) {
+      return withLoad({
+        reps: baseReps,
+        action: "hold",
+        note:
+          effortKnown
+            ? "وصلت للحد الأعلى من التكرارات لكن الجهد كان قريبًا جدًا من الفشل؛ ثبّت الحمل حتى يصبح متوسط RIR نحو 2 قبل الزيادة."
+            : "وصلت للحد الأعلى من التكرارات؛ سجّل RIR لكل مجموعة في الجلستين القادمتين قبل زيادة الحمل تلقائيًا.",
+        suggestedLoadKg: lastLoadKg,
+      });
+    }
+
+    if (bothHitTop && !trackLoad) {
+      return withLoad({
+        reps: baseReps,
+        action: "hold",
+        note:
+          "تم إتقان الحد الأعلى للنطاق؛ ثبّت الأداء مؤقتًا أو انتقل إلى نسخة أصعب من الحركة بدل إضافة حمل غير مناسب.",
+      });
     }
 
     const recentAverages = attempts
@@ -293,35 +465,44 @@ export function getExerciseProgressionPrescription(
       recentAverages.length >= 2 &&
       recentAverages.every((average) => average < range.low)
     ) {
-      return {
+      return withLoad({
         reps: baseReps,
         action: "reduce",
         note:
           "آخر محاولتين كانتا دون الحد الأدنى للنطاق؛ خفّض المقاومة قليلًا أو ثبّتها حتى تستعيد جودة التكرارات.",
-      };
+        suggestedLoadKg:
+          trackLoad && lastLoadKg && loadStepKg
+            ? Math.max(
+                loadStepKg,
+                roundToStep(lastLoadKg - loadStepKg, loadStepKg),
+              )
+            : lastLoadKg,
+      });
     }
 
     const lastAverage = recentAverages[0];
     if (lastAverage !== undefined && lastAverage >= range.low) {
       const raisedLow = Math.min(range.high, range.low + 1);
-      return {
+      return withLoad({
         reps:
           raisedLow < range.high
             ? `${raisedLow}-${range.high}`
             : String(range.high),
         action: "build-reps",
         note:
-          "حافظ على نفس المقاومة وحاول إضافة تكرار واحد لكل مجموعة حتى تصل إلى الحد الأعلى للنطاق.",
-      };
+          "حافظ على نفس المقاومة وحاول إضافة تكرار واحد لكل مجموعة حتى تصل إلى الحد الأعلى للنطاق مع RIR مستهدف 2–3.",
+        suggestedLoadKg: lastLoadKg,
+      });
     }
   }
 
-  return {
+  return withLoad({
     reps: baseReps,
     action: "hold",
     note:
-      "ثبّت المقاومة وركز على إكمال كل المجموعات داخل النطاق قبل طلب زيادة جديدة.",
-  };
+      "ثبّت المقاومة وركز على إكمال كل المجموعات داخل النطاق مع RIR مستهدف 2–3 قبل طلب زيادة جديدة.",
+    suggestedLoadKg: lastLoadKg,
+  });
 }
 
 
@@ -703,6 +884,8 @@ function planned(
             adaptation.mode === "recovery"
               ? "استخدم إيقاعًا مريحًا وحافظ على التنفس وجودة الحركة."
               : "حافظ على الإيقاع والتقنية المستهدفة.",
+          trackLoad: false,
+          targetRir: adaptation.mode === "recovery" ? "3-4" : "2-3",
         };
 
   const baseRest =
@@ -737,6 +920,11 @@ function planned(
             : 45,
     progressionAction: prescription.action,
     progressionNote: prescription.note,
+    trackLoad: prescription.trackLoad,
+    lastLoadKg: prescription.lastLoadKg,
+    suggestedLoadKg: prescription.suggestedLoadKg,
+    loadStepKg: prescription.loadStepKg,
+    targetRir: prescription.targetRir,
   };
 }
 

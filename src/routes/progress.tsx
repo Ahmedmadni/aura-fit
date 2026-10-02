@@ -6,6 +6,7 @@ import { PageShell, PageHeader } from "@/components/page-shell";
 import { getExercise } from "@/lib/exercise-db";
 import {
   dailyExerciseBests,
+  exerciseStrengthSummaries,
   loadHistory,
   loadProfile,
 } from "@/lib/user-profile";
@@ -40,6 +41,10 @@ function Progress() {
   const adaptation = useMemo(
     () => getTrainingAdaptation(profile, history),
     [profile, history],
+  );
+  const strength = useMemo(
+    () => exerciseStrengthSummaries(history),
+    [history],
   );
   const dailyBests = useMemo(
     () => dailyExerciseBests(history, selectedDay),
@@ -157,6 +162,76 @@ function Progress() {
         </div>
       </section>
 
+      <section className="relative px-6 mb-6 animate-enter [animation-delay:95ms]">
+        <div className="mb-3">
+          <p className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
+            سجل القوة
+          </p>
+          <h2 className="mt-1 text-xl font-black">الحمل والقوة التقديرية</h2>
+        </div>
+
+        {strength.length ? (
+          <div className="space-y-2">
+            {strength.slice(0, 6).map((item) => {
+              const exercise = getExercise(item.exerciseId);
+              return (
+                <article
+                  key={item.exerciseId}
+                  className="rounded-2xl border border-border bg-surface/60 p-4"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-black">
+                        {exercise?.name ?? item.exerciseId}
+                      </p>
+                      <p className="mt-1 text-[10px] text-muted-foreground">
+                        {item.sessions} جلسات مسجلة
+                        {item.averageRir !== null
+                          ? " · متوسط RIR " + item.averageRir
+                          : ""}
+                      </p>
+                    </div>
+                    <div className="text-left">
+                      <p className="font-mono text-xl font-black">
+                        {item.lastLoadKg} كجم
+                      </p>
+                      <p className="text-[9px] text-muted-foreground">
+                        آخر حمل
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="mt-3 grid grid-cols-3 gap-2 border-t border-border pt-3">
+                    <StrengthMetric
+                      label="أعلى حمل"
+                      value={item.bestLoadKg + " كجم"}
+                    />
+                    <StrengthMetric
+                      label="e1RM الأفضل"
+                      value={item.bestEstimated1RmKg + " كجم"}
+                    />
+                    <StrengthMetric
+                      label="e1RM الأخير"
+                      value={item.latestEstimated1RmKg + " كجم"}
+                    />
+                  </div>
+                </article>
+              );
+            })}
+            <p className="px-1 text-[9px] leading-relaxed text-muted-foreground">
+              e1RM تقدير تدريبي مبني على الحمل والتكرارات وRIR، وليس اختبار 1RM مباشر.
+            </p>
+          </div>
+        ) : (
+          <div className="rounded-2xl border border-dashed border-border px-5 py-7 text-center">
+            <p className="text-sm font-bold">لا توجد أحمال مسجلة بعد</p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              سجّل الوزن وRIR داخل جلسة المقاومة ليبدأ سجل القوة.
+            </p>
+          </div>
+        )}
+      </section>
+
       {/* Score cards */}
       <section className="relative px-6 mb-6 grid grid-cols-2 gap-3 animate-enter [animation-delay:100ms]">
         <ScoreCard label="نقاط اللياقة" value="847" delta="+23" up />
@@ -260,6 +335,21 @@ function Progress() {
 
       <BottomNav />
     </PageShell>
+  );
+}
+
+function StrengthMetric({
+  label,
+  value,
+}: {
+  label: string;
+  value: string;
+}) {
+  return (
+    <div className="rounded-xl bg-background/50 p-2.5 text-center">
+      <p className="font-mono text-sm font-black">{value}</p>
+      <p className="mt-0.5 text-[8px] text-muted-foreground">{label}</p>
+    </div>
   );
 }
 

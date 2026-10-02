@@ -31,6 +31,12 @@ export interface CompletedWorkout {
     completed: boolean;
     /** Actual repetitions completed in each set. Absent on legacy/timed entries. */
     setReps?: number[];
+    /** External load used for each set in kilograms. */
+    setLoadsKg?: number[];
+    /** Repetitions in reserve reported after each set (0-5). */
+    setRir?: number[];
+    /** RPE derived/recorded for each set (typically 10 - RIR). */
+    setRpe?: number[];
     /** Prescription used for this session; optional for legacy entries. */
     progressionAction?: "build-reps" | "increase-load" | "hold" | "reduce";
   }[];
@@ -91,6 +97,124 @@ export function recordWorkout(w: CompletedWorkout) {
   const all = loadHistory();
   all.unshift(w);
   localStorage.setItem(H_KEY, JSON.stringify(all.slice(0, 200)));
+}
+
+export interface ExerciseStrengthSummary {
+  exerciseId: string;
+  sessions: number;
+  lastLoadKg: number;
+  bestLoadKg: number;
+  bestEstimated1RmKg: number;
+  averageRir: number | null;
+  latestEstimated1RmKg: number;
+}
+
+export function estimateOneRepMaxKg(
+  loadKg: number,
+  reps: number,
+  rir = 0,
+): number {
+  if (!Number.isFinite(loadKg) || loadKg <= 0) return 0;
+  const effectiveReps = Math.max(
+    1,
+    Math.min(20, Math.round(reps + Math.max(0, Math.min(5, rir)))),
+  );
+  return Math.round(loadKg * (1 + effectiveReps / 30) * 10) / 10;
+}
+
+export function exerciseStrengthSummaries(
+  history: CompletedWorkout[],
+): ExerciseStrengthSummary[] {
+  const byExercise = new Map<
+    string,
+    {
+      sessions: Set<string>;
+      lastLoadKg: number;
+      bestLoadKg: number;
+      bestEstimated1RmKg: number;
+      latestEstimated1RmKg: number;
+      rirValues: number[];
+      sawLatest: boolean;
+    }
+  >();
+
+  for (const workout of history) {
+    for (const exercise of workout.exercises) {
+      const loads = exercise.setLoadsKg ?? [];
+      const reps = exercise.setReps ?? [];
+      const rirs =
+        exercise.setRir ??
+        (exercise.setRpe ?? []).map((rpe) =>
+          Math.max(0, Math.min(5, 10 - rpe)),
+        );
+      if (!loads.some((load) => Number.isFinite(load) && load > 0)) continue;
+
+      const current =
+        byExercise.get(exercise.id) ?? {
+          sessions: new Set<string>(),
+          lastLoadKg: 0,
+          bestLoadKg: 0,
+          bestEstimated1RmKg: 0,
+          latestEstimated1RmKg: 0,
+          rirValues: [],
+          sawLatest: false,
+        };
+      current.sessions.add(workout.id);
+
+      for (let index = 0; index < loads.length; index += 1) {
+        const load = Number(loads[index] ?? 0);
+        if (!Number.isFinite(load) || load <= 0) continue;
+        const repCount = Number(reps[index] ?? 0);
+        const rir = Number(rirs[index] ?? 0);
+        const e1rm =
+          repCount > 0
+            ? estimateOneRepMaxKg(
+                load,
+                repCount,
+                Number.isFinite(rir) ? rir : 0,
+              )
+            : load;
+
+        if (!current.sawLatest) {
+          current.lastLoadKg = load;
+          current.latestEstimated1RmKg = Math.max(
+            current.latestEstimated1RmKg,
+            e1rm,
+          );
+        }
+        current.bestLoadKg = Math.max(current.bestLoadKg, load);
+        current.bestEstimated1RmKg = Math.max(
+          current.bestEstimated1RmKg,
+          e1rm,
+        );
+        if (Number.isFinite(rir)) current.rirValues.push(rir);
+      }
+
+      if (current.lastLoadKg > 0) current.sawLatest = true;
+      byExercise.set(exercise.id, current);
+    }
+  }
+
+  return Array.from(byExercise, ([exerciseId, data]) => ({
+    exerciseId,
+    sessions: data.sessions.size,
+    lastLoadKg: Math.round(data.lastLoadKg * 10) / 10,
+    bestLoadKg: Math.round(data.bestLoadKg * 10) / 10,
+    bestEstimated1RmKg: Math.round(data.bestEstimated1RmKg * 10) / 10,
+    averageRir: data.rirValues.length
+      ? Math.round(
+          (data.rirValues.reduce((sum, value) => sum + value, 0) /
+            data.rirValues.length) *
+            10,
+        ) / 10
+      : null,
+    latestEstimated1RmKg:
+      Math.round(data.latestEstimated1RmKg * 10) / 10,
+  })).sort(
+    (a, b) =>
+      b.bestEstimated1RmKg - a.bestEstimated1RmKg ||
+      b.sessions - a.sessions,
+  );
 }
 
 export interface DailyExerciseBest {

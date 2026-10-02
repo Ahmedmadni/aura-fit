@@ -55,7 +55,13 @@ function WorkoutPlayer() {
   const [showRefs, setShowRefs] = useState(false);
   const [completed, setCompleted] = useState<Set<string>>(new Set());
   const [setReps, setSetReps] = useState<Record<string, number[]>>({});
+  const [setLoadsKg, setSetLoadsKg] = useState<Record<string, number[]>>({});
+  const [setRir, setSetRir] = useState<Record<string, number[]>>({});
   const [currentReps, setCurrentReps] = useState(() => suggestedReps(plan[0]?.reps));
+  const [currentLoadKg, setCurrentLoadKg] = useState(
+    () => plan[0]?.suggestedLoadKg ?? plan[0]?.lastLoadKg ?? 0,
+  );
+  const [currentRir, setCurrentRir] = useState<number | null>(null);
   const startedAt = useRef(Date.now());
 
   const current: PlannedExercise = plan[index];
@@ -78,10 +84,34 @@ function WorkoutPlayer() {
       values[setIdx - 1] = currentReps;
       return { ...all, [current.exercise.id]: values };
     });
+
+    if (current.trackLoad) {
+      setSetLoadsKg((all) => {
+        const values = [...(all[current.exercise.id] ?? [])];
+        values[setIdx - 1] = Math.max(0, currentLoadKg);
+        return { ...all, [current.exercise.id]: values };
+      });
+    }
+
+    if (
+      currentRir !== null &&
+      (current.phase === "main" ||
+        current.phase === "accessory" ||
+        current.phase === "core")
+    ) {
+      setSetRir((all) => {
+        const values = [...(all[current.exercise.id] ?? [])];
+        values[setIdx - 1] = Math.max(0, Math.min(5, currentRir));
+        return { ...all, [current.exercise.id]: values };
+      });
+    }
   }
 
   function prepareExercise(nextIndex: number) {
-    setCurrentReps(suggestedReps(plan[nextIndex]?.reps));
+    const upcoming = plan[nextIndex];
+    setCurrentReps(suggestedReps(upcoming?.reps));
+    setCurrentLoadKg(upcoming?.suggestedLoadKg ?? upcoming?.lastLoadKg ?? 0);
+    setCurrentRir(null);
   }
 
   const progress =
@@ -110,6 +140,7 @@ function WorkoutPlayer() {
           saveCurrentSet();
           if (setIdx < current.sets && current.restSeconds > 0) {
             setPhase("rest");
+            setCurrentRir(null);
             sfxRest();
             return current.restSeconds;
           }
@@ -164,6 +195,9 @@ function WorkoutPlayer() {
         reps: p.reps,
         completed: completed.has(p.exercise.id),
         setReps: setReps[p.exercise.id],
+        setLoadsKg: p.trackLoad ? setLoadsKg[p.exercise.id] : undefined,
+        setRir: setRir[p.exercise.id],
+        setRpe: setRir[p.exercise.id]?.map((rir) => 10 - rir),
         progressionAction: p.progressionAction,
       })),
       durationSec,
@@ -473,34 +507,175 @@ function WorkoutPlayer() {
         </div>
 
         {!isRest && isRepExercise(current.reps) && (
-          <div className="mt-5 flex items-center justify-between rounded-2xl border border-border bg-surface/60 p-4">
-            <div>
-              <p className="text-xs font-bold">تكرارات هذه المجموعة</p>
-              <p className="mt-1 text-[10px] text-muted-foreground">سجّل العدد الفعلي قبل الانتقال</p>
+          <div className="mt-5 space-y-3">
+            <div className="flex items-center justify-between rounded-2xl border border-border bg-surface/60 p-4">
+              <div>
+                <p className="text-xs font-bold">تكرارات هذه المجموعة</p>
+                <p className="mt-1 text-[10px] text-muted-foreground">
+                  الهدف {current.reps} · سجّل العدد الفعلي
+                </p>
+              </div>
+              <div className="flex items-center gap-2" dir="ltr">
+                <Button
+                  type="button"
+                  size="icon"
+                  variant="outline"
+                  aria-label="إنقاص تكرار"
+                  onClick={() => setCurrentReps((value) => Math.max(0, value - 1))}
+                >
+                  −
+                </Button>
+                <output className="w-10 text-center text-2xl font-black tabular-nums">
+                  {currentReps}
+                </output>
+                <Button
+                  type="button"
+                  size="icon"
+                  variant="outline"
+                  aria-label="إضافة تكرار"
+                  onClick={() => setCurrentReps((value) => Math.min(999, value + 1))}
+                >
+                  +
+                </Button>
+              </div>
             </div>
-            <div className="flex items-center gap-2" dir="ltr">
-              <Button
-                type="button"
-                size="icon"
-                variant="outline"
-                aria-label="إنقاص تكرار"
-                onClick={() => setCurrentReps((value) => Math.max(0, value - 1))}
-              >
-                −
-              </Button>
-              <output className="w-10 text-center text-2xl font-black tabular-nums">
-                {currentReps}
-              </output>
-              <Button
-                type="button"
-                size="icon"
-                variant="outline"
-                aria-label="إضافة تكرار"
-                onClick={() => setCurrentReps((value) => Math.min(999, value + 1))}
-              >
-                +
-              </Button>
-            </div>
+
+            {current.trackLoad && (
+              <div className="rounded-2xl border border-border bg-surface/60 p-4">
+                <div className="flex items-center justify-between gap-4">
+                  <div>
+                    <p className="text-xs font-bold">الحمل المستخدم</p>
+                    <p className="mt-1 text-[10px] text-muted-foreground">
+                      {current.exercise.equipment.includes("dumbbells")
+                        ? "للدمبل: سجّل وزن الدمبل الواحد"
+                        : "سجّل الحمل الفعلي بالكيلوجرام"}
+                    </p>
+                    {current.lastLoadKg !== undefined && (
+                      <p className="mt-1 text-[10px] text-primary">
+                        آخر حمل {current.lastLoadKg} كجم
+                        {current.suggestedLoadKg !== undefined
+                          ? " · المقترح " + current.suggestedLoadKg + " كجم"
+                          : ""}
+                      </p>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2" dir="ltr">
+                    <Button
+                      type="button"
+                      size="icon"
+                      variant="outline"
+                      aria-label="خفض الحمل"
+                      onClick={() =>
+                        setCurrentLoadKg((value) =>
+                          Math.max(
+                            0,
+                            Math.round(
+                              (value - (current.loadStepKg ?? 1)) * 100,
+                            ) / 100,
+                          ),
+                        )
+                      }
+                    >
+                      −
+                    </Button>
+                    <div className="min-w-16 text-center">
+                      <output className="text-xl font-black tabular-nums">
+                        {currentLoadKg}
+                      </output>
+                      <span className="mr-1 text-[10px] text-muted-foreground">
+                        كجم
+                      </span>
+                    </div>
+                    <Button
+                      type="button"
+                      size="icon"
+                      variant="outline"
+                      aria-label="زيادة الحمل"
+                      onClick={() =>
+                        setCurrentLoadKg((value) =>
+                          Math.round(
+                            (value + (current.loadStepKg ?? 1)) * 100,
+                          ) / 100,
+                        )
+                      }
+                    >
+                      +
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {(current.phase === "main" ||
+              current.phase === "accessory" ||
+              current.phase === "core") && (
+              <div className="rounded-2xl border border-border bg-surface/60 p-4">
+                <div className="flex items-center justify-between gap-4">
+                  <div>
+                    <p className="text-xs font-bold">RIR · التكرارات الاحتياطية</p>
+                    <p className="mt-1 text-[10px] text-muted-foreground">
+                      الهدف {current.targetRir} · RPE المقابل الآن{" "}
+                      {currentRir === null ? "—" : 10 - currentRir}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2" dir="ltr">
+                    <Button
+                      type="button"
+                      size="icon"
+                      variant="outline"
+                      aria-label="خفض RIR"
+                      onClick={() =>
+                        setCurrentRir((value) =>
+                          value === null
+                            ? suggestedRir(current.targetRir)
+                            : Math.max(0, value - 1),
+                        )
+                      }
+                    >
+                      −
+                    </Button>
+                    <output className="w-10 text-center text-2xl font-black tabular-nums">
+                      {currentRir ?? "—"}
+                    </output>
+                    <Button
+                      type="button"
+                      size="icon"
+                      variant="outline"
+                      aria-label="زيادة RIR"
+                      onClick={() =>
+                        setCurrentRir((value) =>
+                          value === null
+                            ? suggestedRir(current.targetRir)
+                            : Math.min(5, value + 1),
+                        )
+                      }
+                    >
+                      +
+                    </Button>
+                  </div>
+                </div>
+                {currentRir === null && (
+                  <button
+                    type="button"
+                    onClick={() => setCurrentRir(suggestedRir(current.targetRir))}
+                    className="mt-3 w-full rounded-lg border border-primary/20 bg-primary/5 px-3 py-2 text-[10px] font-bold text-primary"
+                  >
+                    تسجيل RIR المستهدف {current.targetRir}
+                  </button>
+                )}
+                <div className="mt-3 grid grid-cols-3 gap-2 text-center text-[9px]">
+                  <span className="rounded-lg bg-background/50 px-2 py-1.5 text-muted-foreground">
+                    0–1 قريب من الفشل
+                  </span>
+                  <span className="rounded-lg bg-primary/10 px-2 py-1.5 text-primary">
+                    2–3 مستهدف
+                  </span>
+                  <span className="rounded-lg bg-background/50 px-2 py-1.5 text-muted-foreground">
+                    4–5 خفيف
+                  </span>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -600,6 +775,12 @@ function WorkoutPlayer() {
       </div>
     </PageShell>
   );
+}
+
+function suggestedRir(range?: string): number {
+  if (!range) return 2;
+  const match = range.match(/\d+/);
+  return match ? Math.max(0, Math.min(5, Number(match[0]))) : 2;
 }
 
 function suggestedReps(reps?: string): number {
