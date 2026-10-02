@@ -19,6 +19,7 @@ import {
   generateWorkout,
   type PlannedExercise,
 } from "@/lib/workout-engine";
+import { getExercise } from "@/lib/exercise-db";
 import { loadHistory, loadProfile, recordWorkout } from "@/lib/user-profile";
 import { checkNewAchievements } from "@/lib/achievements";
 
@@ -200,6 +201,8 @@ function WorkoutPlayer() {
         setRir: setRir[p.exercise.id],
         setRpe: setRir[p.exercise.id]?.map((rir) => 10 - rir),
         progressionAction: p.progressionAction,
+        rotatedFromId: p.rotatedFromId,
+        rotationReason: p.rotationReason,
       })),
       durationSec,
       activeSec,
@@ -393,6 +396,25 @@ function WorkoutPlayer() {
             </p>
           )}
         </div>
+
+        {current.rotatedFromId && (
+          <div className="mb-4 rounded-2xl border border-amber-400/25 bg-amber-400/5 p-3">
+            <p className="text-[10px] font-mono uppercase tracking-widest text-amber-400">
+              {current.rotationReason === "plateau"
+                ? "تدوير بسبب Plateau"
+                : "تدوير Mesocycle"}
+            </p>
+            <p className="mt-1 text-xs font-bold">
+              {getExercise(current.rotatedFromId)?.name ?? current.rotatedFromId}
+              {" → "}
+              {current.exercise.name}
+            </p>
+            <p className="mt-1 text-[9px] leading-relaxed text-muted-foreground">
+              تم الحفاظ على نفس نمط الحركة والعضلة الأساسية ونوع المعدات المتاحة؛
+              سيظل البديل ثابتًا خلال الدورة الحالية لقياس التقدم بشكل عادل.
+            </p>
+          </div>
+        )}
 
         {/* progress bar */}
         <div className="h-1 rounded-full bg-surface overflow-hidden mb-4">

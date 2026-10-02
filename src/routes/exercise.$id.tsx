@@ -27,6 +27,7 @@ import {
   GOAL_LABEL_AR,
   LEVEL_LABEL_AR,
   LOCATION_LABEL_AR,
+  MOVEMENT_FAMILY_LABEL_AR,
   MUSCLE_LABEL_AR,
   type Injury,
 } from "@/lib/exercise-db";
@@ -197,6 +198,7 @@ function ExerciseDetail() {
                     <InfoChip>{CATEGORY_LABEL_AR[exercise.category]}</InfoChip>
                     <InfoChip>{LEVEL_LABEL_AR[exercise.level]}</InfoChip>
                     <InfoChip>{EXERCISE_TYPE_LABEL_AR[exercise.exerciseType]}</InfoChip>
+                    <InfoChip>{MOVEMENT_FAMILY_LABEL_AR[exercise.movementFamily]}</InfoChip>
                     {exercise.location.map((location) => (
                       <InfoChip key={location}>{LOCATION_LABEL_AR[location]}</InfoChip>
                     ))}

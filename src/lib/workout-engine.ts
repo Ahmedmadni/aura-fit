@@ -17,6 +17,7 @@ import {
   type Muscle,
 } from "./exercise-db";
 import {
+  analyzeExerciseStrength,
   exerciseStrengthAnalyses,
   type CompletedWorkout,
   type UserProfile,
@@ -58,6 +59,15 @@ export type ProgressionAction =
   | "hold"
   | "reduce";
 
+export type RotationReason = "mesocycle" | "plateau";
+
+export interface ExerciseRotationDecision {
+  exercise: Exercise;
+  rotatedFrom?: Exercise;
+  reason?: RotationReason;
+  mesocycleIndex: number;
+}
+
 export interface TrainingAdaptation {
   mode: AdaptationMode;
   readinessScore: number;
@@ -83,6 +93,8 @@ export interface PlannedExercise {
   suggestedLoadKg?: number;
   loadStepKg?: number;
   targetRir: string;
+  rotatedFromId?: string;
+  rotationReason?: RotationReason;
 }
 
 export interface GeneratedWorkout {
@@ -940,20 +952,128 @@ function strengthPool(profile: UserProfile) {
   );
 }
 
+function strictRotationPool(
+  base: Exercise,
+  profile: UserProfile,
+  usedSession: Set<string>,
+  usedAcrossWeek: Set<string>,
+) {
+  return EXERCISES.filter((candidate) => {
+    if (candidate.id === base.id) return false;
+    if (usedSession.has(candidate.id)) return false;
+    if (usedAcrossWeek.has(candidate.id)) return false;
+    if (!isEligible(candidate, profile)) return false;
+    if (candidate.movementFamily !== base.movementFamily) return false;
+    if (candidate.primary[0] !== base.primary[0]) return false;
+    if (candidate.trainingRole !== base.trainingRole) return false;
+    if (candidate.exerciseType !== base.exerciseType) return false;
+
+    const sharesEquipment = candidate.equipment.some((item) =>
+      base.equipment.includes(item),
+    );
+    return sharesEquipment;
+  });
+}
+
+export function getExerciseRotationDecision(
+  base: Exercise,
+  profile: UserProfile,
+  history: CompletedWorkout[],
+  week: number,
+  preferredRole: "main" | "accessory",
+  usedSession: Set<string> = new Set(),
+  usedAcrossWeek: Set<string> = new Set(),
+): ExerciseRotationDecision {
+  const mesocycleIndex = Math.floor(Math.max(0, week) / 4);
+  const analysis = analyzeExerciseStrength(history, base.id);
+  const plateau = Boolean(analysis?.plateau);
+  const pool = strictRotationPool(
+    base,
+    profile,
+    usedSession,
+    usedAcrossWeek,
+  );
+
+  if (!pool.length) {
+    return { exercise: base, mesocycleIndex };
+  }
+
+  const ranked = pool
+    .map((candidate) => {
+      let score = 0;
+      if (candidate.level === base.level) score += 3;
+      if (candidate.media.preferred === "gif") score += 0.25;
+      if (base.alternatives.includes(candidate.id)) score += 1;
+      return { candidate, score };
+    })
+    .sort(
+      (a, b) =>
+        b.score - a.score ||
+        a.candidate.id.localeCompare(b.candidate.id),
+    );
+
+  if (plateau && preferredRole === "main") {
+    return {
+      exercise: ranked[0].candidate,
+      rotatedFrom: base,
+      reason: "plateau",
+      mesocycleIndex,
+    };
+  }
+
+  if (preferredRole === "accessory" && mesocycleIndex > 0) {
+    const variants = [base, ...ranked.map((item) => item.candidate)];
+    const selected = variants[mesocycleIndex % variants.length];
+    if (selected.id !== base.id) {
+      return {
+        exercise: selected,
+        rotatedFrom: base,
+        reason: "mesocycle",
+        mesocycleIndex,
+      };
+    }
+  }
+
+  return { exercise: base, mesocycleIndex };
+}
+
 function chooseStrength(
   target: Muscle,
   preferredRole: "main" | "accessory",
   profile: UserProfile,
   usedSession: Set<string>,
   usedAcrossWeek: Set<string>,
-): Exercise | undefined {
-  return strengthPool(profile)
+  history: CompletedWorkout[],
+  week: number,
+): ExerciseRotationDecision | undefined {
+  const base = strengthPool(profile)
     .map((exercise) => ({
       exercise,
-      score: scoreForMuscle(exercise, target, preferredRole, profile, usedSession, usedAcrossWeek),
+      score: scoreForMuscle(
+        exercise,
+        target,
+        preferredRole,
+        profile,
+        usedSession,
+        usedAcrossWeek,
+      ),
     }))
     .filter((item) => Number.isFinite(item.score))
-    .sort((a, b) => b.score - a.score || a.exercise.id.localeCompare(b.exercise.id))[0]?.exercise;
+    .sort(
+      (a, b) =>
+        b.score - a.score || a.exercise.id.localeCompare(b.exercise.id),
+    )[0]?.exercise;
+
+  if (!base) return undefined;
+  return getExerciseRotationDecision(
+    base,
+    profile,
+    history,
+    week,
+    preferredRole,
+    usedSession,
+    usedAcrossWeek,
+  );
 }
 
 function chooseFromIds(ids: string[], profile: UserProfile, usedSession: Set<string>, limit: number) {
@@ -1066,6 +1186,7 @@ function planned(
   adaptation: TrainingAdaptation,
   periodization: PeriodizationPlan,
   history: CompletedWorkout[],
+  rotation?: Pick<ExerciseRotationDecision, "rotatedFrom" | "reason">,
 ): PlannedExercise {
   const baseReps = repsFor(exercise, profile, phase, periodization);
   const prescription =
@@ -1134,6 +1255,8 @@ function planned(
       adaptation.mode === "recovery"
         ? "3-4"
         : periodization.targetRir,
+    rotatedFromId: rotation?.rotatedFrom?.id,
+    rotationReason: rotation?.reason,
   };
 }
 
@@ -1180,20 +1303,60 @@ function generateForBlueprint(
 
   for (const target of blueprint.mainTargets) {
     if (result.filter((item) => item.phase === "main").length >= mainCount) break;
-    const ex = chooseStrength(target, "main", profile, usedSession, usedAcrossWeek);
-    if (!ex) continue;
+    const decision = chooseStrength(
+      target,
+      "main",
+      profile,
+      usedSession,
+      usedAcrossWeek,
+      history,
+      week,
+    );
+    if (!decision) continue;
+    const ex = decision.exercise;
     usedSession.add(ex.id);
     usedAcrossWeek.add(ex.id);
-    result.push(planned(ex, "main", profile, isDeload, adaptation, periodization, history));
+    result.push(
+      planned(
+        ex,
+        "main",
+        profile,
+        isDeload,
+        adaptation,
+        periodization,
+        history,
+        decision,
+      ),
+    );
   }
 
   for (const target of blueprint.accessoryTargets) {
     if (result.filter((item) => item.phase === "accessory").length >= accessoryCount) break;
-    const ex = chooseStrength(target, "accessory", profile, usedSession, usedAcrossWeek);
-    if (!ex) continue;
+    const decision = chooseStrength(
+      target,
+      "accessory",
+      profile,
+      usedSession,
+      usedAcrossWeek,
+      history,
+      week,
+    );
+    if (!decision) continue;
+    const ex = decision.exercise;
     usedSession.add(ex.id);
     usedAcrossWeek.add(ex.id);
-    result.push(planned(ex, "accessory", profile, isDeload, adaptation, periodization, history));
+    result.push(
+      planned(
+        ex,
+        "accessory",
+        profile,
+        isDeload,
+        adaptation,
+        periodization,
+        history,
+        decision,
+      ),
+    );
   }
 
   if (blueprint.includeCore && targetMinutes >= 25) {

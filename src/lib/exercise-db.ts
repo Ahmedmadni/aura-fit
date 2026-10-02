@@ -96,6 +96,30 @@ export type TrainingRole =
   | "mobility"
   | "cooldown";
 
+export type MovementFamily =
+  | "horizontal-press"
+  | "vertical-press"
+  | "chest-fly"
+  | "horizontal-pull"
+  | "vertical-pull"
+  | "squat"
+  | "hinge"
+  | "lunge"
+  | "hip-extension"
+  | "knee-extension"
+  | "knee-flexion"
+  | "calf-raise"
+  | "biceps-curl"
+  | "triceps-extension"
+  | "lateral-raise"
+  | "rear-delt"
+  | "core-flexion"
+  | "core-stability"
+  | "carry"
+  | "cardio"
+  | "mobility"
+  | "other";
+
 export type MatchConfidence = "exact" | "high" | "review" | "none";
 
 export interface ExerciseMedia {
@@ -154,6 +178,7 @@ export interface Exercise {
   exerciseType: ExerciseType;
   isStretch: boolean;
   trainingRole: TrainingRole;
+  movementFamily: MovementFamily;
   media: ExerciseMedia;
   descriptionAr: string;
   instructionsAr: string[];
@@ -427,6 +452,57 @@ const COOLDOWN_EXERCISE_IDS = new Set([
 const MAIN_MOVEMENT_PATTERN =
   /(bench press|chest press|overhead press|shoulder press|push press|push-up|pull-up|chin-up|row|pulldown|deadlift|squat|leg press|lunge|split squat|step-up|hip thrust|glute bridge|dip|good morning|rack pull|landmine press|kettlebell swing)/;
 
+function movementFamilyFor(raw: SourceExercise): MovementFamily {
+  const name = raw.name.toLowerCase();
+
+  if (raw.isStretch || raw.primaryMuscle === "Mobility") return "mobility";
+  if (raw.exerciseType === "distance_duration" || raw.equipment === "Cardio") {
+    return "cardio";
+  }
+  if (/(bench press|chest press|push-up|push up|floor press)/.test(name)) {
+    return "horizontal-press";
+  }
+  if (/(overhead press|shoulder press|push press|military press|landmine press)/.test(name)) {
+    return "vertical-press";
+  }
+  if (/(fly|flye|pec deck)/.test(name) && /(chest|cable|dumbbell|machine)/.test(name)) {
+    return "chest-fly";
+  }
+  if (/(row)/.test(name)) return "horizontal-pull";
+  if (/(pull-up|pull up|chin-up|chin up|pulldown|pull down)/.test(name)) {
+    return "vertical-pull";
+  }
+  if (/(deadlift|good morning|romanian|rdl|rack pull)/.test(name)) {
+    return "hinge";
+  }
+  if (/(lunge|split squat|step-up|step up|curtsy)/.test(name)) {
+    return "lunge";
+  }
+  if (/(hip thrust|glute bridge|frog pump|hip extension)/.test(name)) {
+    return "hip-extension";
+  }
+  if (/(leg extension|sissy squat)/.test(name)) return "knee-extension";
+  if (/(leg curl|hamstring curl|nordic)/.test(name)) return "knee-flexion";
+  if (/(calf raise|calf press)/.test(name)) return "calf-raise";
+  if (/(squat|leg press|hack squat)/.test(name)) return "squat";
+  if (/(biceps curl|bicep curl|hammer curl|preacher curl|spider curl|concentration curl)/.test(name)) {
+    return "biceps-curl";
+  }
+  if (/(triceps|tricep|pushdown|push-down|skull crusher|skullcrusher|dip)/.test(name)) {
+    return "triceps-extension";
+  }
+  if (/(lateral raise|side raise)/.test(name)) return "lateral-raise";
+  if (/(rear delt|reverse fly|reverse flye|face pull)/.test(name)) return "rear-delt";
+  if (/(crunch|sit-up|sit up|v-up|v up|leg raise|knee raise)/.test(name)) {
+    return "core-flexion";
+  }
+  if (/(plank|dead bug|bird dog|pallof|hollow|l-sit|l sit)/.test(name)) {
+    return "core-stability";
+  }
+  if (/(carry|farmer|suitcase)/.test(name)) return "carry";
+  return "other";
+}
+
 function trainingRoleFor(raw: SourceExercise): TrainingRole {
   if (WARMUP_EXERCISE_IDS.has(raw.slug)) return "warmup";
   if (COOLDOWN_EXERCISE_IDS.has(raw.slug)) return "cooldown";
@@ -601,6 +677,7 @@ function toExercise(raw: SourceExercise): Exercise {
     exerciseType: raw.exerciseType,
     isStretch: raw.isStretch,
     trainingRole: trainingRoleFor(raw),
+    movementFamily: movementFamilyFor(raw),
     media: {
       preferred: hasVerifiedPreferredMedia ? "gif" : "frames",
       gif: hasVerifiedPreferredMedia ? resolvePreferredAsset(mediaMapping?.gif) : undefined,
@@ -638,10 +715,25 @@ export const EXERCISES: Exercise[] = BASE_EXERCISES.map((exercise) => ({
   alternatives: BASE_EXERCISES.filter(
     (candidate) =>
       candidate.id !== exercise.id &&
-      candidate.category === exercise.category &&
-      candidate.primary[0] === exercise.primary[0],
+      candidate.movementFamily === exercise.movementFamily &&
+      candidate.primary[0] === exercise.primary[0] &&
+      candidate.trainingRole === exercise.trainingRole &&
+      candidate.exerciseType === exercise.exerciseType &&
+      candidate.equipment.some((item) =>
+        exercise.equipment.includes(item),
+      ),
   )
-    .slice(0, 3)
+    .sort((a, b) => {
+      const aSameEquipment = a.equipment.some((item) =>
+        exercise.equipment.includes(item),
+      );
+      const bSameEquipment = b.equipment.some((item) =>
+        exercise.equipment.includes(item),
+      );
+      if (aSameEquipment !== bSameEquipment) return aSameEquipment ? -1 : 1;
+      return a.id.localeCompare(b.id);
+    })
+    .slice(0, 6)
     .map((candidate) => candidate.id),
 }));
 
@@ -721,6 +813,31 @@ export const EQUIPMENT_LABEL_AR: Record<Equipment, string> = {
   "stability-ball": "كرة ثبات",
 };
 
+
+export const MOVEMENT_FAMILY_LABEL_AR: Record<MovementFamily, string> = {
+  "horizontal-press": "ضغط أفقي",
+  "vertical-press": "ضغط رأسي",
+  "chest-fly": "تفتيح الصدر",
+  "horizontal-pull": "سحب أفقي",
+  "vertical-pull": "سحب رأسي",
+  squat: "سكوات / دفع الرجل",
+  hinge: "Hinge / سلسلة خلفية",
+  lunge: "اندفاع أحادي",
+  "hip-extension": "مد الورك",
+  "knee-extension": "مد الركبة",
+  "knee-flexion": "ثني الركبة",
+  "calf-raise": "سمانة",
+  "biceps-curl": "بايسبس Curl",
+  "triceps-extension": "ترايسبس",
+  "lateral-raise": "رفرفة جانبية",
+  "rear-delt": "كتف خلفي",
+  "core-flexion": "ثني الجذع",
+  "core-stability": "ثبات الجذع",
+  carry: "حمل ومشي",
+  cardio: "كارديو",
+  mobility: "حركة ومرونة",
+  other: "نمط عام",
+};
 
 export const TRAINING_ROLE_LABEL_AR: Record<TrainingRole, string> = {
   warmup: "إحماء",

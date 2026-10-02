@@ -39,6 +39,9 @@ export interface CompletedWorkout {
     setRpe?: number[];
     /** Prescription used for this session; optional for legacy entries. */
     progressionAction?: "build-reps" | "increase-load" | "hold" | "reduce";
+    /** Exercise rotation context; absent for stable exercises/legacy entries. */
+    rotatedFromId?: string;
+    rotationReason?: "mesocycle" | "plateau";
   }[];
   durationSec: number;
   activeSec: number;

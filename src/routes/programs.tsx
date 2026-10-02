@@ -98,6 +98,9 @@ function Programs() {
   const coveredTwice = majorCoverage.filter((item) => item.days >= 2).length;
   const volumeOnTarget = volume.filter((item) => item.status === "target").length;
   const periodization = weekly[0]?.periodization;
+  const rotations = weekly
+    .flatMap((workout) => workout.exercises)
+    .filter((item) => item.rotatedFromId);
 
   return (
     <PageShell>
@@ -118,10 +121,11 @@ function Programs() {
             <CalendarDays className="size-6 shrink-0 text-primary" />
           </div>
 
-          <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
+          <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-5">
             <SummaryStat label="جلسات" value={String(weekly.length)} />
             <SummaryStat label="تغطية 2×" value={coveredTwice + "/" + majorCoverage.length} />
             <SummaryStat label="حجم مناسب" value={volumeOnTarget + "/" + volume.length} />
+            <SummaryStat label="تدوير" value={String(rotations.length)} />
             <SummaryStat
               label="متوسط الجلسة"
               value={
@@ -206,6 +210,33 @@ function Programs() {
                   : "تم تفعيل Deload مبكر بعد ظهور Plateau متزامن في أكثر من تمرين محمّل."}
               </p>
             )}
+          </div>
+        </section>
+      )}
+
+      {rotations.length > 0 && (
+        <section className="px-6 mb-6 animate-enter [animation-delay:90ms]">
+          <div className="rounded-2xl border border-amber-400/25 bg-amber-400/5 p-4">
+            <p className="type-eyebrow text-amber-400">تدوير التمارين</p>
+            <h3 className="type-section-title mt-1">
+              {rotations.length} تغيير محسوب
+            </h3>
+            <p className="type-small mt-2 leading-relaxed text-muted-foreground">
+              التدوير لا يغير نمط الحركة أو العضلة الأساسية أو نوع المعدات.
+              التمارين المساعدة قد تتغير بين الدورات، بينما التمرين الأساسي لا
+              يتغير إلا عند Plateau موثوق ووجود بديل مطابق.
+            </p>
+            <div className="mt-3 flex flex-wrap gap-1.5">
+              {rotations.slice(0, 6).map((item) => (
+                <span
+                  key={item.exercise.id + "-" + item.rotatedFromId}
+                  className="rounded-full border border-border bg-background/60 px-2.5 py-1 text-[9px] text-muted-foreground"
+                >
+                  {item.exercise.name}
+                  {item.rotationReason === "plateau" ? " · Plateau" : " · دورة جديدة"}
+                </span>
+              ))}
+            </div>
           </div>
         </section>
       )}

@@ -3,13 +3,19 @@ import {
   generateWeeklyPlan,
   generateWeeklySchedule,
   getExerciseProgressionPrescription,
+  getExerciseRotationDecision,
   getPeriodizationPlan,
   getTrainingAdaptation,
   getWeeklyMuscleCoverage,
   getWeeklyVolumeStatus,
   MAJOR_MUSCLES,
 } from "../src/lib/workout-engine";
-import { type Equipment, type Goal } from "../src/lib/exercise-db";
+import {
+  EXERCISES,
+  getExercise,
+  type Equipment,
+  type Goal,
+} from "../src/lib/exercise-db";
 import {
   DEFAULT_PROFILE,
   analyzeExerciseStrength,
@@ -373,6 +379,199 @@ if (
   );
 }
 
+for (const exercise of EXERCISES) {
+  for (const alternativeId of exercise.alternatives) {
+    const alternative = getExercise(alternativeId);
+    if (!alternative) {
+      fail(`missing alternative ${alternativeId} for ${exercise.id}`);
+      continue;
+    }
+    if (
+      alternative.movementFamily !== exercise.movementFamily ||
+      alternative.primary[0] !== exercise.primary[0] ||
+      alternative.trainingRole !== exercise.trainingRole ||
+      alternative.exerciseType !== exercise.exerciseType
+    ) {
+      fail(
+        `unsafe alternative mapping ${exercise.id} -> ${alternative.id}`,
+      );
+    }
+    if (
+      !alternative.equipment.some((item) =>
+        exercise.equipment.includes(item),
+      )
+    ) {
+      fail(
+        `alternative changed equipment pattern ${exercise.id} -> ${alternative.id}`,
+      );
+    }
+  }
+}
+
+const rotationAccessoryBase = EXERCISES.find(
+  (exercise) =>
+    exercise.trainingRole === "accessory" &&
+    exercise.alternatives.length > 0 &&
+    exercise.equipment.every((item) =>
+      strongProfile.equipment.includes(item),
+    ),
+);
+if (!rotationAccessoryBase) {
+  fail("expected at least one strict accessory rotation candidate");
+} else {
+  const baseline = getExerciseRotationDecision(
+    rotationAccessoryBase,
+    strongProfile,
+    [],
+    0,
+    "accessory",
+  );
+  if (baseline.exercise.id !== rotationAccessoryBase.id || baseline.reason) {
+    fail("mesocycle zero should keep the baseline accessory");
+  }
+
+  const rotatedWeeks = [4, 5, 6, 7].map((week) =>
+    getExerciseRotationDecision(
+      rotationAccessoryBase,
+      strongProfile,
+      [],
+      week,
+      "accessory",
+    ),
+  );
+  const rotatedId = rotatedWeeks[0]?.exercise.id;
+  if (
+    !rotatedId ||
+    rotatedId === rotationAccessoryBase.id ||
+    rotatedWeeks.some(
+      (decision) =>
+        decision.exercise.id !== rotatedId ||
+        decision.reason !== "mesocycle",
+    )
+  ) {
+    fail(
+      `accessory rotation must stay stable across one mesocycle: ${rotatedWeeks
+        .map((decision) => decision.exercise.id)
+        .join(">")}`,
+    );
+  }
+
+  const rotated = rotatedWeeks[0]?.exercise;
+  if (
+    rotated &&
+    (rotated.movementFamily !== rotationAccessoryBase.movementFamily ||
+      rotated.primary[0] !== rotationAccessoryBase.primary[0] ||
+      !rotated.equipment.some((item) =>
+        rotationAccessoryBase.equipment.includes(item),
+      ))
+  ) {
+    fail(
+      `rotated accessory changed movement/muscle/equipment: ${rotationAccessoryBase.id} -> ${rotated.id}`,
+    );
+  }
+
+  const historyChanged = [
+    historyEntry(
+      "rotation-history",
+      88,
+      rotatedId ?? rotationAccessoryBase.id,
+      [10, 10, 10],
+      20,
+      2,
+    ),
+  ];
+  const afterHistoryUpdate = getExerciseRotationDecision(
+    rotationAccessoryBase,
+    strongProfile,
+    historyChanged,
+    6,
+    "accessory",
+  );
+  if (afterHistoryUpdate.exercise.id !== rotatedId) {
+    fail(
+      "adding workout history inside a mesocycle must not change its selected accessory variant",
+    );
+  }
+}
+
+const rotationMainBase = EXERCISES.find(
+  (exercise) =>
+    exercise.trainingRole === "main" &&
+    exercise.exerciseType === "weight_reps" &&
+    exercise.alternatives.length > 0 &&
+    exercise.equipment.every((item) =>
+      strongProfile.equipment.includes(item),
+    ),
+);
+if (!rotationMainBase) {
+  fail("expected at least one strict main rotation candidate");
+} else {
+  const stableMain = getExerciseRotationDecision(
+    rotationMainBase,
+    strongProfile,
+    [],
+    4,
+    "main",
+  );
+  if (stableMain.exercise.id !== rotationMainBase.id || stableMain.reason) {
+    fail("main exercise must remain stable across mesocycles without plateau");
+  }
+
+  const mainPlateauHistory = [
+    historyEntry(
+      "main-plateau-new",
+      86,
+      rotationMainBase.id,
+      [10, 10, 10],
+      70,
+      2,
+    ),
+    historyEntry(
+      "main-plateau-3",
+      86,
+      rotationMainBase.id,
+      [10, 10, 10],
+      70,
+      2,
+    ),
+    historyEntry(
+      "main-plateau-2",
+      86,
+      rotationMainBase.id,
+      [10, 10, 10],
+      70,
+      2,
+    ),
+    historyEntry(
+      "main-plateau-old",
+      86,
+      rotationMainBase.id,
+      [10, 10, 10],
+      70,
+      2,
+    ),
+  ];
+  mainPlateauHistory.forEach((workout, index) => {
+    workout.date = `2026-08-0${4 - index}T10:00:00.000Z`;
+  });
+
+  const plateauRotation = getExerciseRotationDecision(
+    rotationMainBase,
+    strongProfile,
+    mainPlateauHistory,
+    4,
+    "main",
+  );
+  if (
+    plateauRotation.reason !== "plateau" ||
+    plateauRotation.exercise.id === rotationMainBase.id
+  ) {
+    fail(
+      `plateau main lift should rotate to a strict alternative, got ${plateauRotation.exercise.id}/${plateauRotation.reason}`,
+    );
+  }
+}
+
 const progressPlan = generateWeeklyPlan(strongProfile, strongHistory);
 if (!progressPlan.every((workout) => workout.adaptation.mode === "progress")) {
   fail("progress history was not propagated to every generated workout");
@@ -396,7 +595,7 @@ if (recoveryStrengthSets >= progressStrengthSets) {
 }
 
 console.log(
-  `adaptive checks: progress readiness=${progressAdaptation.readinessScore}, recovery readiness=${recoveryAdaptation.readinessScore}, strength sets ${progressStrengthSets}->${recoveryStrengthSets}, load 70->${loadPrescription.suggestedLoadKg}kg, e1RM=${e1rm}kg, plateau=${plateauAnalysis?.plateau}, trend=${risingAnalysis?.trend}, cycle=${cyclePhases.join(">")}, cycleSets=${phaseStrengthSets.join(">")}, recoveryPhase=${recoveryPeriodization.phase}, plateauTrigger=${plateauPeriodization.trigger}`,
+  `adaptive checks: progress readiness=${progressAdaptation.readinessScore}, recovery readiness=${recoveryAdaptation.readinessScore}, strength sets ${progressStrengthSets}->${recoveryStrengthSets}, load 70->${loadPrescription.suggestedLoadKg}kg, e1RM=${e1rm}kg, plateau=${plateauAnalysis?.plateau}, trend=${risingAnalysis?.trend}, cycle=${cyclePhases.join(">")}, cycleSets=${phaseStrengthSets.join(">")}, recoveryPhase=${recoveryPeriodization.phase}, plateauTrigger=${plateauPeriodization.trigger}, accessoryRotation=${rotationAccessoryBase?.id ?? "none"}, mainRotation=${rotationMainBase?.id ?? "none"}`,
 );
 
 for (const daysPerWeek of [2, 3, 4, 5, 6]) {
