@@ -133,9 +133,10 @@ export function getWeeklyVolumeTargets(
       min,
       Math.round((base.target + adjustment.target) * coreFactor * deloadFactor),
     );
+    const maxFactor = muscle === "core" ? 1 : coreFactor;
     const max = Math.max(
       target + 1,
-      Math.round((base.max + adjustment.max) * coreFactor * deloadFactor),
+      Math.round((base.max + adjustment.max) * maxFactor * deloadFactor),
     );
     return { muscle, min, target, max };
   });
@@ -667,6 +668,45 @@ function tuneWeeklyVolume(
         if (item.sets > floor) {
           item.sets -= 1;
           effective -= 1;
+        }
+        cursor += 1;
+      }
+    }
+  }
+
+  // Final normalization pass: later muscle adjustments can change the
+  // secondary-set contribution of muscles tuned earlier in the loop.
+  for (let pass = 0; pass < 3; pass += 1) {
+    for (const target of targets) {
+      let effective = effectiveSetsForMuscle(cloned, target.muscle);
+      if (effective <= target.max) continue;
+
+      const candidates = cloned
+        .flatMap((workout, workoutIndex) =>
+          workout.exercises.map((item, exerciseIndex) => ({
+            workoutIndex,
+            exerciseIndex,
+            item,
+          })),
+        )
+        .filter(
+          ({ item }) =>
+            (item.phase === "main" ||
+              item.phase === "accessory" ||
+              item.phase === "core") &&
+            item.exercise.primary.includes(target.muscle),
+        )
+        .sort((a, b) => b.item.sets - a.item.sets);
+
+      let cursor = 0;
+      while (effective > target.max && candidates.length && cursor < 32) {
+        const candidate = candidates[cursor % candidates.length];
+        const item =
+          cloned[candidate.workoutIndex].exercises[candidate.exerciseIndex];
+        const floor = item.phase === "main" ? 2 : 1;
+        if (item.sets > floor) {
+          item.sets -= 1;
+          effective = effectiveSetsForMuscle(cloned, target.muscle);
         }
         cursor += 1;
       }
