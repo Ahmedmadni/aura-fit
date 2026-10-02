@@ -13,19 +13,33 @@ import {
   sfxRest,
   sfxTick,
 } from "@/lib/workout-audio";
-import { generateWorkout, type PlannedExercise } from "@/lib/workout-engine";
+import {
+  PHASE_LABEL_AR,
+  generateWorkout,
+  type PlannedExercise,
+} from "@/lib/workout-engine";
 import { loadProfile, recordWorkout } from "@/lib/user-profile";
 import { checkNewAchievements } from "@/lib/achievements";
 
 export const Route = createFileRoute("/workout")({
+  validateSearch: (search: Record<string, unknown>) => {
+    const parsed = Number(search.day);
+    return {
+      day: Number.isFinite(parsed) && parsed >= 0 ? Math.floor(parsed) : undefined,
+    };
+  },
   component: WorkoutPlayer,
 });
 
 function WorkoutPlayer() {
   const navigate = useNavigate();
+  const { day } = Route.useSearch();
 
-  // build the workout from profile (memoized so it stays stable during the session)
-  const workout = useMemo(() => generateWorkout(loadProfile()), []);
+  // Build a stable session from the selected weekly-plan day.
+  const workout = useMemo(
+    () => generateWorkout(loadProfile(), { day }),
+    [day],
+  );
   const plan = workout.exercises;
 
   const [index, setIndex] = useState(0);
@@ -243,7 +257,7 @@ function WorkoutPlayer() {
           </button>
           <div className="text-center">
             <p className="font-mono text-[10px] uppercase tracking-[0.3em] text-muted-foreground">
-              {index + 1} / {total} · مجموعة {setIdx} / {current.sets}
+              {PHASE_LABEL_AR[current.phase]} · {index + 1} / {total} · مجموعة {setIdx} / {current.sets}
             </p>
             <p className="font-mono text-xs mt-0.5">
               {fmt(elapsed)} · {fmt(Math.max(0, totalDuration - elapsed))}

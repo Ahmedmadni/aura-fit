@@ -16,4 +16,5 @@ jobs:
           bun-version: latest
       - run: bun install --frozen-lockfile
       - run: bun run media:validate
+      - run: bun run workout:validate
       - run: bun run build

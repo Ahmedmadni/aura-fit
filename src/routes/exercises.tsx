@@ -18,7 +18,9 @@ import {
   EXERCISES,
   LEVEL_LABEL_AR,
   MUSCLE_LABEL_AR,
+  TRAINING_ROLE_LABEL_AR,
   type Category,
+  type TrainingRole,
 } from "@/lib/exercise-db";
 
 export const Route = createFileRoute("/exercises")({
@@ -35,12 +37,24 @@ const categories: Array<{ id: Category | "all"; label: string; icon: typeof Dumb
   { id: "mobility", label: "مرونة", icon: RefreshCcw },
 ];
 
+const roles: Array<{ id: TrainingRole | "all"; label: string }> = [
+  { id: "all", label: "كل الاستخدامات" },
+  { id: "warmup", label: "إحماء" },
+  { id: "main", label: "أساسي" },
+  { id: "accessory", label: "مساعد" },
+  { id: "core", label: "كور" },
+  { id: "cardio", label: "كارديو" },
+  { id: "mobility", label: "مرونة" },
+  { id: "cooldown", label: "تهدئة" },
+];
+
 const LEVEL_BARS = { beginner: 2, intermediate: 3, advanced: 5 } as const;
 const PAGE_SIZE = 48;
 const GIF_COUNT = EXERCISES.filter((exercise) => exercise.media.preferred === "gif" && Boolean(exercise.media.gif)).length;
 
 function ExerciseLibrary() {
   const [cat, setCat] = useState<Category | "all">("all");
+  const [role, setRole] = useState<TrainingRole | "all">("all");
   const [q, setQ] = useState("");
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
 
@@ -48,11 +62,13 @@ function ExerciseLibrary() {
     const query = q.trim().toLowerCase();
     return EXERCISES.filter((exercise) => {
       if (cat !== "all" && exercise.category !== cat) return false;
+      if (role !== "all" && exercise.trainingRole !== role) return false;
       if (!query) return true;
       const searchable = [
         exercise.name,
         exercise.latin,
         CATEGORY_LABEL_AR[exercise.category],
+        TRAINING_ROLE_LABEL_AR[exercise.trainingRole],
         ...exercise.primary.map((muscle) => MUSCLE_LABEL_AR[muscle]),
         ...exercise.equipment.map((equipment) => EQUIPMENT_LABEL_AR[equipment]),
       ]
@@ -60,7 +76,7 @@ function ExerciseLibrary() {
         .toLowerCase();
       return searchable.includes(query);
     });
-  }, [cat, q]);
+  }, [cat, q, role]);
 
   const visible = filtered.slice(0, visibleCount);
 
@@ -117,6 +133,32 @@ function ExerciseLibrary() {
         </div>
       </div>
 
+      <div className="mb-4 overflow-x-auto no-scrollbar" dir="rtl">
+        <div className="flex gap-2 px-6 w-max">
+          {roles.map((item) => {
+            const active = role === item.id;
+            return (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => {
+                  setRole(item.id);
+                  setVisibleCount(PAGE_SIZE);
+                }}
+                className={
+                  "shrink-0 rounded-full border px-3 py-2 text-[10px] font-bold transition-all " +
+                  (active
+                    ? "border-primary bg-primary/10 text-primary"
+                    : "border-border bg-surface text-muted-foreground")
+                }
+              >
+                {item.label}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
       <div className="px-6 mb-4 flex items-center justify-between gap-3 text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
         <span>{filtered.length} تمرين</span>
         <span className="text-primary">{GIF_COUNT} فيديو متحرك · {EXERCISES.length - GIF_COUNT} بإطارات</span>
@@ -160,6 +202,9 @@ function ExerciseLibrary() {
                   </div>
                   <div className="flex shrink-0 flex-col items-end gap-1">
                     <span className="type-caption text-primary">
+                      {TRAINING_ROLE_LABEL_AR[exercise.trainingRole]}
+                    </span>
+                    <span className="text-[9px] text-muted-foreground">
                       {CATEGORY_LABEL_AR[exercise.category]}
                     </span>
                     {exercise.media.preferred === "gif" ? (

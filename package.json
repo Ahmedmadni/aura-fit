@@ -10,7 +10,8 @@
     "preview": "vite preview",
     "lint": "eslint .",
     "format": "prettier --write .",
-    "media:validate": "node scripts/validate-exercise-media-map.mjs"
+    "media:validate": "node scripts/validate-exercise-media-map.mjs",
+    "workout:validate": "bun scripts/validate-workout-program.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",

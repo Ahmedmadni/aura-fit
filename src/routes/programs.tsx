@@ -1,171 +1,267 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
-import { Play, Clock, Flame, TrendingUp } from "lucide-react";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { useEffect, useMemo, useState } from "react";
+import {
+  CalendarDays,
+  CheckCircle2,
+  Clock,
+  Play,
+  Target,
+  TrendingUp,
+} from "lucide-react";
 import programHypertrophy from "@/assets/program-hypertrophy.jpg";
 import programMobility from "@/assets/program-mobility.jpg";
 import programCardio from "@/assets/program-cardio.jpg";
 import heroWorkout from "@/assets/hero-workout.jpg";
 import { BottomNav } from "@/components/bottom-nav";
 import { PageShell, PageHeader } from "@/components/page-shell";
+import {
+  PHASE_LABEL_AR,
+  generateWeeklyPlan,
+  getWeeklyMuscleCoverage,
+} from "@/lib/workout-engine";
+import { MUSCLE_LABEL_AR, type Goal } from "@/lib/exercise-db";
+import {
+  DEFAULT_PROFILE,
+  loadProfile,
+  type UserProfile,
+} from "@/lib/user-profile";
 
 export const Route = createFileRoute("/programs")({
   component: Programs,
 });
 
-const categories = [
-  "الكل",
-  "خسارة الوزن",
-  "بناء العضلات",
-  "كارديو",
-  "مرونة",
-  "تأهيل",
-  "منزل",
-  "كبار السن",
-];
-
-const programs = [
+const curated = [
   {
-    title: "تحويل ٣٠ يوم",
-    meta: "خسارة الوزن",
-    dur: "30 د",
-    burn: "420",
-    lvl: "متوسط",
-    img: heroWorkout,
-    tag: "الأكثر شعبية",
-  },
-  {
-    title: "تضخيم عضلي I",
-    meta: "بناء العضلات",
+    title: "تضخيم عضلي",
+    meta: "حجم أسبوعي أعلى",
     dur: "45 د",
-    burn: "380",
-    lvl: "متقدم",
+    lvl: "متوسط",
     img: programHypertrophy,
   },
   {
     title: "مرونة ديناميكية",
-    meta: "استشفاء",
+    meta: "حركة واستشفاء",
     dur: "20 د",
-    burn: "180",
     lvl: "مبتدئ",
     img: programMobility,
   },
   {
     title: "ذروة هوائية",
-    meta: "كارديو",
+    meta: "كارديو وتحمل",
     dur: "35 د",
-    burn: "540",
-    lvl: "متقدم",
+    lvl: "متوسط",
     img: programCardio,
-  },
-  {
-    title: "تأهيل الركبة",
-    meta: "تأهيل",
-    dur: "25 د",
-    burn: "150",
-    lvl: "علاجي",
-    img: programMobility,
-  },
-  {
-    title: "قوة منزلية",
-    meta: "بدون معدات",
-    dur: "30 د",
-    burn: "320",
-    lvl: "مبتدئ",
-    img: programHypertrophy,
   },
 ];
 
+const GOAL_LABELS: Record<Goal, string> = {
+  "fat-loss": "خفض الدهون",
+  "muscle-gain": "بناء العضلات",
+  strength: "القوة",
+  endurance: "التحمل",
+  mobility: "المرونة",
+  "general-fitness": "اللياقة العامة",
+};
+
 function Programs() {
-  const [active, setActive] = useState("الكل");
+  const [profile, setProfile] = useState<UserProfile>(DEFAULT_PROFILE);
+
+  useEffect(() => {
+    setProfile(loadProfile());
+  }, []);
+
+  const weekly = useMemo(() => generateWeeklyPlan(profile), [profile]);
+  const coverage = useMemo(() => getWeeklyMuscleCoverage(weekly), [weekly]);
+  const majorCoverage = coverage.filter((item) =>
+    ["chest", "back", "shoulders", "quads", "hamstrings", "glutes", "core"].includes(
+      item.muscle,
+    ),
+  );
+  const coveredTwice = majorCoverage.filter((item) => item.days >= 2).length;
+
   return (
     <PageShell>
-      <PageHeader eyebrow="المكتبة" title={"برامج\nمتكاملة"} />
+      <PageHeader eyebrow="الخطة الذكية" title={"أسبوعك\nالمتوازن"} />
 
-      {/* Categories */}
-      <div className="flex gap-2 overflow-x-auto no-scrollbar px-6 mb-6 animate-enter [animation-delay:100ms]">
-        {categories.map((c) => (
-          <button
-            key={c}
-            type="button"
-            onClick={() => setActive(c)}
-            className={`flex-shrink-0 px-4 py-2 rounded-full text-xs font-bold transition-all ${
-              active === c
-                ? "bg-primary text-primary-foreground"
-                : "bg-surface border border-border text-muted-foreground"
-            }`}
-          >
-            {c}
-          </button>
-        ))}
-      </div>
+      <section className="px-6 mb-6 animate-enter">
+        <div className="rounded-3xl border border-primary/25 bg-primary/5 p-5">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <p className="type-eyebrow text-primary">التوزيع الحالي</p>
+              <h2 className="type-section-title mt-1">
+                {profile.daysPerWeek} أيام · {profile.sessionMinutes} دقيقة
+              </h2>
+              <p className="type-small mt-2 text-muted-foreground">
+                الهدف: {profile.goals.map((goal) => GOAL_LABELS[goal]).join("، ") || "لياقة عامة"}
+              </p>
+            </div>
+            <CalendarDays className="size-6 shrink-0 text-primary" />
+          </div>
 
-      {/* Featured */}
+          <div className="mt-4 grid grid-cols-3 gap-2">
+            <SummaryStat label="جلسات" value={String(weekly.length)} />
+            <SummaryStat label="تغطية 2×" value={coveredTwice + "/" + majorCoverage.length} />
+            <SummaryStat
+              label="متوسط الجلسة"
+              value={
+                Math.round(
+                  weekly.reduce((sum, workout) => sum + workout.estimatedMinutes, 0) /
+                    Math.max(1, weekly.length),
+                ) + "د"
+              }
+            />
+          </div>
+        </div>
+      </section>
+
+      <section className="px-6 mb-8 animate-enter [animation-delay:100ms]">
+        <div className="mb-4 flex items-center justify-between">
+          <div>
+            <p className="type-eyebrow text-muted-foreground">اليوم داخل الأسبوع</p>
+            <h3 className="type-section-title">جلساتك بالترتيب</h3>
+          </div>
+          <Target className="size-5 text-primary" />
+        </div>
+
+        <div className="space-y-3">
+          {weekly.map((workout, index) => {
+            const phaseCounts = workout.exercises.reduce<Record<string, number>>(
+              (all, item) => {
+                all[item.phase] = (all[item.phase] ?? 0) + 1;
+                return all;
+              },
+              {},
+            );
+            return (
+              <article
+                key={workout.id}
+                className="rounded-2xl border border-border bg-surface/70 p-4"
+              >
+                <div className="flex items-start gap-3">
+                  <div className="grid size-10 shrink-0 place-items-center rounded-xl bg-primary text-sm font-black text-primary-foreground">
+                    {index + 1}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="type-card-title">{workout.title}</p>
+                        <p className="type-caption mt-1 text-muted-foreground">
+                          {workout.estimatedMinutes} دقيقة · ≈ {workout.estimatedCalories} سعرة
+                        </p>
+                      </div>
+                      <Link
+                        to="/workout"
+                        search={{ day: index }}
+                        className="grid size-9 shrink-0 place-items-center rounded-full bg-primary text-primary-foreground"
+                        aria-label={"ابدأ " + workout.title}
+                      >
+                        <Play className="size-3.5 fill-current" />
+                      </Link>
+                    </div>
+
+                    <div className="mt-3 flex flex-wrap gap-1.5">
+                      {workout.targetMuscles.slice(0, 7).map((muscle) => (
+                        <span
+                          key={muscle}
+                          className="rounded-full border border-border bg-background/70 px-2 py-1 text-[10px] text-muted-foreground"
+                        >
+                          {MUSCLE_LABEL_AR[muscle]}
+                        </span>
+                      ))}
+                    </div>
+
+                    <div className="mt-3 flex flex-wrap gap-x-3 gap-y-1 border-t border-border pt-3 text-[10px] text-muted-foreground">
+                      {(["warmup", "main", "accessory", "core", "cardio", "cooldown"] as const)
+                        .filter((phase) => phaseCounts[phase])
+                        .map((phase) => (
+                          <span key={phase}>
+                            {PHASE_LABEL_AR[phase]} {phaseCounts[phase]}
+                          </span>
+                        ))}
+                    </div>
+                  </div>
+                </div>
+              </article>
+            );
+          })}
+        </div>
+      </section>
+
+      <section className="px-6 mb-8 animate-enter [animation-delay:150ms]">
+        <div className="mb-4">
+          <p className="type-eyebrow text-muted-foreground">توزيع العضلات</p>
+          <h3 className="type-section-title">التغطية الأسبوعية</h3>
+        </div>
+        <div className="rounded-2xl border border-border bg-surface/70 p-4">
+          <div className="grid grid-cols-2 gap-3">
+            {majorCoverage.map((item) => (
+              <div key={item.muscle} className="rounded-xl bg-background/60 p-3">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-xs font-bold">{MUSCLE_LABEL_AR[item.muscle]}</p>
+                  {item.days >= 2 ? (
+                    <CheckCircle2 className="size-3.5 text-primary" />
+                  ) : (
+                    <span className="text-[9px] text-muted-foreground">مرة واحدة</span>
+                  )}
+                </div>
+                <p className="mt-1 font-mono text-lg font-black">{item.days}×</p>
+                <p className="text-[9px] text-muted-foreground">
+                  {item.directSets} مجموعات مباشرة
+                  {item.indirectSets ? " + " + item.indirectSets + " مساعدة" : ""}
+                </p>
+              </div>
+            ))}
+          </div>
+          <p className="type-caption mt-4 text-muted-foreground">
+            الهدف الافتراضي هو تكرار تعريض المجموعات العضلية الرئيسية مرتين أسبوعيًا متى سمح عدد أيام التدريب والمعدات.
+          </p>
+        </div>
+      </section>
+
       <section className="relative px-6 mb-8 animate-enter [animation-delay:200ms]">
         <div className="relative overflow-hidden rounded-3xl aspect-[16/10] bg-card border border-border">
           <img
             src={heroWorkout}
-            alt="البرنامج المميز"
-            className="absolute inset-0 w-full h-full object-cover opacity-70"
+            alt="برنامج تدريبي"
+            className="absolute inset-0 size-full object-cover opacity-65"
             width={832}
             height={520}
             loading="lazy"
           />
           <div className="absolute inset-0 bg-gradient-to-t from-background via-background/30 to-transparent" />
-          <div className="absolute bottom-0 p-5 w-full">
-            <span className="inline-block bg-primary text-primary-foreground text-[10px] font-black px-2 py-1 rounded-md uppercase mb-2">
-              مميز
+          <div className="absolute bottom-0 p-5">
+            <span className="inline-block rounded-md bg-primary px-2 py-1 text-[10px] font-black text-primary-foreground">
+              قابل للتخصيص
             </span>
-            <h2 className="text-2xl font-black leading-tight mb-1">تحدي ٩٠ يوم للتحول</h2>
-            <p className="text-xs text-white/70">برنامج شامل بالذكاء الاصطناعي مع مدرب افتراضي</p>
+            <h2 className="mt-2 text-2xl font-black">الخطة تتغير مع هدفك وجدولك</h2>
+            <p className="mt-1 text-xs text-white/70">
+              عدّل عدد الأيام والمدة والمعدات من إعداد ملفك ثم يعاد توزيع الأسبوع تلقائيًا.
+            </p>
           </div>
         </div>
       </section>
 
-      {/* Grid */}
-      <section className="relative px-6 mb-8 animate-enter [animation-delay:300ms]">
-        <h3 className="text-[10px] font-mono uppercase tracking-[0.2em] text-muted-foreground mb-4">
-          كل البرامج
-        </h3>
-        <div className="grid grid-cols-2 gap-3">
-          {programs.map((p) => (
-            <article
-              key={p.title}
-              className="group cursor-pointer rounded-2xl bg-surface border border-border overflow-hidden backdrop-blur-xl"
-            >
-              <div className="aspect-square relative">
+      <section className="px-6 mb-8">
+        <div className="mb-4 flex items-center justify-between">
+          <h3 className="type-section-title">أنماط إضافية</h3>
+          <TrendingUp className="size-4 text-primary" />
+        </div>
+        <div className="grid grid-cols-3 gap-2">
+          {curated.map((program) => (
+            <article key={program.title} className="overflow-hidden rounded-2xl border border-border bg-surface">
+              <div className="aspect-square">
                 <img
-                  src={p.img}
-                  alt={p.title}
-                  className="w-full h-full object-cover opacity-70 group-hover:opacity-90 transition-opacity"
+                  src={program.img}
+                  alt={program.title}
+                  className="size-full object-cover opacity-70"
                   loading="lazy"
-                  width={300}
-                  height={300}
                 />
-                <div className="absolute inset-0 bg-gradient-to-t from-background/80 to-transparent" />
-                {p.tag && (
-                  <span className="absolute top-2 right-2 bg-primary text-primary-foreground text-[9px] font-black px-2 py-0.5 rounded uppercase">
-                    {p.tag}
-                  </span>
-                )}
-                <div className="absolute bottom-2 left-2 size-8 rounded-full bg-primary text-primary-foreground grid place-items-center">
-                  <Play className="size-3 fill-current" />
-                </div>
               </div>
-              <div className="p-3">
-                <p className="text-[9px] font-mono uppercase tracking-widest text-muted-foreground mb-1">
-                  {p.meta}
-                </p>
-                <h4 className="text-sm font-black tracking-tight mb-2">{p.title}</h4>
-                <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
-                  <span className="inline-flex items-center gap-1">
-                    <Clock className="size-3" /> {p.dur}
-                  </span>
-                  <span className="inline-flex items-center gap-1">
-                    <Flame className="size-3" /> {p.burn}
-                  </span>
-                </div>
-                <div className="mt-2 flex items-center gap-1 text-[9px] text-primary font-bold">
-                  <TrendingUp className="size-3" /> {p.lvl}
+              <div className="p-2.5">
+                <p className="text-[9px] text-muted-foreground">{program.meta}</p>
+                <p className="mt-1 text-xs font-black">{program.title}</p>
+                <div className="mt-2 flex items-center gap-1 text-[9px] text-primary">
+                  <Clock className="size-3" /> {program.dur}
                 </div>
               </div>
             </article>
@@ -175,5 +271,14 @@ function Programs() {
 
       <BottomNav />
     </PageShell>
+  );
+}
+
+function SummaryStat({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-xl border border-border bg-background/50 p-3 text-center">
+      <p className="font-mono text-lg font-black">{value}</p>
+      <p className="text-[9px] text-muted-foreground">{label}</p>
+    </div>
   );
 }

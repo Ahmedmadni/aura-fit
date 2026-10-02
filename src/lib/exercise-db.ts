@@ -87,6 +87,15 @@ export type ExerciseType =
   | "distance_duration"
   | "assisted_bodyweight";
 
+export type TrainingRole =
+  | "warmup"
+  | "main"
+  | "accessory"
+  | "core"
+  | "cardio"
+  | "mobility"
+  | "cooldown";
+
 export type MatchConfidence = "exact" | "high" | "review" | "none";
 
 export interface ExerciseMedia {
@@ -144,6 +153,7 @@ export interface Exercise {
   reference: string;
   exerciseType: ExerciseType;
   isStretch: boolean;
+  trainingRole: TrainingRole;
   media: ExerciseMedia;
   descriptionAr: string;
   instructionsAr: string[];
@@ -391,6 +401,42 @@ function breathingFor(raw: SourceExercise) {
   return "ازفر أثناء مرحلة الجهد أو الدفع/السحب، وخذ شهيقًا أثناء العودة المتحكم بها.";
 }
 
+const WARMUP_EXERCISE_IDS = new Set([
+  "inchworm",
+  "arm-circles",
+  "leg-swings-stretch",
+  "torso-twist-stretch",
+  "worlds-greatest-stretch",
+  "high-knees",
+  "jumping-jack",
+]);
+
+const COOLDOWN_EXERCISE_IDS = new Set([
+  "cat-cow-stretch",
+  "doorway-chest-stretch",
+  "childs-pose",
+  "kneeling-hip-flexor-stretch",
+  "hamstring-stretch",
+  "standing-quad-stretch",
+  "seated-forward-fold-stretch",
+  "cross-body-shoulder-stretch",
+  "wall-calf-stretch",
+  "butterfly-stretch",
+]);
+
+const MAIN_MOVEMENT_PATTERN =
+  /(bench press|chest press|overhead press|shoulder press|push press|push-up|pull-up|chin-up|row|pulldown|deadlift|squat|leg press|lunge|split squat|step-up|hip thrust|glute bridge|dip|good morning|rack pull|landmine press|kettlebell swing)/;
+
+function trainingRoleFor(raw: SourceExercise): TrainingRole {
+  if (WARMUP_EXERCISE_IDS.has(raw.slug)) return "warmup";
+  if (COOLDOWN_EXERCISE_IDS.has(raw.slug)) return "cooldown";
+  if (raw.exerciseType === "distance_duration" || raw.equipment === "Cardio") return "cardio";
+  if (raw.primaryMuscle === "Core") return "core";
+  if (raw.isStretch || raw.primaryMuscle === "Mobility") return "mobility";
+  if (MAIN_MOVEMENT_PATTERN.test(raw.name.toLowerCase())) return "main";
+  return "accessory";
+}
+
 function categoryFor(raw: SourceExercise): Category {
   if (raw.isStretch || raw.primaryMuscle === "Mobility") return "mobility";
   if (raw.exerciseType === "distance_duration" || raw.equipment === "Cardio") return "cardio";
@@ -554,6 +600,7 @@ function toExercise(raw: SourceExercise): Exercise {
       : "Workout Guide (" + raw.name + ") — visual frames and structured exercise metadata.",
     exerciseType: raw.exerciseType,
     isStretch: raw.isStretch,
+    trainingRole: trainingRoleFor(raw),
     media: {
       preferred: hasVerifiedPreferredMedia ? "gif" : "frames",
       gif: hasVerifiedPreferredMedia ? resolvePreferredAsset(mediaMapping?.gif) : undefined,
@@ -601,7 +648,6 @@ export const EXERCISES: Exercise[] = BASE_EXERCISES.map((exercise) => ({
 const LEGACY_ID_ALIASES: Record<string, string> = {
   pushup: "push-up",
   pullup: "pull-up",
-  "bodyweight-squat": "squat",
   "dynamic-warmup": "inchworm",
   "static-cooldown": "cat-cow-stretch",
 };
@@ -675,6 +721,16 @@ export const EQUIPMENT_LABEL_AR: Record<Equipment, string> = {
   "stability-ball": "كرة ثبات",
 };
 
+
+export const TRAINING_ROLE_LABEL_AR: Record<TrainingRole, string> = {
+  warmup: "إحماء",
+  main: "تمرين أساسي",
+  accessory: "تمرين مساعد",
+  core: "كور",
+  cardio: "كارديو",
+  mobility: "حركة ومرونة",
+  cooldown: "تهدئة",
+};
 
 export const EXERCISE_TYPE_LABEL_AR: Record<ExerciseType, string> = {
   weight_reps: "مقاومة وتكرارات",
