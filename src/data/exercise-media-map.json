@@ -183,9 +183,14 @@
     "target": "delts"
   },
   "face-pull": {
-    "matchConfidence": "review",
-    "candidateSourceExerciseId": "0244",
-    "candidateSourceName": "cable twisting pull"
+    "source": "hasaneyldrm/exercises-dataset",
+    "sourceExerciseId": "0203",
+    "sourceName": "cable rear delt row (with rope)",
+    "gif": "videos/0203-wqNPGCg.gif",
+    "poster": "images/0203-wqNPGCg.jpg",
+    "matchConfidence": "high",
+    "equipment": "cable",
+    "target": "delts; trapezius/rhomboids muscle group"
   },
   "upright-row": {
     "source": "hasaneyldrm/exercises-dataset",
@@ -788,9 +793,14 @@
     "target": "delts"
   },
   "plate-front-raise": {
-    "matchConfidence": "review",
-    "candidateSourceExerciseId": "0387",
-    "candidateSourceName": "dumbbell seated alternate front raise"
+    "source": "hasaneyldrm/exercises-dataset",
+    "sourceExerciseId": "0834",
+    "sourceName": "weighted front raise",
+    "gif": "videos/0834-e4aFmFY.gif",
+    "poster": "images/0834-e4aFmFY.jpg",
+    "matchConfidence": "high",
+    "equipment": "weighted (GIF/poster visibly uses a weight plate)",
+    "target": "delts"
   },
   "bent-over-rear-delt-raise": {
     "source": "hasaneyldrm/exercises-dataset",

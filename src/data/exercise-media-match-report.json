@@ -5,13 +5,13 @@
   "sourceExerciseCount": 1324,
   "auraExerciseCount": 302,
   "exact": 79,
-  "high": 90,
-  "review": 79,
+  "high": 92,
+  "review": 77,
   "none": 54,
-  "activePreferredMedia": 169,
-  "previousActiveMedia": 168,
+  "activePreferredMedia": 171,
+  "previousActiveMedia": 169,
   "retainedPreviousMedia": 88,
-  "newlyVerifiedMedia": 81,
+  "newlyVerifiedMedia": 83,
   "demotedForQualityGate": [
     "cable-kickback",
     "donkey-calf-raise",
@@ -21,11 +21,12 @@
   ],
   "rule": "Only exact/high mappings are active. Review/none always use Workout Guide fallback.",
   "latestReviewBatch": {
-    "promoted": 1,
+    "promoted": 2,
     "promotedSlugs": [
-      "bodyweight-squat"
+      "face-pull",
+      "plate-front-raise"
     ],
-    "method": "full movement/instruction audit; source label differs but bodyweight squat mechanics, quadriceps muscle group, equipment and poster match"
+    "method": "GIF frame-by-frame visual verification plus equipment and muscle-set audit; source text labels differ but motion media matches"
   },
   "reviewBatches": [
     {
@@ -106,6 +107,13 @@
         "cross-body-shoulder-stretch"
       ],
       "method": "full local-dataset audit using source name, English instructions, equipment shown in media/instructions, target muscle and poster verification"
+    },
+    {
+      "promoted": 1,
+      "promotedSlugs": [
+        "bodyweight-squat"
+      ],
+      "method": "full movement/instruction audit; source label differs but bodyweight squat mechanics, quadriceps muscle group, equipment and poster match"
     }
   ]
 }
