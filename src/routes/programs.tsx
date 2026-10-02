@@ -15,6 +15,7 @@ import heroWorkout from "@/assets/hero-workout.jpg";
 import { BottomNav } from "@/components/bottom-nav";
 import { PageShell, PageHeader } from "@/components/page-shell";
 import {
+  PERIODIZATION_PHASE_LABEL_AR,
   PHASE_LABEL_AR,
   generateWeeklyPlan,
   generateWeeklySchedule,
@@ -96,6 +97,7 @@ function Programs() {
   );
   const coveredTwice = majorCoverage.filter((item) => item.days >= 2).length;
   const volumeOnTarget = volume.filter((item) => item.status === "target").length;
+  const periodization = weekly[0]?.periodization;
 
   return (
     <PageShell>
@@ -132,6 +134,81 @@ function Programs() {
           </div>
         </div>
       </section>
+
+      {periodization && (
+        <section className="px-6 mb-6 animate-enter [animation-delay:80ms]">
+          <div
+            className={
+              "rounded-2xl border p-4 " +
+              (periodization.phase === "deload"
+                ? "border-cyan/30 bg-cyan/5"
+                : "border-primary/25 bg-primary/5")
+            }
+          >
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="type-eyebrow text-muted-foreground">
+                  الدورة التدريبية · أسبوع {periodization.cycleWeek}/4
+                </p>
+                <h3 className="type-section-title mt-1">
+                  {PERIODIZATION_PHASE_LABEL_AR[periodization.phase]}
+                </h3>
+              </div>
+              <span className="rounded-full border border-border bg-background/60 px-2.5 py-1 text-[9px] font-bold text-muted-foreground">
+                RIR {periodization.targetRir}
+              </span>
+            </div>
+
+            <p className="type-small mt-3 leading-relaxed text-muted-foreground">
+              {periodization.description}
+            </p>
+
+            <div className="mt-4 grid grid-cols-4 gap-2">
+              {[
+                ["accumulation", "تراكم"],
+                ["progression", "تقدم"],
+                ["intensification", "تكثيف"],
+                ["deload", "تخفيف"],
+              ].map(([phase, label], index) => {
+                const active = periodization.phase === phase;
+                const passed =
+                  periodization.trigger === "cycle" &&
+                  index + 1 < periodization.cycleWeek;
+                return (
+                  <div key={phase} className="text-center">
+                    <div
+                      className={
+                        "mx-auto h-1.5 rounded-full transition-all " +
+                        (active
+                          ? "bg-primary"
+                          : passed
+                            ? "bg-primary/40"
+                            : "bg-white/10")
+                      }
+                    />
+                    <p
+                      className={
+                        "mt-1.5 text-[8px] font-bold " +
+                        (active ? "text-primary" : "text-muted-foreground")
+                      }
+                    >
+                      {label}
+                    </p>
+                  </div>
+                );
+              })}
+            </div>
+
+            {periodization.trigger !== "cycle" && (
+              <p className="mt-3 rounded-xl border border-border bg-background/50 p-2.5 text-[9px] leading-relaxed text-muted-foreground">
+                {periodization.trigger === "recovery"
+                  ? "تم تجاوز ترتيب الدورة مؤقتًا بسبب مؤشرات الاستشفاء."
+                  : "تم تفعيل Deload مبكر بعد ظهور Plateau متزامن في أكثر من تمرين محمّل."}
+              </p>
+            )}
+          </div>
+        </section>
+      )}
 
       <section className="px-6 mb-8 animate-enter [animation-delay:100ms]">
         <div className="mb-4 flex items-center justify-between">

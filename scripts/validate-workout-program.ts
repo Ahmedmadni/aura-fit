@@ -1,7 +1,9 @@
 import {
+  generateMonthlyProgram,
   generateWeeklyPlan,
   generateWeeklySchedule,
   getExerciseProgressionPrescription,
+  getPeriodizationPlan,
   getTrainingAdaptation,
   getWeeklyMuscleCoverage,
   getWeeklyVolumeStatus,
@@ -247,6 +249,130 @@ if (risingAnalysis?.plateau) {
   fail("rising strength history must not be marked as plateau");
 }
 
+const monthlyCycle = generateMonthlyProgram(
+  strongProfile,
+  strongHistory,
+);
+const cyclePhases = monthlyCycle.map(
+  (week) => week[0]?.periodization.phase,
+);
+const expectedCycle = [
+  "accumulation",
+  "progression",
+  "intensification",
+  "deload",
+];
+if (cyclePhases.join(",") !== expectedCycle.join(",")) {
+  fail(
+    `4-week periodization sequence mismatch: ${cyclePhases.join(",")}`,
+  );
+}
+
+const phaseStrengthSets = monthlyCycle.map((week) =>
+  week
+    .flatMap((workout) => workout.exercises)
+    .filter((item) =>
+      ["main", "accessory", "core"].includes(item.phase),
+    )
+    .reduce((sum, item) => sum + item.sets, 0),
+);
+if (phaseStrengthSets[3] >= phaseStrengthSets[0]) {
+  fail(
+    `deload volume must be lower than accumulation: ${phaseStrengthSets[0]} -> ${phaseStrengthSets[3]}`,
+  );
+}
+
+const accumulationMain = monthlyCycle[0]
+  .flatMap((workout) => workout.exercises)
+  .find((item) => item.phase === "main" && item.trackLoad);
+const intensificationMain = monthlyCycle[2]
+  .flatMap((workout) => workout.exercises)
+  .find(
+    (item) =>
+      item.phase === "main" &&
+      item.trackLoad &&
+      item.exercise.id === accumulationMain?.exercise.id,
+  );
+
+function repRangeLow(value?: string) {
+  const match = value?.match(/\d+/);
+  return match ? Number(match[0]) : Number.POSITIVE_INFINITY;
+}
+
+if (
+  !accumulationMain ||
+  !intensificationMain ||
+  repRangeLow(intensificationMain.reps) >=
+    repRangeLow(accumulationMain.reps)
+) {
+  fail(
+    `intensification should use a lower main rep range than accumulation: ${accumulationMain?.reps} -> ${intensificationMain?.reps}`,
+  );
+}
+if (
+  accumulationMain &&
+  intensificationMain &&
+  intensificationMain.restSeconds <= accumulationMain.restSeconds
+) {
+  fail(
+    `intensification should have longer rest: ${accumulationMain.restSeconds} -> ${intensificationMain.restSeconds}`,
+  );
+}
+if (
+  monthlyCycle[3].some(
+    (workout) =>
+      !workout.isDeload ||
+      workout.periodization.targetRir !== "3-4",
+  )
+) {
+  fail("week 4 must be a deload with target RIR 3-4");
+}
+
+const recoveryPeriodization = getPeriodizationPlan(
+  0,
+  poorProfile,
+  poorHistory,
+);
+if (
+  recoveryPeriodization.phase !== "deload" ||
+  recoveryPeriodization.trigger !== "recovery"
+) {
+  fail(
+    `recovery should override cycle into deload, got ${recoveryPeriodization.phase}/${recoveryPeriodization.trigger}`,
+  );
+}
+
+const multiPlateauHistory = plateauHistory.map((workout) => ({
+  ...workout,
+  exercises: [
+    ...workout.exercises,
+    {
+      id: "squat",
+      sets: 3,
+      reps: "6-8",
+      completed: true,
+      setReps: [8, 8, 8],
+      setLoadsKg: [100, 100, 100],
+      setRir: [2, 2, 2],
+      setRpe: [8, 8, 8],
+    },
+  ],
+}));
+const plateauPeriodization = getPeriodizationPlan(
+  2,
+  strongProfile,
+  multiPlateauHistory,
+);
+if (
+  plateauPeriodization.phase !== "deload" ||
+  plateauPeriodization.trigger !== "plateau" ||
+  plateauPeriodization.plateauCount < 2
+) {
+  fail(
+    `two simultaneous plateaus in intensification should trigger early deload, got ${plateauPeriodization.phase}/${plateauPeriodization.trigger} plateaus=${plateauPeriodization.plateauCount}`,
+  );
+}
+
 const progressPlan = generateWeeklyPlan(strongProfile, strongHistory);
 if (!progressPlan.every((workout) => workout.adaptation.mode === "progress")) {
   fail("progress history was not propagated to every generated workout");
@@ -270,7 +396,7 @@ if (recoveryStrengthSets >= progressStrengthSets) {
 }
 
 console.log(
-  `adaptive checks: progress readiness=${progressAdaptation.readinessScore}, recovery readiness=${recoveryAdaptation.readinessScore}, strength sets ${progressStrengthSets}->${recoveryStrengthSets}, load 70->${loadPrescription.suggestedLoadKg}kg, e1RM=${e1rm}kg, plateau=${plateauAnalysis?.plateau}, trend=${risingAnalysis?.trend}`,
+  `adaptive checks: progress readiness=${progressAdaptation.readinessScore}, recovery readiness=${recoveryAdaptation.readinessScore}, strength sets ${progressStrengthSets}->${recoveryStrengthSets}, load 70->${loadPrescription.suggestedLoadKg}kg, e1RM=${e1rm}kg, plateau=${plateauAnalysis?.plateau}, trend=${risingAnalysis?.trend}, cycle=${cyclePhases.join(">")}, cycleSets=${phaseStrengthSets.join(">")}, recoveryPhase=${recoveryPeriodization.phase}, plateauTrigger=${plateauPeriodization.trigger}`,
 );
 
 for (const daysPerWeek of [2, 3, 4, 5, 6]) {

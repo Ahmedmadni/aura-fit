@@ -16,7 +16,11 @@ import {
   type Level,
   type Muscle,
 } from "./exercise-db";
-import type { CompletedWorkout, UserProfile } from "./user-profile";
+import {
+  exerciseStrengthAnalyses,
+  type CompletedWorkout,
+  type UserProfile,
+} from "./user-profile";
 
 export type TrainingPhase =
   | "warmup"
@@ -27,6 +31,27 @@ export type TrainingPhase =
   | "cooldown";
 
 export type AdaptationMode = "progress" | "maintain" | "recovery";
+export type PeriodizationPhase =
+  | "accumulation"
+  | "progression"
+  | "intensification"
+  | "deload";
+export type PeriodizationTrigger = "cycle" | "recovery" | "plateau";
+
+export interface PeriodizationPlan {
+  phase: PeriodizationPhase;
+  trigger: PeriodizationTrigger;
+  cycleWeek: 1 | 2 | 3 | 4;
+  cycleLength: 4;
+  volumeFactor: number;
+  restFactor: number;
+  intensityDelta: number;
+  targetRir: string;
+  title: string;
+  description: string;
+  plateauCount: number;
+}
+
 export type ProgressionAction =
   | "build-reps"
   | "increase-load"
@@ -72,6 +97,7 @@ export interface GeneratedWorkout {
   intensity: number;
   isDeload: boolean;
   adaptation: TrainingAdaptation;
+  periodization: PeriodizationPlan;
   rationale: string;
 }
 
@@ -133,6 +159,124 @@ const TRAINING_DAY_PATTERNS: Record<number, number[]> = {
   5: [0, 1, 2, 4, 5],
   6: [0, 1, 2, 3, 4, 5],
 };
+
+export const PERIODIZATION_PHASE_LABEL_AR: Record<
+  PeriodizationPhase,
+  string
+> = {
+  accumulation: "تراكم الحجم",
+  progression: "تقدّم",
+  intensification: "تكثيف",
+  deload: "تخفيف واستشفاء",
+};
+
+function basePeriodizationPhase(week: number): PeriodizationPhase {
+  const cycleIndex = ((Math.floor(week) % 4) + 4) % 4;
+  if (cycleIndex === 0) return "accumulation";
+  if (cycleIndex === 1) return "progression";
+  if (cycleIndex === 2) return "intensification";
+  return "deload";
+}
+
+export function getPeriodizationPlan(
+  week: number,
+  profile: UserProfile,
+  history: CompletedWorkout[] = [],
+  adaptation = getTrainingAdaptation(profile, history),
+): PeriodizationPlan {
+  const cycleIndex = ((Math.floor(week) % 4) + 4) % 4;
+  const cycleWeek = (cycleIndex + 1) as 1 | 2 | 3 | 4;
+  const basePhase = basePeriodizationPhase(week);
+  const analyses = exerciseStrengthAnalyses(history);
+  const plateauCount = analyses.filter((item) => item.plateau).length;
+
+  let phase = basePhase;
+  let trigger: PeriodizationTrigger = "cycle";
+
+  if (adaptation.mode === "recovery") {
+    phase = "deload";
+    trigger = "recovery";
+  } else if (basePhase === "intensification" && plateauCount >= 2) {
+    phase = "deload";
+    trigger = "plateau";
+  }
+
+  if (phase === "accumulation") {
+    return {
+      phase,
+      trigger,
+      cycleWeek,
+      cycleLength: 4,
+      volumeFactor: 1.08,
+      restFactor: 0.95,
+      intensityDelta: -3,
+      targetRir: "2-3",
+      title: "أسبوع تراكم الحجم",
+      description:
+        "حجم تدريبي أعلى نسبيًا مع تكرارات متوسطة، بهدف بناء قاعدة عمل قبل رفع الشدة.",
+      plateauCount,
+    };
+  }
+
+  if (phase === "progression") {
+    return {
+      phase,
+      trigger,
+      cycleWeek,
+      cycleLength: 4,
+      volumeFactor: 1,
+      restFactor: 1,
+      intensityDelta: 1,
+      targetRir: "2",
+      title: "أسبوع التقدم",
+      description:
+        "نحافظ على حجم متوازن ونسمح ببناء التكرارات أو زيادة الحمل فقط عندما يثبت الأداء وRIR.",
+      plateauCount,
+    };
+  }
+
+  if (phase === "intensification") {
+    return {
+      phase,
+      trigger,
+      cycleWeek,
+      cycleLength: 4,
+      volumeFactor: 0.88,
+      restFactor: 1.15,
+      intensityDelta: 7,
+      targetRir: "1-2",
+      title: "أسبوع التكثيف",
+      description:
+        "حجم أقل قليلًا مع نطاق تكرارات أخفض وراحة أطول، مع بقاء زيادة الحمل مشروطة بجودة الأداء.",
+      plateauCount,
+    };
+  }
+
+  return {
+    phase: "deload",
+    trigger,
+    cycleWeek,
+    cycleLength: 4,
+    volumeFactor: trigger === "recovery" ? 0.58 : 0.65,
+    restFactor: trigger === "recovery" ? 1 : 1.1,
+    intensityDelta: trigger === "recovery" ? -16 : -13,
+    targetRir: "3-4",
+    title:
+      trigger === "recovery"
+        ? "تخفيف بسبب الاستشفاء"
+        : trigger === "plateau"
+          ? "تخفيف مبكر بسبب Plateau"
+          : "أسبوع Deload",
+    description:
+      trigger === "recovery"
+        ? "تم تحويل الأسبوع مؤقتًا إلى جرعة استشفائية لأن مؤشرات الجاهزية لا تدعم التصعيد."
+        : trigger === "plateau"
+          ? "تزامن Plateau في أكثر من تمرين محمّل خلال أسبوع التكثيف؛ تم خفض الجرعة بدل زيادة الضغط."
+          : "خفض مخطط للحجم والشدة قبل بدء دورة جديدة.",
+    plateauCount,
+  };
+}
+
 
 function clampScore(value: number) {
   return Math.max(0, Math.min(100, Math.round(value)));
@@ -544,12 +688,21 @@ export function getWeeklyVolumeTargets(
   profile: UserProfile,
   isDeload = false,
   adaptationMode: AdaptationMode = "maintain",
+  periodization?: PeriodizationPlan,
 ): MuscleVolumeTarget[] {
   const base = baseVolumeForLevel(profile.level);
   const adjustment = goalVolumeAdjustment(profile.goals);
   const adaptationFactor =
-    adaptationMode === "recovery" ? 0.78 : adaptationMode === "progress" ? 1.05 : 1;
-  const deloadFactor = isDeload ? 0.65 : adaptationFactor;
+    adaptationMode === "recovery"
+      ? 0.78
+      : adaptationMode === "progress"
+        ? 1.05
+        : 1;
+  const deloadFactor = periodization
+    ? periodization.volumeFactor
+    : isDeload
+      ? 0.65
+      : adaptationFactor;
 
   return MAJOR_MUSCLES.map((muscle) => {
     const coreFactor = muscle === "core" ? 0.75 : 1;
@@ -838,26 +991,71 @@ function setsFor(
   phase: TrainingPhase,
   isDeload: boolean,
   adaptation: TrainingAdaptation,
+  periodization: PeriodizationPlan,
 ) {
   if (phase === "warmup" || phase === "cooldown" || phase === "cardio") return 1;
   if (phase === "core") return isDeload ? 1 : 2;
   let sets = phase === "main" ? (profile.level === "beginner" ? 2 : 3) : profile.level === "advanced" ? 3 : 2;
   if (profile.goals.includes("muscle-gain") && phase === "main") sets += 1;
   if (profile.goals.includes("strength") && phase === "main") sets = Math.max(3, sets);
+  if (
+    periodization.phase === "accumulation" &&
+    phase === "accessory" &&
+    profile.sessionMinutes >= 45
+  ) {
+    sets += 1;
+  }
   if (isDeload) sets = Math.max(1, sets - 1);
   if (adaptation.mode === "recovery") sets = Math.max(1, sets - 1);
   return sets;
 }
 
-function repsFor(exercise: Exercise, profile: UserProfile, phase: TrainingPhase) {
+function repsFor(
+  exercise: Exercise,
+  profile: UserProfile,
+  phase: TrainingPhase,
+  periodization: PeriodizationPlan,
+) {
   if (phase === "warmup") return "45-60 ثانية";
   if (phase === "cooldown") return "30-45 ثانية";
   if (phase === "cardio") return "5-10 دقائق";
-  if (exercise.exerciseType === "duration" || phase === "core") return exercise.recommendedReps;
-  if (profile.goals.includes("strength") && phase === "main") return "5-8";
-  if (profile.goals.includes("muscle-gain")) return "8-12";
-  if (profile.goals.includes("endurance") || profile.goals.includes("fat-loss")) return "12-15";
-  return exercise.recommendedReps;
+  if (exercise.exerciseType === "duration" || phase === "core") {
+    return exercise.recommendedReps;
+  }
+
+  const weighted =
+    exercise.exerciseType === "weight_reps" ||
+    exercise.equipment.some((item) => LOAD_TRACKED_EQUIPMENT.has(item));
+  if (!weighted) return exercise.recommendedReps;
+
+  if (periodization.phase === "deload") {
+    return phase === "main" ? "8-10" : "10-12";
+  }
+
+  if (profile.goals.includes("strength") && phase === "main") {
+    if (periodization.phase === "accumulation") return "6-8";
+    if (periodization.phase === "progression") return "5-7";
+    return "3-5";
+  }
+
+  if (profile.goals.includes("muscle-gain")) {
+    if (periodization.phase === "accumulation") return "10-15";
+    if (periodization.phase === "progression") return "8-12";
+    return phase === "main" ? "6-8" : "8-10";
+  }
+
+  if (
+    profile.goals.includes("endurance") ||
+    profile.goals.includes("fat-loss")
+  ) {
+    if (periodization.phase === "accumulation") return "12-15";
+    if (periodization.phase === "progression") return "10-15";
+    return "8-12";
+  }
+
+  if (periodization.phase === "accumulation") return "10-12";
+  if (periodization.phase === "progression") return "8-10";
+  return phase === "main" ? "6-8" : "8-10";
 }
 
 function planned(
@@ -866,9 +1064,10 @@ function planned(
   profile: UserProfile,
   isDeload: boolean,
   adaptation: TrainingAdaptation,
+  periodization: PeriodizationPlan,
   history: CompletedWorkout[],
 ): PlannedExercise {
-  const baseReps = repsFor(exercise, profile, phase);
+  const baseReps = repsFor(exercise, profile, phase, periodization);
   const prescription =
     phase === "main" || phase === "accessory" || phase === "core"
       ? getExerciseProgressionPrescription(
@@ -885,7 +1084,7 @@ function planned(
               ? "استخدم إيقاعًا مريحًا وحافظ على التنفس وجودة الحركة."
               : "حافظ على الإيقاع والتقنية المستهدفة.",
           trackLoad: false,
-          targetRir: adaptation.mode === "recovery" ? "3-4" : "2-3",
+          targetRir: periodization.targetRir,
         };
 
   const baseRest =
@@ -898,12 +1097,16 @@ function planned(
   return {
     exercise,
     phase,
-    sets: setsFor(profile, phase, isDeload, adaptation),
+    sets: setsFor(profile, phase, isDeload, adaptation, periodization),
     reps: prescription.reps,
     restSeconds:
       baseRest === 0
         ? 0
-        : Math.round(baseRest * (isDeload ? 1.15 : adaptation.restFactor)),
+        : Math.round(
+            baseRest *
+              adaptation.restFactor *
+              periodization.restFactor,
+          ),
     workSeconds:
       phase === "warmup"
         ? 60
@@ -919,12 +1122,18 @@ function planned(
               )
             : 45,
     progressionAction: prescription.action,
-    progressionNote: prescription.note,
+    progressionNote: prescription.note.replace(
+      "RIR مستهدف 2–3",
+      `RIR مستهدف ${periodization.targetRir}`,
+    ),
     trackLoad: prescription.trackLoad,
     lastLoadKg: prescription.lastLoadKg,
     suggestedLoadKg: prescription.suggestedLoadKg,
     loadStepKg: prescription.loadStepKg,
-    targetRir: prescription.targetRir,
+    targetRir:
+      adaptation.mode === "recovery"
+        ? "3-4"
+        : periodization.targetRir,
   };
 }
 
@@ -955,9 +1164,10 @@ function generateForBlueprint(
   week: number,
   usedAcrossWeek: Set<string>,
   adaptation: TrainingAdaptation,
+  periodization: PeriodizationPlan,
   history: CompletedWorkout[],
 ): GeneratedWorkout {
-  const isDeload = week % 4 === 3;
+  const isDeload = periodization.phase === "deload";
   const targetMinutes = Math.max(20, profile.sessionMinutes);
   const mainCount = Math.max(3, Math.min(5, Math.floor((targetMinutes - 10) / 5)));
   const accessoryCount = targetMinutes >= 50 ? 2 : targetMinutes >= 30 ? 1 : 0;
@@ -965,7 +1175,7 @@ function generateForBlueprint(
   const result: PlannedExercise[] = [];
 
   for (const ex of chooseFromIds(warmupIds(blueprint), profile, usedSession, 2)) {
-    result.push(planned(ex, "warmup", profile, isDeload, adaptation, history));
+    result.push(planned(ex, "warmup", profile, isDeload, adaptation, periodization, history));
   }
 
   for (const target of blueprint.mainTargets) {
@@ -974,7 +1184,7 @@ function generateForBlueprint(
     if (!ex) continue;
     usedSession.add(ex.id);
     usedAcrossWeek.add(ex.id);
-    result.push(planned(ex, "main", profile, isDeload, adaptation, history));
+    result.push(planned(ex, "main", profile, isDeload, adaptation, periodization, history));
   }
 
   for (const target of blueprint.accessoryTargets) {
@@ -983,7 +1193,7 @@ function generateForBlueprint(
     if (!ex) continue;
     usedSession.add(ex.id);
     usedAcrossWeek.add(ex.id);
-    result.push(planned(ex, "accessory", profile, isDeload, adaptation, history));
+    result.push(planned(ex, "accessory", profile, isDeload, adaptation, periodization, history));
   }
 
   if (blueprint.includeCore && targetMinutes >= 25) {
@@ -991,7 +1201,7 @@ function generateForBlueprint(
     if (core) {
       usedSession.add(core.id);
       usedAcrossWeek.add(core.id);
-      result.push(planned(core, "core", profile, isDeload, adaptation, history));
+      result.push(planned(core, "core", profile, isDeload, adaptation, periodization, history));
     }
   }
 
@@ -1010,12 +1220,12 @@ function generateForBlueprint(
     if (cardio) {
       usedSession.add(cardio.id);
       usedAcrossWeek.add(cardio.id);
-      result.push(planned(cardio, "cardio", profile, isDeload, adaptation, history));
+      result.push(planned(cardio, "cardio", profile, isDeload, adaptation, periodization, history));
     }
   }
 
   for (const ex of chooseFromIds(cooldownIds(blueprint), profile, usedSession, 2)) {
-    result.push(planned(ex, "cooldown", profile, isDeload, adaptation, history));
+    result.push(planned(ex, "cooldown", profile, isDeload, adaptation, periodization, history));
   }
 
   const estimatedMinutes = Math.round(
@@ -1039,7 +1249,13 @@ function generateForBlueprint(
       ? 35
       : strengthItems.reduce((sum, item) => sum + LEVEL_RANK[item.exercise.level] * 22, 0) /
         strengthItems.length;
-  const intensity = Math.max(20, Math.min(100, Math.round(intensityBase + (isDeload ? -12 : 12))));
+  const intensity = Math.max(
+    20,
+    Math.min(
+      100,
+      Math.round(intensityBase + 12 + periodization.intensityDelta),
+    ),
+  );
 
   return {
     id: `w-${week}-${dayIndex}-${blueprint.key}`,
@@ -1058,9 +1274,10 @@ function generateForBlueprint(
           : intensity,
     isDeload,
     adaptation,
+    periodization,
     rationale: isDeload
-      ? "تم خفض المجموعات مع الحفاظ على نمط الحركة والتغطية العضلية لتسهيل الاستشفاء."
-      : `جلسة ${blueprint.title} ضمن توزيع ${profile.daysPerWeek} أيام أسبوعيًا؛ تبدأ بإحماء موجه، ثم حركات أساسية، ثم مساعدة/كور، وتنتهي بتهدئة.`,
+      ? periodization.description
+      : `${periodization.description} جلسة ${blueprint.title} ضمن توزيع ${profile.daysPerWeek} أيام أسبوعيًا.`,
   };
 }
 
@@ -1092,9 +1309,16 @@ function tuneWeeklyVolume(
   workouts: GeneratedWorkout[],
   profile: UserProfile,
   adaptation: TrainingAdaptation,
+  periodization: PeriodizationPlan,
 ): GeneratedWorkout[] {
-  const isDeload = workouts.length > 0 && workouts.every((workout) => workout.isDeload);
-  const targets = getWeeklyVolumeTargets(profile, isDeload, adaptation.mode);
+  const isDeload =
+    workouts.length > 0 && workouts.every((workout) => workout.isDeload);
+  const targets = getWeeklyVolumeTargets(
+    profile,
+    isDeload,
+    adaptation.mode,
+    periodization,
+  );
   const cloned = workouts.map((workout) => ({
     ...workout,
     exercises: workout.exercises.map((item) => ({ ...item })),
@@ -1270,6 +1494,12 @@ function buildWeeklyPlan(
   const blueprints = blueprintsFor(profile.daysPerWeek);
   const usedAcrossWeek = new Set<string>();
   const adaptation = getTrainingAdaptation(profile, history);
+  const periodization = getPeriodizationPlan(
+    week,
+    profile,
+    history,
+    adaptation,
+  );
   const base = blueprints.map((blueprint, index) =>
     generateForBlueprint(
       profile,
@@ -1278,10 +1508,11 @@ function buildWeeklyPlan(
       week,
       usedAcrossWeek,
       adaptation,
+      periodization,
       history,
     ),
   );
-  return tuneWeeklyVolume(base, profile, adaptation);
+  return tuneWeeklyVolume(base, profile, adaptation, periodization);
 }
 
 export function generateWeeklySchedule(
@@ -1390,9 +1621,16 @@ export function getWeeklyVolumeStatus(
   profile: UserProfile,
 ): MuscleVolumeStatus[] {
   const coverage = getWeeklyMuscleCoverage(workouts);
-  const isDeload = workouts.length > 0 && workouts.every((workout) => workout.isDeload);
+  const isDeload =
+    workouts.length > 0 && workouts.every((workout) => workout.isDeload);
   const adaptationMode = workouts[0]?.adaptation.mode ?? "maintain";
-  const targets = getWeeklyVolumeTargets(profile, isDeload, adaptationMode);
+  const periodization = workouts[0]?.periodization;
+  const targets = getWeeklyVolumeTargets(
+    profile,
+    isDeload,
+    adaptationMode,
+    periodization,
+  );
 
   return targets.map((target) => {
     const current =

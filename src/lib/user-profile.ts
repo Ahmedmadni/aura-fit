@@ -48,6 +48,13 @@ export interface CompletedWorkout {
   /** Adaptive programming snapshot used for this completed session. */
   adaptationMode?: "progress" | "maintain" | "recovery";
   readinessScore?: number;
+  /** Periodization context used for this completed session. */
+  periodizationPhase?:
+    | "accumulation"
+    | "progression"
+    | "intensification"
+    | "deload";
+  periodizationCycleWeek?: 1 | 2 | 3 | 4;
 }
 
 const P_KEY = "kp.profile";

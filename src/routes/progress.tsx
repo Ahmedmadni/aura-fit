@@ -21,7 +21,11 @@ import {
   loadHistory,
   loadProfile,
 } from "@/lib/user-profile";
-import { getTrainingAdaptation } from "@/lib/workout-engine";
+import {
+  PERIODIZATION_PHASE_LABEL_AR,
+  generateWeeklyPlan,
+  getTrainingAdaptation,
+} from "@/lib/workout-engine";
 
 export const Route = createFileRoute("/progress")({
   head: () => ({
@@ -57,6 +61,10 @@ function Progress() {
   const strength = useMemo(
     () => exerciseStrengthAnalyses(history),
     [history],
+  );
+  const currentPeriodization = useMemo(
+    () => generateWeeklyPlan(profile, history)[0]?.periodization,
+    [profile, history],
   );
   const dailyBests = useMemo(
     () => dailyExerciseBests(history, selectedDay),
@@ -171,6 +179,62 @@ function Progress() {
           </div>
         </div>
       </section>
+
+      {currentPeriodization && (
+        <section className="relative px-6 mb-6 animate-enter [animation-delay:70ms]">
+          <div
+            className={
+              "rounded-2xl border p-4 " +
+              (currentPeriodization.phase === "deload"
+                ? "border-cyan/30 bg-cyan/5"
+                : "border-primary/25 bg-primary/5")
+            }
+          >
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
+                  الدورة الحالية · {currentPeriodization.cycleWeek}/4
+                </p>
+                <h3 className="mt-1 text-lg font-black">
+                  {PERIODIZATION_PHASE_LABEL_AR[currentPeriodization.phase]}
+                </h3>
+              </div>
+              <p className="font-mono text-sm font-black">
+                RIR {currentPeriodization.targetRir}
+              </p>
+            </div>
+            <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
+              {currentPeriodization.description}
+            </p>
+            <div className="mt-4 grid grid-cols-4 gap-2">
+              {["1", "2", "3", "4"].map((week) => {
+                const active =
+                  Number(week) === currentPeriodization.cycleWeek;
+                return (
+                  <div key={week} className="text-center">
+                    <div
+                      className={
+                        "h-1.5 rounded-full " +
+                        (active ? "bg-primary" : "bg-white/10")
+                      }
+                    />
+                    <p
+                      className={
+                        "mt-1 text-[8px] " +
+                        (active
+                          ? "font-black text-primary"
+                          : "text-muted-foreground")
+                      }
+                    >
+                      W{week}
+                    </p>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </section>
+      )}
 
       <section className="relative px-6 mb-7 animate-enter [animation-delay:80ms]">
         <div className="mb-3 flex items-end justify-between gap-3">
@@ -498,11 +562,18 @@ function Progress() {
                     {workout.performance}%
                   </p>
                   <p className="text-[9px] text-muted-foreground">
-                    {workout.adaptationMode === "progress"
-                      ? "تقدّم"
-                      : workout.adaptationMode === "recovery"
-                        ? "استشفاء"
-                        : "ثبات"}
+                    {workout.periodizationPhase
+                      ? PERIODIZATION_PHASE_LABEL_AR[
+                          workout.periodizationPhase
+                        ] +
+                        (workout.periodizationCycleWeek
+                          ? " · W" + workout.periodizationCycleWeek
+                          : "")
+                      : workout.adaptationMode === "progress"
+                        ? "تقدّم"
+                        : workout.adaptationMode === "recovery"
+                          ? "استشفاء"
+                          : "ثبات"}
                   </p>
                 </div>
               </div>

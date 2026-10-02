@@ -14,6 +14,7 @@ import {
   sfxTick,
 } from "@/lib/workout-audio";
 import {
+  PERIODIZATION_PHASE_LABEL_AR,
   PHASE_LABEL_AR,
   generateWorkout,
   type PlannedExercise,
@@ -207,6 +208,8 @@ function WorkoutPlayer() {
       performance: Math.round((completed.size / total) * 100),
       adaptationMode: workout.adaptation.mode,
       readinessScore: workout.adaptation.readinessScore,
+      periodizationPhase: workout.periodization.phase,
+      periodizationCycleWeek: workout.periodization.cycleWeek,
     });
     checkNewAchievements([]);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -364,6 +367,31 @@ function WorkoutPlayer() {
           <p className="mt-2 text-[10px] leading-relaxed text-muted-foreground">
             {workout.adaptation.reason}
           </p>
+          <div className="mt-3 flex items-center justify-between gap-3 border-t border-border pt-3">
+            <div>
+              <p className="text-[9px] text-muted-foreground">
+                دورة 4 أسابيع · الأسبوع {workout.periodization.cycleWeek}
+              </p>
+              <p className="mt-0.5 text-xs font-black">
+                {PERIODIZATION_PHASE_LABEL_AR[workout.periodization.phase]}
+              </p>
+            </div>
+            <div className="text-left">
+              <p className="font-mono text-xs font-black">
+                RIR {workout.periodization.targetRir}
+              </p>
+              <p className="text-[8px] text-muted-foreground">
+                هدف المرحلة
+              </p>
+            </div>
+          </div>
+          {workout.periodization.trigger !== "cycle" && (
+            <p className="mt-2 rounded-lg border border-border bg-background/50 p-2 text-[9px] leading-relaxed text-muted-foreground">
+              {workout.periodization.trigger === "recovery"
+                ? "تم تحويل الأسبوع إلى Deload بسبب الاستشفاء."
+                : "تم تفعيل Deload مبكر بسبب Plateau متزامن في أكثر من تمرين."}
+            </p>
+          )}
         </div>
 
         {/* progress bar */}
