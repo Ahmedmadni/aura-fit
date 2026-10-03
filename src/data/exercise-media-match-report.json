@@ -1,17 +1,17 @@
 {
-  "generatedOn": "2026-10-02",
+  "generatedOn": "2026-10-03",
   "sourceRepository": "hasaneyldrm/exercises-dataset",
   "sourceCommit": "7455efae41b330c265e7cd4b78dfa848e7ce5ebd",
   "sourceExerciseCount": 1324,
   "auraExerciseCount": 302,
   "exact": 79,
-  "high": 94,
-  "review": 75,
+  "high": 95,
+  "review": 74,
   "none": 54,
-  "activePreferredMedia": 173,
+  "activePreferredMedia": 174,
   "previousActiveMedia": 169,
   "retainedPreviousMedia": 88,
-  "newlyVerifiedMedia": 85,
+  "newlyVerifiedMedia": 86,
   "demotedForQualityGate": [
     "cable-kickback",
     "donkey-calf-raise",
@@ -21,12 +21,11 @@
   ],
   "rule": "Only exact/high mappings are active. Review/none always use Workout Guide fallback.",
   "latestReviewBatch": {
-    "promoted": 2,
+    "promoted": 1,
     "promotedSlugs": [
-      "scapular-pull-up",
-      "scapular-push-up"
+      "v-up"
     ],
-    "method": "manual GIF frame review + exact movement-name/instruction audit; movement is exact while source target taxonomy differs from Aura muscle grouping"
+    "method": "manual GIF frame review + source instruction audit; jackknife sit-up is the same V-up movement pattern with bodyweight, simultaneous trunk/leg raise, abs target and hip-flexor support"
   },
   "reviewBatches": [
     {
@@ -122,6 +121,13 @@
         "scapular-push-up"
       ],
       "method": "manual GIF frame review + exact movement-name/instruction audit; movement is exact while source target taxonomy differs from Aura muscle grouping"
+    },
+    {
+      "promoted": 1,
+      "promotedSlugs": [
+        "v-up"
+      ],
+      "method": "manual GIF frame review + source instruction audit; jackknife sit-up is the same V-up movement pattern with bodyweight, simultaneous trunk/leg raise, abs target and hip-flexor support"
     }
   ]
 }

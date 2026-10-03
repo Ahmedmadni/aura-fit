@@ -2012,9 +2012,14 @@
     "matchConfidence": "none"
   },
   "v-up": {
-    "matchConfidence": "review",
-    "candidateSourceExerciseId": "0001",
-    "candidateSourceName": "3/4 sit-up"
+    "source": "hasaneyldrm/exercises-dataset",
+    "sourceExerciseId": "0507",
+    "sourceName": "jackknife sit-up",
+    "gif": "videos/0507-mbkgB44.gif",
+    "poster": "images/0507-mbkgB44.jpg",
+    "matchConfidence": "high",
+    "equipment": "body weight",
+    "target": "abs"
   },
   "flutter-kick": {
     "matchConfidence": "none"
