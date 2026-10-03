@@ -489,15 +489,43 @@ async function main() {
       );
     }
 
-    // Reload once so the page is controlled by the active service worker.
+    // Reload once so the page can become controlled by the active service
+    // worker. Chromium may expose an activated registration slightly before
+    // navigator.serviceWorker.controller is updated, so wait for that handoff.
     const reloaded = cdp.waitForEvent("Page.loadEventFired", 20000);
     await cdp.send("Page.reload", { ignoreCache: true });
     await reloaded;
-    const controlled = await evaluate(
-      "Boolean(navigator.serviceWorker && navigator.serviceWorker.controller)",
-    );
+
+    let controlled = false;
+    for (let attempt = 0; attempt < 50; attempt += 1) {
+      controlled = Boolean(
+        await evaluate(
+          "Boolean(navigator.serviceWorker && navigator.serviceWorker.controller)",
+        ),
+      );
+      if (controlled) break;
+      await timeout(100);
+    }
+
     if (!controlled) {
-      throw new Error("Page is not controlled by the Aura Fit service worker.");
+      // A second online navigation is the standards-compatible fallback after
+      // first activation when the initial page was created before SW control.
+      await navigate("/profile", "ملف التدريب");
+      for (let attempt = 0; attempt < 50; attempt += 1) {
+        controlled = Boolean(
+          await evaluate(
+            "Boolean(navigator.serviceWorker && navigator.serviceWorker.controller)",
+          ),
+        );
+        if (controlled) break;
+        await timeout(100);
+      }
+    }
+
+    if (!controlled) {
+      throw new Error(
+        "Page is not controlled by the Aura Fit service worker after activation and online navigation.",
+      );
     }
 
     // The profile route has now been visited online and should be in runtime cache.
