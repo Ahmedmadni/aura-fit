@@ -5,13 +5,13 @@
   "sourceExerciseCount": 1324,
   "auraExerciseCount": 302,
   "exact": 79,
-  "high": 92,
-  "review": 77,
+  "high": 94,
+  "review": 75,
   "none": 54,
-  "activePreferredMedia": 171,
+  "activePreferredMedia": 173,
   "previousActiveMedia": 169,
   "retainedPreviousMedia": 88,
-  "newlyVerifiedMedia": 83,
+  "newlyVerifiedMedia": 85,
   "demotedForQualityGate": [
     "cable-kickback",
     "donkey-calf-raise",
@@ -23,10 +23,10 @@
   "latestReviewBatch": {
     "promoted": 2,
     "promotedSlugs": [
-      "face-pull",
-      "plate-front-raise"
+      "scapular-pull-up",
+      "scapular-push-up"
     ],
-    "method": "GIF frame-by-frame visual verification plus equipment and muscle-set audit; source text labels differ but motion media matches"
+    "method": "manual GIF frame review + exact movement-name/instruction audit; movement is exact while source target taxonomy differs from Aura muscle grouping"
   },
   "reviewBatches": [
     {
@@ -114,6 +114,14 @@
         "bodyweight-squat"
       ],
       "method": "full movement/instruction audit; source label differs but bodyweight squat mechanics, quadriceps muscle group, equipment and poster match"
+    },
+    {
+      "promoted": 2,
+      "promotedSlugs": [
+        "scapular-pull-up",
+        "scapular-push-up"
+      ],
+      "method": "manual GIF frame review + exact movement-name/instruction audit; movement is exact while source target taxonomy differs from Aura muscle grouping"
     }
   ]
 }

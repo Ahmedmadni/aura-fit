@@ -1617,9 +1617,14 @@
     "candidateSourceName": "modified hindu push-up (male)"
   },
   "scapular-push-up": {
-    "matchConfidence": "review",
-    "candidateSourceExerciseId": "0688",
-    "candidateSourceName": "scapular pull-up"
+    "source": "hasaneyldrm/exercises-dataset",
+    "sourceExerciseId": "3021",
+    "sourceName": "scapula push-up",
+    "gif": "videos/3021-jV65tKx.gif",
+    "poster": "images/3021-jV65tKx.jpg",
+    "matchConfidence": "high",
+    "equipment": "body weight",
+    "target": "serratus anterior"
   },
   "push-up-shoulder-tap": {
     "source": "hasaneyldrm/exercises-dataset",
@@ -1708,9 +1713,14 @@
     "matchConfidence": "none"
   },
   "scapular-pull-up": {
-    "matchConfidence": "review",
-    "candidateSourceExerciseId": "0652",
-    "candidateSourceName": "pull-up"
+    "source": "hasaneyldrm/exercises-dataset",
+    "sourceExerciseId": "0688",
+    "sourceName": "scapular pull-up",
+    "gif": "videos/0688-uTBt1HV.gif",
+    "poster": "images/0688-uTBt1HV.jpg",
+    "matchConfidence": "high",
+    "equipment": "body weight",
+    "target": "traps"
   },
   "negative-pull-up": {
     "matchConfidence": "review",
