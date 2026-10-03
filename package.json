@@ -11,7 +11,10 @@
     "lint": "eslint .",
     "format": "prettier --write .",
     "media:validate": "node scripts/validate-exercise-media-map.mjs",
-    "workout:validate": "bun scripts/validate-workout-program.ts"
+    "workout:validate": "bun scripts/validate-workout-program.ts",
+    "pwa:validate": "node scripts/validate-pwa.mjs",
+    "app:smoke": "bun scripts/smoke-user-journey.ts",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",

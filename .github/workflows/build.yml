@@ -17,4 +17,7 @@ jobs:
       - run: bun install --frozen-lockfile
       - run: bun run media:validate
       - run: bun run workout:validate
+      - run: bun run pwa:validate
+      - run: bun run app:smoke
+      - run: bun run typecheck
       - run: bun run build
