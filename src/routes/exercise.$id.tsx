@@ -548,6 +548,7 @@ function ExerciseDetail() {
       <div className="fixed bottom-24 left-1/2 -translate-x-1/2 w-full max-w-[430px] px-6 z-40">
         <Link
           to="/workout"
+          search={{ day: undefined }}
           className="w-full bg-primary text-primary-foreground font-black py-4 rounded-2xl uppercase tracking-widest text-sm active:scale-[0.98] flex items-center justify-center gap-2 shadow-[0_10px_30px_rgba(204,255,0,0.4)]"
         >
           <Play className="size-4 fill-current" />

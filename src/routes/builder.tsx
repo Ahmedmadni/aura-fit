@@ -203,6 +203,7 @@ function BuilderPage() {
           </button>
           <Link
             to="/workout"
+            search={{ day: undefined }}
             className="h-12 rounded-2xl bg-primary text-primary-foreground font-black inline-flex items-center justify-center gap-2"
           >
             <Play className="size-4 fill-current" />

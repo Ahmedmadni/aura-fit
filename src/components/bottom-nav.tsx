@@ -27,6 +27,7 @@ export function BottomNav() {
         <div className="flex-1 flex justify-center">
           <Link
             to="/workout"
+            search={{ day: undefined }}
             className="size-12 bg-primary rounded-2xl flex items-center justify-center -translate-y-5 shadow-[0_10px_30px_rgba(204,255,0,0.4)] active:scale-95 transition-transform text-primary-foreground"
             aria-label="ابدأ جلسة"
           >
