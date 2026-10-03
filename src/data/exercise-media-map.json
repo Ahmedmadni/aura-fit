@@ -434,9 +434,14 @@
     "target": "quads"
   },
   "leg-curl": {
-    "matchConfidence": "review",
-    "candidateSourceExerciseId": "0586",
-    "candidateSourceName": "lever lying leg curl"
+    "source": "hasaneyldrm/exercises-dataset",
+    "sourceExerciseId": "0586",
+    "sourceName": "lever lying leg curl",
+    "gif": "videos/0586-17lJ1kr.gif",
+    "poster": "images/0586-17lJ1kr.jpg",
+    "matchConfidence": "high",
+    "equipment": "leverage machine",
+    "target": "hamstrings"
   },
   "seated-leg-curl": {
     "source": "hasaneyldrm/exercises-dataset",
