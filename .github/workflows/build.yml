@@ -25,7 +25,7 @@ jobs:
       - run: bun run build
       - name: Browser smoke
         run: |
-          bun run preview --host 127.0.0.1 --port 4173 > /tmp/aura-preview.log 2>&1 &
+          bunx nitro preview --dir . --host 127.0.0.1 --port 4173 > /tmp/aura-preview.log 2>&1 &
           SERVER_PID=$!
           trap 'kill "$SERVER_PID" 2>/dev/null || true' EXIT
 
