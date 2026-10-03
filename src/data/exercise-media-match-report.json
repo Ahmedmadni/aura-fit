@@ -1,17 +1,17 @@
 {
-  "generatedOn": "2026-10-03",
+  "generatedOn": "2026-10-02",
   "sourceRepository": "hasaneyldrm/exercises-dataset",
   "sourceCommit": "7455efae41b330c265e7cd4b78dfa848e7ce5ebd",
   "sourceExerciseCount": 1324,
   "auraExerciseCount": 302,
   "exact": 79,
-  "high": 95,
-  "review": 74,
+  "high": 94,
+  "review": 75,
   "none": 54,
-  "activePreferredMedia": 174,
+  "activePreferredMedia": 173,
   "previousActiveMedia": 169,
   "retainedPreviousMedia": 88,
-  "newlyVerifiedMedia": 86,
+  "newlyVerifiedMedia": 85,
   "demotedForQualityGate": [
     "cable-kickback",
     "donkey-calf-raise",
@@ -21,11 +21,12 @@
   ],
   "rule": "Only exact/high mappings are active. Review/none always use Workout Guide fallback.",
   "latestReviewBatch": {
-    "promoted": 1,
+    "promoted": 2,
     "promotedSlugs": [
-      "leg-curl"
+      "scapular-pull-up",
+      "scapular-push-up"
     ],
-    "method": "manual poster/GIF frame review + source instruction audit; exact lying leg-curl mechanics, machine equipment, hamstrings target and calves support match Aura's generic machine Leg Curl"
+    "method": "manual GIF frame review + exact movement-name/instruction audit; movement is exact while source target taxonomy differs from Aura muscle grouping"
   },
   "reviewBatches": [
     {
@@ -121,13 +122,6 @@
         "scapular-push-up"
       ],
       "method": "manual GIF frame review + exact movement-name/instruction audit; movement is exact while source target taxonomy differs from Aura muscle grouping"
-    },
-    {
-      "promoted": 1,
-      "promotedSlugs": [
-        "leg-curl"
-      ],
-      "method": "manual poster/GIF frame review + source instruction audit; exact lying leg-curl mechanics, machine equipment, hamstrings target and calves support match Aura's generic machine Leg Curl"
     }
   ]
 }
