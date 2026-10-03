@@ -7,13 +7,14 @@ import {
   ChevronLeft,
   Dumbbell,
   Settings,
+  ShieldCheck,
   Target,
   Zap,
 } from "lucide-react";
 import { BottomNav } from "@/components/bottom-nav";
 import { FontSizeSetting } from "@/components/font-size-setting";
 import { PageShell } from "@/components/page-shell";
-import { LEVEL_LABEL_AR } from "@/lib/exercise-db";
+import { INJURY_LABEL_AR, LEVEL_LABEL_AR } from "@/lib/exercise-db";
 import {
   computeAchievements,
   levelFromXp,
@@ -155,6 +156,52 @@ function Profile() {
         />
       </section>
 
+      <section className="relative px-6 mb-7 animate-enter [animation-delay:140ms]">
+        <div
+          className={
+            "rounded-2xl border p-4 " +
+            (profile.injuries.length
+              ? "border-amber-400/25 bg-amber-400/5"
+              : "border-primary/20 bg-primary/5")
+          }
+        >
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="text-[10px] font-mono uppercase tracking-[0.2em] text-muted-foreground">
+                فلترة الحركة
+              </p>
+              <h3 className="mt-1 text-sm font-black">
+                {profile.injuries.length
+                  ? "مناطق تحتاج احتياطًا"
+                  : "لا توجد قيود مسجلة"}
+              </h3>
+            </div>
+            <ShieldCheck
+              className={
+                "size-5 " +
+                (profile.injuries.length ? "text-amber-400" : "text-primary")
+              }
+            />
+          </div>
+          {profile.injuries.length ? (
+            <div className="mt-3 flex flex-wrap gap-1.5">
+              {profile.injuries.map((injury) => (
+                <span
+                  key={injury}
+                  className="rounded-full border border-amber-400/20 bg-background/60 px-2.5 py-1 text-[9px] font-bold text-amber-400"
+                >
+                  {INJURY_LABEL_AR[injury]}
+                </span>
+              ))}
+            </div>
+          ) : (
+            <p className="mt-2 text-[10px] text-muted-foreground">
+              يمكنك تسجيل مناطق الإصابة أو القيود من الأهداف والمعدات.
+            </p>
+          )}
+        </div>
+      </section>
+
       <section className="relative px-6 mb-7 animate-enter [animation-delay:160ms]">
         <div className="mb-3 flex items-center justify-between">
           <div>
@@ -208,7 +255,7 @@ function Profile() {
           <ProfileLink
             to="/onboarding"
             icon={Zap}
-            label="الأهداف والمعدات"
+            label="الأهداف والمعدات والإصابات"
             hint="تعديل"
           />
         </div>

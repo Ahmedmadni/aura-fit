@@ -69,6 +69,19 @@ export type Injury =
   | "neck"
   | "hip";
 
+export const INJURY_LABEL_AR: Record<Injury, string> = {
+  knee: "الركبة",
+  "lower-back": "أسفل الظهر",
+  shoulder: "الكتف",
+  wrist: "الرسغ",
+  ankle: "الكاحل",
+  neck: "الرقبة",
+  hip: "الورك",
+};
+
+export const INJURY_SCREENING_NOTE_AR =
+  "هذه اختيارات احترازية لتصفية الحركات في التطبيق، وليست تشخيصًا أو تصريحًا طبيًا لممارسة التمرين.";
+
 export type Location = "home" | "gym" | "outdoor";
 
 export type Pose =

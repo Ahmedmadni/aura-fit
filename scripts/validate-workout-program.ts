@@ -7,6 +7,7 @@ import {
   getPeriodizationPlan,
   getTrainingAdaptation,
   getWeeklyMuscleCoverage,
+  isSafeFor,
   getWeeklyVolumeStatus,
   MAJOR_MUSCLES,
 } from "../src/lib/workout-engine";
@@ -15,6 +16,7 @@ import {
   getExercise,
   type Equipment,
   type Goal,
+  type Injury,
 } from "../src/lib/exercise-db";
 import {
   DEFAULT_PROFILE,
@@ -711,6 +713,67 @@ if (recoveryStrengthSets >= progressStrengthSets) {
 
 console.log(
   `adaptive checks: progress readiness=${progressAdaptation.readinessScore}, recovery readiness=${recoveryAdaptation.readinessScore}, daily=${dailyProgressAdaptation.readinessScore}->${dailyRecoveryAdaptation.readinessScore}, staleSource=${staleAdaptation.readinessSource}, strength sets ${progressStrengthSets}->${recoveryStrengthSets}, load 70->${loadPrescription.suggestedLoadKg}kg, e1RM=${e1rm}kg, plateau=${plateauAnalysis?.plateau}, trend=${risingAnalysis?.trend}, cycle=${cyclePhases.join(">")}, cycleSets=${phaseStrengthSets.join(">")}, recoveryPhase=${recoveryPeriodization.phase}, plateauTrigger=${plateauPeriodization.trigger}, accessoryRotation=${rotationAccessoryBase?.id ?? "none"}, mainRotation=${rotationMainBase?.id ?? "none"}`,
+);
+
+const injuryScenarios: Injury[][] = [
+  ["knee"],
+  ["shoulder"],
+  ["lower-back"],
+  ["wrist"],
+  ["ankle"],
+  ["hip"],
+  ["shoulder", "wrist"],
+];
+
+for (const injuries of injuryScenarios) {
+  const injuryProfile: UserProfile = {
+    ...DEFAULT_PROFILE,
+    level: "intermediate",
+    goals: ["general-fitness"],
+    equipment: FULL_EQUIPMENT,
+    injuries,
+    daysPerWeek: 4,
+    sessionMinutes: 45,
+  };
+  const injuryPlan = generateWeeklyPlan(injuryProfile);
+
+  for (const [dayIndex, workout] of injuryPlan.entries()) {
+    const unsafe = workout.exercises.filter(
+      (item) => !isSafeFor(item.exercise, injuries),
+    );
+    if (unsafe.length) {
+      fail(
+        `injury ${injuries.join("+")} day ${dayIndex + 1}: unsafe exercises leaked into plan: ${unsafe
+          .map((item) => item.exercise.id)
+          .join(",")}`,
+      );
+    }
+
+    const strengthCount = workout.exercises.filter((item) =>
+      ["main", "accessory", "core"].includes(item.phase),
+    ).length;
+    if (strengthCount < 1 || workout.exercises.length < 3) {
+      fail(
+        `injury ${injuries.join("+")} day ${dayIndex + 1}: safety filtering left the workout too sparse (${strengthCount} strength / ${workout.exercises.length} total)`,
+      );
+    }
+
+    if (
+      !workout.safetyAdjusted ||
+      injuries.some(
+        (injury) => !workout.screeningInjuries.includes(injury),
+      )
+    ) {
+      fail(
+        `injury ${injuries.join("+")} day ${dayIndex + 1}: safety metadata missing`,
+      );
+    }
+  }
+}
+
+console.log(
+  "injury safety checks: " +
+    injuryScenarios.map((items) => items.join("+")).join(", "),
 );
 
 for (const daysPerWeek of [2, 3, 4, 5, 6]) {

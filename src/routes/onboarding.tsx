@@ -1,25 +1,29 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ArrowLeft, ArrowRight, Check } from "lucide-react";
 import {
+  INJURY_LABEL_AR,
+  INJURY_SCREENING_NOTE_AR,
   type Equipment,
   type Goal,
+  type Injury,
   type Level,
 } from "@/lib/exercise-db";
-import { saveProfile } from "@/lib/user-profile";
+import { loadProfile, saveProfile } from "@/lib/user-profile";
 
 export const Route = createFileRoute("/onboarding")({
   component: Onboarding,
 });
 
 const titles = [
-  ["الخطوة ١ من ٧", "أخبرنا عنك", "معلومات أساسية لبناء ملفك الشخصي."],
-  ["الخطوة ٢ من ٧", "الجنس", "اختياري، ويُستخدم فقط ضمن ملفك الشخصي."],
-  ["الخطوة ٣ من ٧", "قياسات الجسم", "يمكن تعديلها لاحقًا."],
-  ["الخطوة ٤ من ٧", "مستوى التدريب", "سنضبط صعوبة الحركات وحجم الجلسة وفقًا له."],
-  ["الخطوة ٥ من ٧", "هدفك الأساسي", "يؤثر على المجموعات والتكرارات والكارديو."],
-  ["الخطوة ٦ من ٧", "المعدات المتوفرة", "لن نضع تمرينًا يحتاج معدات غير متاحة لك."],
-  ["الخطوة ٧ من ٧", "جدولك الأسبوعي", "اختر عدد الأيام والمدة الواقعية للجلسة."],
+  ["الخطوة ١ من ٨", "أخبرنا عنك", "معلومات أساسية لبناء ملفك الشخصي."],
+  ["الخطوة ٢ من ٨", "الجنس", "اختياري، ويُستخدم فقط ضمن ملفك الشخصي."],
+  ["الخطوة ٣ من ٨", "قياسات الجسم", "يمكن تعديلها لاحقًا."],
+  ["الخطوة ٤ من ٨", "مستوى التدريب", "سنضبط صعوبة الحركات وحجم الجلسة وفقًا له."],
+  ["الخطوة ٥ من ٨", "هدفك الأساسي", "يؤثر على المجموعات والتكرارات والكارديو."],
+  ["الخطوة ٦ من ٨", "المعدات المتوفرة", "لن نضع تمرينًا يحتاج معدات غير متاحة لك."],
+  ["الخطوة ٧ من ٨", "الإصابات والقيود", "سنستبعد الحركات الموسومة بأنها تحتاج احتياطًا لهذه المنطقة."],
+  ["الخطوة ٨ من ٨", "جدولك الأسبوعي", "اختر عدد الأيام والمدة الواقعية للجلسة."],
 ] as const;
 
 const LEVELS: Array<{ label: string; value: Level }> = [
@@ -48,6 +52,22 @@ const EQUIPMENT_OPTIONS: Array<{ label: string; values: Equipment[] }> = [
   { label: "جهاز كارديو", values: ["cardio-machine"] },
 ];
 
+const INJURY_OPTIONS: Injury[] = [
+  "knee",
+  "lower-back",
+  "shoulder",
+  "wrist",
+  "ankle",
+  "neck",
+  "hip",
+];
+
+function equipmentLabelsFrom(values: Equipment[]) {
+  return EQUIPMENT_OPTIONS.filter((option) =>
+    option.values.every((item) => values.includes(item)),
+  ).map((option) => option.label);
+}
+
 function Onboarding() {
   const navigate = useNavigate();
   const [step, setStep] = useState(0);
@@ -59,8 +79,28 @@ function Onboarding() {
   const [level, setLevel] = useState<Level>("beginner");
   const [goal, setGoal] = useState<Goal>("general-fitness");
   const [equipmentLabels, setEquipmentLabels] = useState<string[]>(["بدون معدات"]);
+  const [injuries, setInjuries] = useState<Injury[]>([]);
   const [daysPerWeek, setDaysPerWeek] = useState(3);
   const [sessionMinutes, setSessionMinutes] = useState(30);
+
+  useEffect(() => {
+    const current = loadProfile();
+    setName(current.name ?? "");
+    setAge(current.age?.toString() ?? "");
+    setGender(current.gender);
+    setHeight(current.heightCm?.toString() ?? "");
+    setWeight(current.weightKg?.toString() ?? "");
+    setLevel(current.level);
+    setGoal(current.goals[0] ?? "general-fitness");
+    setEquipmentLabels(
+      equipmentLabelsFrom(current.equipment).length
+        ? equipmentLabelsFrom(current.equipment)
+        : ["بدون معدات"],
+    );
+    setInjuries(current.injuries);
+    setDaysPerWeek(current.daysPerWeek);
+    setSessionMinutes(current.sessionMinutes);
+  }, []);
 
   const [eyebrow, title, subtitle] = titles[step];
   const progress = ((step + 1) / titles.length) * 100;
@@ -70,6 +110,14 @@ function Onboarding() {
       current.includes(label)
         ? current.filter((item) => item !== label)
         : [...current, label],
+    );
+  }
+
+  function toggleInjury(injury: Injury) {
+    setInjuries((current) =>
+      current.includes(injury)
+        ? current.filter((item) => item !== injury)
+        : [...current, injury],
     );
   }
 
@@ -89,6 +137,7 @@ function Onboarding() {
       level,
       goals: [goal],
       equipment: [...equipment],
+      injuries,
       daysPerWeek,
       sessionMinutes,
     });
@@ -193,6 +242,55 @@ function Onboarding() {
         )}
 
         {step === 6 && (
+          <div className="space-y-4">
+            <button
+              type="button"
+              onClick={() => setInjuries([])}
+              className={
+                "flex w-full items-center justify-between rounded-2xl border p-4 text-right transition-all " +
+                (injuries.length === 0
+                  ? "border-primary bg-primary/10"
+                  : "border-border bg-surface")
+              }
+            >
+              <span>
+                <span className="block text-sm font-black">لا توجد منطقة تحتاج احتياطًا حاليًا</span>
+                <span className="mt-1 block text-[10px] text-muted-foreground">
+                  يمكن تعديلها في أي وقت من ملف التدريب.
+                </span>
+              </span>
+              {injuries.length === 0 && (
+                <span className="grid size-6 place-items-center rounded-full bg-primary">
+                  <Check className="size-3.5 text-primary-foreground" strokeWidth={3} />
+                </span>
+              )}
+            </button>
+
+            <div className="grid grid-cols-2 gap-3">
+              {INJURY_OPTIONS.map((injury) => (
+                <SelectButton
+                  key={injury}
+                  label={INJURY_LABEL_AR[injury]}
+                  active={injuries.includes(injury)}
+                  onClick={() => toggleInjury(injury)}
+                />
+              ))}
+            </div>
+
+            <div className="rounded-2xl border border-amber-400/25 bg-amber-400/5 p-4">
+              <p className="text-xs font-black text-amber-400">فلترة احترازية</p>
+              <p className="mt-2 text-[10px] leading-relaxed text-muted-foreground">
+                {INJURY_SCREENING_NOTE_AR}
+              </p>
+              <p className="mt-2 text-[10px] leading-relaxed text-muted-foreground">
+                إذا كان لديك ألم حاد، إصابة حديثة، جراحة، أو تعليمات علاجية محددة،
+                اتبع تعليمات المختص ولا تعتمد على فلترة التطبيق وحدها.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {step === 7 && (
           <div className="space-y-6">
             <div>
               <p className="type-caption mb-2 text-muted-foreground">أيام التدريب أسبوعيًا</p>

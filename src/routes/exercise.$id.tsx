@@ -25,11 +25,12 @@ import {
   EXERCISE_TYPE_LABEL_AR,
   getExercise,
   GOAL_LABEL_AR,
+  INJURY_LABEL_AR,
+  INJURY_SCREENING_NOTE_AR,
   LEVEL_LABEL_AR,
   LOCATION_LABEL_AR,
   MOVEMENT_FAMILY_LABEL_AR,
   MUSCLE_LABEL_AR,
-  type Injury,
 } from "@/lib/exercise-db";
 import {
   analyzeExerciseStrength,
@@ -44,16 +45,6 @@ import {
 export const Route = createFileRoute("/exercise/$id")({
   component: ExerciseDetail,
 });
-
-const INJURY_LABEL_AR: Record<Injury, string> = {
-  knee: "الركبة",
-  "lower-back": "أسفل الظهر",
-  shoulder: "الكتف",
-  wrist: "الرسغ",
-  ankle: "الكاحل",
-  neck: "الرقبة",
-  hip: "الحوض",
-};
 
 function ExerciseDetail() {
   const { id } = Route.useParams();
@@ -84,6 +75,9 @@ function ExerciseDetail() {
   const primary = exercise.primary.map((muscle) => MUSCLE_LABEL_AR[muscle]).join("، ");
   const secondary = exercise.secondary.map((muscle) => MUSCLE_LABEL_AR[muscle]).join("، ");
   const equipment = exercise.equipment.map((item) => EQUIPMENT_LABEL_AR[item]).join("، ");
+  const matchingInjuries = exercise.contraindicated.filter((injury) =>
+    profile.injuries.includes(injury),
+  );
 
   return (
     <PageShell>
@@ -140,6 +134,30 @@ function ExerciseDetail() {
           </div>
         </div>
       </section>
+
+      {matchingInjuries.length > 0 && (
+        <section className="px-6 mb-5 animate-enter">
+          <div className="rounded-2xl border border-amber-400/30 bg-amber-400/5 p-4">
+            <div className="flex items-start gap-3">
+              <AlertTriangle className="mt-0.5 size-5 shrink-0 text-amber-400" />
+              <div>
+                <p className="text-sm font-black text-amber-400">
+                  مستبعد من خطتك الحالية
+                </p>
+                <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                  هذه الحركة تحمل وسم فحص احترازي لـ{" "}
+                  {matchingInjuries
+                    .map((injury) => INJURY_LABEL_AR[injury])
+                    .join("، ")}.
+                </p>
+                <p className="mt-2 text-[9px] leading-relaxed text-muted-foreground">
+                  {INJURY_SCREENING_NOTE_AR}
+                </p>
+              </div>
+            </div>
+          </div>
+        </section>
+      )}
 
       <div className="px-6 mb-5 grid grid-cols-3 gap-2 animate-enter">
         <QuickStat icon={Target} label="التركيز" value={primary} />

@@ -22,7 +22,11 @@ import {
   getWeeklyMuscleCoverage,
   getWeeklyVolumeStatus,
 } from "@/lib/workout-engine";
-import { MUSCLE_LABEL_AR, type Goal } from "@/lib/exercise-db";
+import {
+  INJURY_LABEL_AR,
+  MUSCLE_LABEL_AR,
+  type Goal,
+} from "@/lib/exercise-db";
 import {
   DEFAULT_PROFILE,
   loadHistory,
@@ -149,6 +153,22 @@ function Programs() {
           </div>
         </div>
       </section>
+
+      {profile.injuries.length > 0 && (
+        <section className="px-6 mb-6 animate-enter [animation-delay:60ms]">
+          <div className="rounded-2xl border border-amber-400/25 bg-amber-400/5 p-4">
+            <p className="type-eyebrow text-amber-400">فلترة احترازية</p>
+            <h3 className="type-section-title mt-1">الخطة تراعي القيود الحالية</h3>
+            <p className="type-small mt-2 leading-relaxed text-muted-foreground">
+              المناطق المحددة:{" "}
+              {profile.injuries
+                .map((injury) => INJURY_LABEL_AR[injury])
+                .join("، ")}. الحركات الموسومة بهذه المناطق تُستبعد من التوليد،
+              وقد يعيد Aura Fit توزيع بعض تمارين اليوم إلى بدائل آمنة متاحة.
+            </p>
+          </div>
+        </section>
+      )}
 
       {periodization && (
         <section className="px-6 mb-6 animate-enter [animation-delay:80ms]">

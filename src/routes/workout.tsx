@@ -19,7 +19,7 @@ import {
   generateWorkout,
   type PlannedExercise,
 } from "@/lib/workout-engine";
-import { getExercise } from "@/lib/exercise-db";
+import { getExercise, INJURY_LABEL_AR } from "@/lib/exercise-db";
 import {
   loadHistory,
   loadProfile,
@@ -402,6 +402,23 @@ function WorkoutPlayer() {
             </p>
           )}
         </div>
+
+        {workout.safetyAdjusted && workout.screeningInjuries.length > 0 && (
+          <div className="mb-4 rounded-2xl border border-amber-400/25 bg-amber-400/5 p-3">
+            <p className="text-[10px] font-mono uppercase tracking-widest text-amber-400">
+              فلترة الإصابة فعّالة
+            </p>
+            <p className="mt-1 text-xs font-bold">
+              تم استبعاد الحركات الموسومة احترازيًا لـ{" "}
+              {workout.screeningInjuries
+                .map((injury) => INJURY_LABEL_AR[injury])
+                .join("، ")}.
+            </p>
+            <p className="mt-1 text-[9px] leading-relaxed text-muted-foreground">
+              هذه فلترة محافظة داخل التطبيق وليست بديلًا عن توجيهات الطبيب أو أخصائي العلاج الطبيعي.
+            </p>
+          </div>
+        )}
 
         {workout.adaptation.readinessSource === "profile" && (
           <div className="mb-4 rounded-xl border border-dashed border-border bg-background/40 p-3">

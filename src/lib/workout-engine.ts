@@ -117,6 +117,8 @@ export interface GeneratedWorkout {
   isDeload: boolean;
   adaptation: TrainingAdaptation;
   periodization: PeriodizationPlan;
+  safetyAdjusted: boolean;
+  screeningInjuries: Injury[];
   rationale: string;
 }
 
@@ -1327,6 +1329,34 @@ function pickCardio(profile: UserProfile, usedSession: Set<string>, usedAcrossWe
   })[0];
 }
 
+function pickSafeFallbackStrength(
+  profile: UserProfile,
+  blueprint: DayBlueprint,
+  usedSession: Set<string>,
+  usedAcrossWeek: Set<string>,
+) {
+  return strengthPool(profile)
+    .filter((exercise) => !usedSession.has(exercise.id))
+    .map((exercise) => {
+      const targetMatch = exercise.primary.some((muscle) =>
+        blueprint.targetMuscles.includes(muscle),
+      );
+      const secondaryMatch = exercise.secondary.some((muscle) =>
+        blueprint.targetMuscles.includes(muscle),
+      );
+      let score = targetMatch ? 12 : secondaryMatch ? 5 : 0;
+      if (exercise.trainingRole === "main") score += 2;
+      if (!usedAcrossWeek.has(exercise.id)) score += 2;
+      score += goalBonus(exercise, profile.goals);
+      return { exercise, score };
+    })
+    .sort(
+      (a, b) =>
+        b.score - a.score ||
+        a.exercise.id.localeCompare(b.exercise.id),
+    )[0]?.exercise;
+}
+
 function generateForBlueprint(
   profile: UserProfile,
   blueprint: DayBlueprint,
@@ -1406,6 +1436,43 @@ function generateForBlueprint(
     );
   }
 
+  const plannedStrengthTarget = Math.max(
+    2,
+    Math.min(mainCount + accessoryCount, 4),
+  );
+  while (
+    profile.injuries.length > 0 &&
+    result.filter((item) =>
+      item.phase === "main" || item.phase === "accessory",
+    ).length < plannedStrengthTarget
+  ) {
+    const fallback = pickSafeFallbackStrength(
+      profile,
+      blueprint,
+      usedSession,
+      usedAcrossWeek,
+    );
+    if (!fallback) break;
+    usedSession.add(fallback.id);
+    usedAcrossWeek.add(fallback.id);
+    const phase: TrainingPhase =
+      result.some((item) => item.phase === "main") ||
+      fallback.trainingRole !== "main"
+        ? "accessory"
+        : "main";
+    result.push(
+      planned(
+        fallback,
+        phase,
+        profile,
+        isDeload,
+        adaptation,
+        periodization,
+        history,
+      ),
+    );
+  }
+
   if (blueprint.includeCore && targetMinutes >= 25) {
     const core = pickCore(profile, usedSession, usedAcrossWeek);
     if (core) {
@@ -1459,6 +1526,8 @@ function generateForBlueprint(
       ? 35
       : strengthItems.reduce((sum, item) => sum + LEVEL_RANK[item.exercise.level] * 22, 0) /
         strengthItems.length;
+  const safetyAdjusted = profile.injuries.length > 0;
+
   const intensity = Math.max(
     20,
     Math.min(
@@ -1485,6 +1554,8 @@ function generateForBlueprint(
     isDeload,
     adaptation,
     periodization,
+    safetyAdjusted: profile.injuries.length > 0 && safetyAdjusted,
+    screeningInjuries: [...profile.injuries],
     rationale: isDeload
       ? periodization.description
       : `${periodization.description} جلسة ${blueprint.title} ضمن توزيع ${profile.daysPerWeek} أيام أسبوعيًا.`,
