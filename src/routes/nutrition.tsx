@@ -1,174 +1,235 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { Droplet, Flame, Beef, Wheat, Apple, Plus } from "lucide-react";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { useMemo } from "react";
+import {
+  Beef,
+  Droplet,
+  Flame,
+  Scale,
+  Wheat,
+} from "lucide-react";
 import { BottomNav } from "@/components/bottom-nav";
 import { PageShell, PageHeader } from "@/components/page-shell";
+import { loadProfile } from "@/lib/user-profile";
 
 export const Route = createFileRoute("/nutrition")({
+  head: () => ({
+    meta: [
+      { title: "التغذية التقديرية | Aura Fit" },
+      {
+        name: "description",
+        content:
+          "احتياج طاقة وماكروز تقديري مبني على بيانات الملف الشخصي، بدون وجبات أو استهلاك وهمي.",
+      },
+    ],
+  }),
   component: Nutrition,
 });
 
-const macros = [
-  { label: "بروتين", value: 128, target: 160, unit: "غ", color: "#ccff00", icon: Beef },
-  { label: "كربوهيدرات", value: 210, target: 280, unit: "غ", color: "#00d9ff", icon: Wheat },
-  { label: "دهون", value: 58, target: 70, unit: "غ", color: "#ff6b9d", icon: Apple },
-];
+function activityFactor(days: number) {
+  if (days <= 2) return 1.35;
+  if (days === 3) return 1.45;
+  if (days === 4) return 1.5;
+  if (days === 5) return 1.55;
+  return 1.6;
+}
 
-const meals = [
-  { time: "٠٧:٣٠", name: "شوفان بالتوت والمكسرات", kcal: 420, tag: "فطور" },
-  { time: "١٢:٠٠", name: "دجاج مشوي مع أرز أسمر", kcal: 680, tag: "غداء" },
-  { time: "١٦:٣٠", name: "بروتين شيك + موز", kcal: 320, tag: "سناك" },
-  { time: "٢٠:٠٠", name: "سلمون + خضروات مشوية", kcal: 520, tag: "عشاء" },
-];
+function goalFactor(goals: string[]) {
+  if (goals.includes("fat-loss")) return 0.9;
+  if (goals.includes("muscle-gain")) return 1.08;
+  if (goals.includes("strength")) return 1.04;
+  return 1;
+}
 
 function Nutrition() {
-  const consumed = 1940;
-  const target = 2400;
-  const pct = (consumed / target) * 100;
+  const profile = useMemo(() => loadProfile(), []);
+  const ready =
+    profile.age !== undefined &&
+    profile.weightKg !== undefined &&
+    profile.heightCm !== undefined &&
+    profile.gender !== undefined;
+
+  const estimate = useMemo(() => {
+    if (!ready) return null;
+
+    const weight = profile.weightKg as number;
+    const height = profile.heightCm as number;
+    const age = profile.age as number;
+    const sexConstant = profile.gender === "male" ? 5 : -161;
+    const bmr = 10 * weight + 6.25 * height - 5 * age + sexConstant;
+    const maintenance = Math.round(
+      bmr * activityFactor(profile.daysPerWeek),
+    );
+    const calories = Math.round(
+      (maintenance * goalFactor(profile.goals)) / 25,
+    ) * 25;
+
+    const proteinPerKg =
+      profile.goals.includes("muscle-gain") ||
+      profile.goals.includes("strength") ||
+      profile.goals.includes("fat-loss")
+        ? 1.6
+        : 1.4;
+    const protein = Math.round(weight * proteinPerKg);
+    const fat = Math.round(weight * 0.8);
+    const remaining = Math.max(
+      0,
+      calories - protein * 4 - fat * 9,
+    );
+    const carbs = Math.round(remaining / 4);
+    const waterLiters = Math.round(weight * 0.033 * 10) / 10;
+
+    return {
+      bmr: Math.round(bmr),
+      maintenance,
+      calories,
+      protein,
+      fat,
+      carbs,
+      waterLiters,
+    };
+  }, [profile, ready]);
 
   return (
     <PageShell>
-      <PageHeader eyebrow="FUEL SYSTEM" title="التغذية" />
+      <PageHeader eyebrow="NUTRITION ESTIMATE" title="التغذية" />
 
-      {/* Main ring */}
-      <section className="px-6 mb-6 animate-enter">
-        <div className="bg-card border border-border rounded-3xl p-6 relative overflow-hidden">
-          <div className="absolute -top-16 -left-16 size-40 rounded-full bg-primary/10 blur-3xl" aria-hidden />
-          <div className="relative flex items-center gap-6">
-            <div className="relative shrink-0">
-              <svg viewBox="0 0 120 120" className="size-32 -rotate-90">
-                <circle cx="60" cy="60" r="52" stroke="hsl(0 0% 100% / 0.08)" strokeWidth="10" fill="none" />
-                <circle
-                  cx="60"
-                  cy="60"
-                  r="52"
-                  stroke="#ccff00"
-                  strokeWidth="10"
-                  fill="none"
-                  strokeLinecap="round"
-                  strokeDasharray={`${(pct / 100) * 326.7} 326.7`}
-                  style={{ filter: "drop-shadow(0 0 8px rgba(204,255,0,0.5))" }}
-                />
-              </svg>
-              <div className="absolute inset-0 grid place-items-center text-center">
-                <div>
-                  <p className="text-2xl font-black leading-none">{consumed}</p>
-                  <p className="text-[9px] font-mono uppercase text-muted-foreground mt-1">من {target}</p>
-                </div>
-              </div>
-            </div>
-            <div className="flex-1">
-              <p className="text-[10px] font-mono uppercase tracking-widest text-primary mb-1">
-                استهلاك اليوم
-              </p>
-              <h2 className="text-3xl font-black leading-tight">
-                {target - consumed}
-                <span className="text-sm font-mono text-muted-foreground mr-1">كال متبقية</span>
-              </h2>
-              <div className="mt-3 flex items-center gap-2 text-xs">
-                <Flame className="size-3.5 text-primary" />
-                <span className="text-muted-foreground">حرقت اليوم ٣٢٠ كال</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Macros */}
-      <section className="px-6 mb-6 animate-enter">
-        <p className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground mb-3">
-          الماكروز
-        </p>
-        <div className="grid grid-cols-3 gap-2">
-          {macros.map((m) => {
-            const p = (m.value / m.target) * 100;
-            const Icon = m.icon;
-            return (
-              <div key={m.label} className="bg-card border border-border rounded-2xl p-3">
-                <Icon className="size-4 mb-2" style={{ color: m.color }} />
-                <p className="text-[9px] font-mono uppercase tracking-widest text-muted-foreground">
-                  {m.label}
-                </p>
-                <p className="text-lg font-black mt-1">
-                  {m.value}
-                  <span className="text-[10px] text-muted-foreground font-mono">/{m.target}{m.unit}</span>
-                </p>
-                <div className="h-1 mt-2 bg-surface rounded-full overflow-hidden">
-                  <div
-                    className="h-full rounded-full"
-                    style={{ width: `${Math.min(100, p)}%`, background: m.color }}
-                  />
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </section>
-
-      {/* Water */}
-      <section className="px-6 mb-6 animate-enter">
-        <div className="bg-card border border-border rounded-2xl p-4">
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2">
-              <Droplet className="size-4 text-cyan" />
-              <p className="text-sm font-black">الماء</p>
-            </div>
-            <p className="font-mono text-xs text-muted-foreground">١.٨ / ٣.٠ لتر</p>
-          </div>
-          <div className="flex gap-1.5">
-            {Array.from({ length: 8 }).map((_, i) => (
-              <button
-                key={i}
-                type="button"
-                className={`flex-1 h-10 rounded-lg border transition-all ${
-                  i < 5
-                    ? "bg-cyan/30 border-cyan"
-                    : "bg-surface border-border hover:border-cyan/40"
-                }`}
-                aria-label={`كوب ${i + 1}`}
-              />
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Meals */}
-      <section className="px-6 mb-6 animate-enter">
-        <div className="flex items-center justify-between mb-3">
-          <p className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
-            وجبات اليوم
-          </p>
-          <button
-            type="button"
-            className="size-8 rounded-lg bg-primary/10 border border-primary/30 text-primary grid place-items-center"
-            aria-label="أضف وجبة"
-          >
-            <Plus className="size-4" />
-          </button>
-        </div>
-        <div className="space-y-2">
-          {meals.map((m) => (
-            <div
-              key={m.name}
-              className="bg-card border border-border rounded-2xl p-4 flex items-center gap-4"
+      {!estimate ? (
+        <section className="px-6 mb-8 animate-enter">
+          <div className="rounded-3xl border border-dashed border-border bg-surface/50 p-6 text-center">
+            <Scale className="mx-auto size-6 text-primary" />
+            <h2 className="mt-4 text-xl font-black">
+              نحتاج بيانات جسمك أولًا
+            </h2>
+            <p className="mt-2 text-xs leading-6 text-muted-foreground">
+              لن يعرض Aura Fit سعرات أو ماكروز افتراضية. أضف العمر، الجنس،
+              الطول والوزن ليحسب نطاقًا تقديريًا مبنيًا على ملفك.
+            </p>
+            <Link
+              to="/onboarding"
+              className="mt-5 inline-flex rounded-xl bg-primary px-5 py-3 text-sm font-black text-primary-foreground"
             >
-              <div className="text-center shrink-0">
-                <p className="text-[9px] font-mono uppercase text-muted-foreground">{m.tag}</p>
-                <p className="font-mono text-xs text-primary mt-0.5">{m.time}</p>
+              استكمال بيانات الملف
+            </Link>
+          </div>
+        </section>
+      ) : (
+        <>
+          <section className="px-6 mb-6 animate-enter">
+            <div className="relative overflow-hidden rounded-3xl border border-primary/25 bg-primary/5 p-6">
+              <p className="text-[10px] font-mono uppercase tracking-widest text-primary">
+                هدف طاقة تقديري
+              </p>
+              <div className="mt-2 flex items-end justify-between gap-4">
+                <div>
+                  <p className="text-4xl font-black" dir="ltr">
+                    {estimate.calories}
+                  </p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    كيلو كالوري / يوم
+                  </p>
+                </div>
+                <Flame className="size-8 text-primary" />
               </div>
-              <div className="w-px h-10 bg-border" />
-              <div className="flex-1 min-w-0">
-                <p className="font-bold text-sm truncate">{m.name}</p>
-                <p className="text-[10px] font-mono text-muted-foreground uppercase mt-0.5">
-                  {m.kcal} كال
-                </p>
+              <div className="mt-4 grid grid-cols-2 gap-3 border-t border-border pt-4">
+                <Metric label="BMR تقديري" value={estimate.bmr + " kcal"} />
+                <Metric
+                  label="صيانة تقديرية"
+                  value={estimate.maintenance + " kcal"}
+                />
               </div>
-              <div className="text-primary font-mono text-xs">✓</div>
             </div>
-          ))}
-        </div>
-      </section>
+          </section>
+
+          <section className="px-6 mb-6 animate-enter">
+            <p className="mb-3 text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
+              توزيع يومي مقترح
+            </p>
+            <div className="grid grid-cols-3 gap-2">
+              <Macro
+                icon={Beef}
+                label="بروتين"
+                value={estimate.protein}
+                unit="غ"
+              />
+              <Macro
+                icon={Wheat}
+                label="كربوهيدرات"
+                value={estimate.carbs}
+                unit="غ"
+              />
+              <Macro
+                icon={Flame}
+                label="دهون"
+                value={estimate.fat}
+                unit="غ"
+              />
+            </div>
+          </section>
+
+          <section className="px-6 mb-6 animate-enter">
+            <div className="rounded-2xl border border-border bg-surface/60 p-4">
+              <div className="flex items-center gap-2">
+                <Droplet className="size-4 text-cyan" />
+                <p className="text-sm font-black">ترطيب أساسي تقديري</p>
+              </div>
+              <p className="mt-3 text-2xl font-black" dir="ltr">
+                ~{estimate.waterLiters} L
+              </p>
+              <p className="mt-1 text-[10px] leading-relaxed text-muted-foreground">
+                تقدير يومي تقريبي من وزن الجسم فقط. الحرارة، التعرق، الحمل
+                التدريبي والحالات الصحية قد تغير الاحتياج.
+              </p>
+            </div>
+          </section>
+
+          <section className="px-6 mb-8 animate-enter">
+            <div className="rounded-2xl border border-border bg-background/50 p-4">
+              <p className="text-xs font-black">ما الذي لا ندعيه هنا؟</p>
+              <p className="mt-2 text-[10px] leading-relaxed text-muted-foreground">
+                لا نسجل أنك أكلت وجبات لم تدخلها، ولا نعرض “سعرات مستهلكة”
+                وهمية. هذه أهداف تقديرية باستخدام معادلة BMR شائعة ومعامل نشاط
+                محافظ، وليست وصفة علاجية أو خطة تغذية سريرية.
+              </p>
+            </div>
+          </section>
+        </>
+      )}
 
       <BottomNav />
     </PageShell>
+  );
+}
+
+function Metric({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <p className="text-[9px] text-muted-foreground">{label}</p>
+      <p className="mt-1 font-mono text-sm font-black" dir="ltr">
+        {value}
+      </p>
+    </div>
+  );
+}
+
+function Macro({
+  icon: Icon,
+  label,
+  value,
+  unit,
+}: {
+  icon: React.ComponentType<{ className?: string }>;
+  label: string;
+  value: number;
+  unit: string;
+}) {
+  return (
+    <div className="rounded-2xl border border-border bg-surface/60 p-3">
+      <Icon className="size-4 text-primary" />
+      <p className="mt-3 text-[9px] text-muted-foreground">{label}</p>
+      <p className="mt-1 text-lg font-black" dir="ltr">
+        {value}
+        <span className="ml-1 text-[9px] text-muted-foreground">{unit}</span>
+      </p>
+    </div>
   );
 }

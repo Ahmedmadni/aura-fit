@@ -371,8 +371,8 @@ function Dashboard() {
 
       <section className="relative px-6 mb-8 animate-enter [animation-delay:500ms]">
         <div className="grid grid-cols-2 gap-3">
-          <QuickLink to="/dna" icon={Dna} label="الحمض الرياضي" hint="تحليل ذكي متكامل" accent />
-          <QuickLink to="/coach" icon={Sparkles} label="المدرب الذكي" hint="اسألني أي شيء" />
+          <QuickLink to="/dna" icon={Dna} label="بصمة التدريب" hint="مؤشرات من سجلك الفعلي" accent />
+          <QuickLink to="/coach" icon={Sparkles} label="المدرب التحليلي" hint="إرشاد من بياناتك" />
           <QuickLink
             to="/library"
             icon={BookOpen}

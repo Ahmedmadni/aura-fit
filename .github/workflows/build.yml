@@ -19,6 +19,7 @@ jobs:
       - run: bun run workout:validate
       - run: bun run pwa:validate
       - run: bun run cloud:validate
+      - run: bun run realdata:validate
       - run: bun run app:smoke
       - run: bun run typecheck
       - run: bun run build

@@ -15,7 +15,8 @@
     "pwa:validate": "node scripts/validate-pwa.mjs",
     "app:smoke": "bun scripts/smoke-user-journey.ts",
     "typecheck": "tsc --noEmit",
-    "cloud:validate": "node scripts/validate-cloud.mjs"
+    "cloud:validate": "node scripts/validate-cloud.mjs",
+    "realdata:validate": "node scripts/validate-real-data-pages.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",

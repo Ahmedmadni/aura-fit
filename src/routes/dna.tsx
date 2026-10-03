@@ -1,232 +1,262 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import {
   Activity,
-  Brain,
-  Flame,
-  Heart,
-  Shield,
+  CalendarCheck,
+  Dumbbell,
+  Fingerprint,
+  ShieldCheck,
   Sparkles,
+  Target,
   TrendingUp,
-  Zap,
-  Dna,
-  AlertTriangle,
-  ChevronRight,
 } from "lucide-react";
 import { BottomNav } from "@/components/bottom-nav";
 import { PageShell } from "@/components/page-shell";
+import {
+  getExercise,
+  INJURY_LABEL_AR,
+  MOVEMENT_FAMILY_LABEL_AR,
+} from "@/lib/exercise-db";
+import {
+  currentStreak,
+  exerciseStrengthAnalyses,
+  loadHistory,
+  loadProfile,
+  loadTodayReadiness,
+} from "@/lib/user-profile";
+import {
+  PERIODIZATION_PHASE_LABEL_AR,
+  generateWeeklyPlan,
+  getWeeklyVolumeStatus,
+} from "@/lib/workout-engine";
 
 export const Route = createFileRoute("/dna")({
   head: () => ({
     meta: [
-      { title: "الحمض الرياضي · كينيتك" },
+      { title: "بصمة التدريب | Aura Fit" },
       {
         name: "description",
-        content: "تحليل ذكي متكامل لهويتك الرياضية: القوة، التحمل، المرونة، الاستشفاء وخطر الإصابة.",
+        content:
+          "ملخص واقعي لهويتك التدريبية من الجلسات والأحمال والجاهزية وتوازن الحجم، بدون ادعاءات جينية.",
       },
     ],
   }),
-  component: DnaPage,
+  component: TrainingFingerprint,
 });
 
-type Axis = { key: string; label: string; value: number; delta: number };
-
-const AXES: Axis[] = [
-  { key: "strength", label: "القوة", value: 82, delta: +4 },
-  { key: "power", label: "الانفجارية", value: 74, delta: +2 },
-  { key: "endurance", label: "التحمل", value: 68, delta: -1 },
-  { key: "mobility", label: "المرونة", value: 55, delta: +6 },
-  { key: "recovery", label: "الاستشفاء", value: 71, delta: +3 },
-  { key: "consistency", label: "الثبات", value: 89, delta: +1 },
-];
-
-const RISKS = [
-  { area: "الكتف الأيمن", level: "متوسط", pct: 42, note: "زيادة حجم دفع علوي بنسبة ٣٢٪" },
-  { area: "أسفل الظهر", level: "منخفض", pct: 18, note: "توازن جيد بين السحب والدفع" },
-  { area: "الركبة", level: "منخفض", pct: 22, note: "قوة رباعية مستقرة" },
-];
-
-const INSIGHTS = [
-  {
-    icon: Sparkles,
-    title: "ذروتك الأدائية بعد ٥ ساعات من الاستيقاظ",
-    hint: "بيانات نبض القلب والاستشفاء آخر ٣٠ يوم",
-  },
-  {
-    icon: TrendingUp,
-    title: "نمو قوة السحب ٢٣٪ خلال ٦ أسابيع",
-    hint: "أعلى بـ ١٫٤× من متوسط مستواك",
-  },
-  {
-    icon: Shield,
-    title: "احتياط استشفاء منخفض غداً",
-    hint: "المدرب الذكي سيقلل الشدة تلقائياً",
-  },
-];
-
-function DnaPage() {
-  const [selected, setSelected] = useState<string | null>("strength");
-  const active = AXES.find((a) => a.key === selected) ?? AXES[0];
-  const dnaScore = useMemo(
-    () => Math.round(AXES.reduce((s, a) => s + a.value, 0) / AXES.length),
-    [],
+function TrainingFingerprint() {
+  const profile = useMemo(() => loadProfile(), []);
+  const history = useMemo(() => loadHistory(), []);
+  const readiness = useMemo(() => loadTodayReadiness(), []);
+  const weekly = useMemo(
+    () => generateWeeklyPlan(profile, history, readiness),
+    [profile, history, readiness],
   );
+  const strength = useMemo(
+    () => exerciseStrengthAnalyses(history),
+    [history],
+  );
+  const volume = useMemo(
+    () => getWeeklyVolumeStatus(weekly, profile),
+    [weekly, profile],
+  );
+
+  const adaptation = weekly[0]?.adaptation;
+  const periodization = weekly[0]?.periodization;
+  const streak = currentStreak(history);
+  const cutoff = Date.now() - 28 * 24 * 60 * 60 * 1000;
+  const recentWorkouts = history.filter(
+    (workout) => new Date(workout.date).getTime() >= cutoff,
+  );
+  const movementFamilies = new Set(
+    recentWorkouts.flatMap((workout) =>
+      workout.exercises
+        .filter((item) => item.completed)
+        .map((item) => getExercise(item.id)?.movementFamily)
+        .filter((item): item is NonNullable<typeof item> => Boolean(item)),
+    ),
+  );
+  const recentPrs = strength.filter(
+    (item) =>
+      item.sessions > 1 &&
+      (item.latestLoadIsPr || item.latestEstimated1RmIsPr),
+  );
+  const plateaus = strength.filter((item) => item.plateau);
+  const rising = strength.filter((item) => item.trend === "up");
+  const onTarget = volume.filter((item) => item.status === "target").length;
+  const topStrength = [...strength].sort(
+    (a, b) => b.bestEstimated1RmKg - a.bestEstimated1RmKg,
+  )[0];
+
+  const metrics = [
+    {
+      icon: Dumbbell,
+      label: "سجل القوة",
+      value: strength.length ? strength.length + " تمارين" : "لا توجد أحمال",
+      detail: topStrength
+        ? `أعلى e1RM مسجل: ${getExercise(topStrength.exerciseId)?.name ?? topStrength.exerciseId} · ${topStrength.bestEstimated1RmKg} كجم`
+        : "سجّل Kg + Reps + RIR ليبدأ هذا المحور.",
+    },
+    {
+      icon: CalendarCheck,
+      label: "الاستمرارية",
+      value: recentWorkouts.length + " جلسة / 28 يوم",
+      detail: streak ? `سلسلة حالية: ${streak} يوم.` : "لا توجد سلسلة أيام حالية.",
+    },
+    {
+      icon: Activity,
+      label: "الاستشفاء",
+      value: adaptation ? adaptation.readinessScore + "%" : "—",
+      detail: adaptation
+        ? adaptation.readinessSource === "daily-checkin"
+          ? "مبني على Check-in اليوم والأداء الحديث."
+          : "تقديري من خط الأساس والأداء الحديث."
+        : "لا توجد بيانات كافية.",
+    },
+    {
+      icon: Target,
+      label: "توازن الأسبوع",
+      value: onTarget + "/" + volume.length,
+      detail: "عدد مجموعات العضلات الواقعة داخل نطاق الحجم المستهدف.",
+    },
+    {
+      icon: Fingerprint,
+      label: "تنوع الحركة",
+      value: movementFamilies.size
+        ? movementFamilies.size + " أنماط"
+        : "لا توجد جلسات حديثة",
+      detail: movementFamilies.size
+        ? Array.from(movementFamilies)
+            .slice(0, 4)
+            .map((family) => MOVEMENT_FAMILY_LABEL_AR[family])
+            .join(" · ")
+        : "يسجل من التمارين المكتملة فعليًا.",
+    },
+    {
+      icon: ShieldCheck,
+      label: "فلترة السلامة",
+      value: profile.injuries.length
+        ? profile.injuries.length + " مناطق"
+        : "لا توجد قيود",
+      detail: profile.injuries.length
+        ? profile.injuries
+            .map((injury) => INJURY_LABEL_AR[injury])
+            .join("، ")
+        : "لا توجد مناطق إصابة مسجلة في الملف.",
+    },
+  ];
 
   return (
     <PageShell>
-      <header className="p-6 pt-10 flex items-end justify-between animate-enter">
-        <div>
-          <p className="text-xs font-mono uppercase tracking-[0.2em] text-muted-foreground mb-1.5">
-            KINETIC · DNA V2
-          </p>
-          <h1 className="text-3xl font-black tracking-tight leading-none">
-            الحمض
-            <br />
-            الرياضي
-          </h1>
-        </div>
-        <div className="flex items-center gap-2 bg-primary/10 border border-primary/20 px-3 py-1.5 rounded-full">
-          <Dna className="size-3.5 text-primary" />
-          <span className="text-[10px] font-mono text-primary uppercase">SCORE</span>
-          <span className="text-sm font-black" dir="ltr">
-            {dnaScore}
-          </span>
-        </div>
-      </header>
-
-      {/* Radar */}
-      <section className="px-6 mb-6 animate-enter [animation-delay:80ms]">
-        <div className="bg-surface border border-border rounded-3xl p-4 backdrop-blur-xl">
-          <RadarChart axes={AXES} onSelect={setSelected} selected={selected} />
-          <div className="mt-3 pt-4 border-t border-border">
-            <p className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest mb-1">
-              محور مختار
+      <header className="p-6 pt-10 animate-enter">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <p className="text-[10px] font-mono uppercase tracking-[0.2em] text-primary">
+              TRAINING FINGERPRINT
             </p>
-            <div className="flex items-baseline justify-between">
-              <p className="text-lg font-black">{active.label}</p>
-              <div className="flex items-baseline gap-2 font-mono" dir="ltr">
-                <span className="text-2xl font-black text-primary">{active.value}</span>
-                <span
-                  className={`text-[11px] font-bold ${
-                    active.delta >= 0 ? "text-primary" : "text-destructive"
-                  }`}
-                >
-                  {active.delta >= 0 ? "+" : ""}
-                  {active.delta}
-                </span>
-              </div>
-            </div>
+            <h1 className="mt-1 text-3xl font-black leading-tight">
+              بصمة
+              <br />
+              التدريب
+            </h1>
+          </div>
+          <div className="grid size-12 place-items-center rounded-2xl border border-primary/25 bg-primary/10">
+            <Fingerprint className="size-6 text-primary" />
           </div>
         </div>
-      </section>
+        <p className="mt-3 max-w-[38ch] text-xs leading-6 text-muted-foreground">
+          قراءة من بياناتك المسجلة داخل Aura Fit. لا يوجد تحليل DNA أو HRV أو
+          نسب خطر إصابة غير مقاسة.
+        </p>
+      </header>
 
-      {/* Axis grid */}
-      <section className="px-6 mb-8 animate-enter [animation-delay:150ms]">
-        <div className="grid grid-cols-3 gap-2">
-          {AXES.map((a) => (
-            <button
-              type="button"
-              key={a.key}
-              onClick={() => setSelected(a.key)}
-              className={`text-right rounded-xl border p-3 backdrop-blur-xl transition-all active:scale-[0.98] ${
-                selected === a.key
-                  ? "bg-primary/10 border-primary/40"
-                  : "bg-surface border-border hover:border-white/20"
-              }`}
-            >
-              <p className="text-[9px] font-mono uppercase tracking-widest text-muted-foreground">
-                {a.label}
-              </p>
-              <p className="text-lg font-black text-primary mt-1" dir="ltr">
-                {a.value}
-              </p>
-              <div className="mt-2 h-1 rounded-full bg-white/5 overflow-hidden">
-                <div
-                  className="h-full bg-primary rounded-full"
-                  style={{ width: `${a.value}%` }}
-                />
-              </div>
-            </button>
-          ))}
-        </div>
-      </section>
-
-      {/* Injury Risk */}
-      <section className="px-6 mb-8 animate-enter [animation-delay:220ms]">
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="text-[10px] font-mono uppercase tracking-[0.2em] text-muted-foreground">
-            خريطة خطر الإصابة
-          </h3>
-          <span className="flex items-center gap-1 text-[10px] font-mono text-primary uppercase">
-            <AlertTriangle className="size-3" /> AI SCAN
-          </span>
-        </div>
-        <div className="bg-surface border border-border rounded-2xl divide-y divide-border backdrop-blur-xl">
-          {RISKS.map((r) => (
-            <div key={r.area} className="p-4 flex items-center gap-3">
-              <div
-                className={`size-10 grid place-items-center rounded-xl font-black text-sm ${
-                  r.pct > 35
-                    ? "bg-destructive/15 text-destructive"
-                    : "bg-primary/10 text-primary"
-                }`}
-                dir="ltr"
-              >
-                {r.pct}%
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center justify-between mb-0.5">
-                  <p className="text-sm font-black">{r.area}</p>
-                  <span className="text-[9px] font-mono uppercase text-muted-foreground">
-                    {r.level}
-                  </span>
-                </div>
-                <p className="text-[11px] text-muted-foreground truncate">{r.note}</p>
-              </div>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* AI Insights */}
-      <section className="px-6 mb-8 animate-enter [animation-delay:280ms]">
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="text-[10px] font-mono uppercase tracking-[0.2em] text-muted-foreground">
-            بصائر ذكية
-          </h3>
-          <Link
-            to="/coach"
-            className="flex items-center gap-1 text-[10px] font-mono text-primary uppercase"
+      <section className="px-6 mb-7 grid grid-cols-2 gap-3 animate-enter">
+        {metrics.map((metric) => (
+          <article
+            key={metric.label}
+            className="rounded-2xl border border-border bg-surface/60 p-4"
           >
-            المدرب <ChevronRight className="size-3 rtl:rotate-180" />
-          </Link>
-        </div>
-        <div className="space-y-2">
-          {INSIGHTS.map((i) => (
-            <div
-              key={i.title}
-              className="bg-surface border border-border rounded-2xl p-4 flex items-start gap-3 backdrop-blur-xl"
-            >
-              <div className="size-9 grid place-items-center rounded-xl bg-primary/10 text-primary">
-                <i.icon className="size-4" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-bold leading-snug">{i.title}</p>
-                <p className="text-[11px] text-muted-foreground mt-0.5">{i.hint}</p>
-              </div>
+            <metric.icon className="size-4 text-primary" />
+            <p className="mt-3 text-[9px] text-muted-foreground">
+              {metric.label}
+            </p>
+            <p className="mt-1 text-sm font-black">{metric.value}</p>
+            <p className="mt-2 text-[9px] leading-relaxed text-muted-foreground">
+              {metric.detail}
+            </p>
+          </article>
+        ))}
+      </section>
+
+      <section className="px-6 mb-7 animate-enter">
+        <div className="rounded-2xl border border-primary/20 bg-primary/5 p-4">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="text-[10px] font-mono uppercase tracking-widest text-primary">
+                الحالة الحالية
+              </p>
+              <h2 className="mt-1 text-lg font-black">
+                {periodization
+                  ? PERIODIZATION_PHASE_LABEL_AR[periodization.phase]
+                  : "الخطة غير مكتملة"}
+              </h2>
             </div>
-          ))}
+            <Sparkles className="size-5 text-primary" />
+          </div>
+          {periodization && adaptation && (
+            <div className="mt-4 grid grid-cols-3 gap-2">
+              <Mini label="الأسبوع" value={periodization.cycleWeek + "/4"} />
+              <Mini label="RIR" value={periodization.targetRir} />
+              <Mini label="الجاهزية" value={adaptation.readinessScore + "%"} />
+            </div>
+          )}
         </div>
       </section>
 
-      {/* Vitals ribbon */}
-      <section className="px-6 mb-24 animate-enter [animation-delay:340ms]">
-        <div className="grid grid-cols-4 gap-2">
-          <Vital icon={Heart} label="HRV" value="64" />
-          <Vital icon={Activity} label="RHR" value="52" />
-          <Vital icon={Flame} label="LOAD" value="7.8" />
-          <Vital icon={Brain} label="FOCUS" value="A+" />
+      <section className="px-6 mb-8 animate-enter">
+        <p className="mb-3 text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
+          إشارات من السجل
+        </p>
+        <div className="space-y-2">
+          <Signal
+            icon={TrendingUp}
+            title="اتجاهات القوة"
+            body={
+              strength.length
+                ? `${rising.length} تمارين صاعدة · ${recentPrs.length} PR حديثة · ${plateaus.length} Plateau.`
+                : "لا توجد بيانات أحمال كافية بعد."
+            }
+          />
+          <Signal
+            icon={Target}
+            title="توازن الحجم"
+            body={
+              volume.length
+                ? `${onTarget} من ${volume.length} مجموعات عضلية داخل النطاق المستهدف لهذا الأسبوع.`
+                : "أكمل إعداد الخطة ليظهر تحليل الحجم."
+            }
+          />
+          <Signal
+            icon={ShieldCheck}
+            title="حدود التحليل"
+            body="لا نحول هذه المؤشرات إلى تشخيص طبي أو احتمال إصابة أو ادعاء جيني. الصفحة تلخص فقط بيانات التدريب التي سجلتها."
+          />
         </div>
+      </section>
+
+      <section className="px-6 mb-10 grid grid-cols-2 gap-3">
+        <Link
+          to="/progress"
+          className="rounded-2xl bg-primary p-4 text-center text-xs font-black text-primary-foreground"
+        >
+          تحليل القوة
+        </Link>
+        <Link
+          to="/coach"
+          className="rounded-2xl border border-border bg-surface p-4 text-center text-xs font-black"
+        >
+          سؤال المدرب
+        </Link>
       </section>
 
       <BottomNav />
@@ -234,148 +264,35 @@ function DnaPage() {
   );
 }
 
-function Vital({
-  icon: Icon,
-  label,
-  value,
-}: {
-  icon: React.ComponentType<{ className?: string }>;
-  label: string;
-  value: string;
-}) {
+function Mini({ label, value }: { label: string; value: string }) {
   return (
-    <div className="bg-surface border border-border rounded-xl p-3 backdrop-blur-xl">
-      <Icon className="size-3.5 text-primary mb-2" />
-      <p className="text-[9px] font-mono uppercase tracking-widest text-muted-foreground">
-        {label}
-      </p>
-      <p className="text-sm font-black" dir="ltr">
-        {value}
-      </p>
+    <div className="rounded-xl bg-background/50 p-2.5 text-center">
+      <p className="font-mono text-sm font-black">{value}</p>
+      <p className="mt-0.5 text-[8px] text-muted-foreground">{label}</p>
     </div>
   );
 }
 
-function RadarChart({
-  axes,
-  onSelect,
-  selected,
+function Signal({
+  icon: Icon,
+  title,
+  body,
 }: {
-  axes: Axis[];
-  onSelect: (k: string) => void;
-  selected: string | null;
+  icon: React.ComponentType<{ className?: string }>;
+  title: string;
+  body: string;
 }) {
-  const size = 260;
-  const cx = size / 2;
-  const cy = size / 2;
-  const radius = 96;
-  const n = axes.length;
-
-  const point = (i: number, r: number) => {
-    const angle = (Math.PI * 2 * i) / n - Math.PI / 2;
-    return [cx + Math.cos(angle) * r, cy + Math.sin(angle) * r] as const;
-  };
-
-  const dataPoints = axes.map((a, i) => point(i, (a.value / 100) * radius));
-  const path = dataPoints.map(([x, y], i) => `${i === 0 ? "M" : "L"}${x},${y}`).join(" ") + " Z";
-
   return (
-    <div className="relative flex justify-center">
-      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="max-w-full">
-        <defs>
-          <radialGradient id="dna-fill" cx="50%" cy="50%" r="50%">
-            <stop offset="0%" stopColor="var(--brand)" stopOpacity="0.4" />
-            <stop offset="100%" stopColor="var(--brand)" stopOpacity="0.05" />
-          </radialGradient>
-        </defs>
-        {/* rings */}
-        {[0.25, 0.5, 0.75, 1].map((f) => (
-          <polygon
-            key={f}
-            points={axes
-              .map((_, i) => {
-                const [x, y] = point(i, radius * f);
-                return `${x},${y}`;
-              })
-              .join(" ")}
-            fill="none"
-            stroke="rgba(255,255,255,0.06)"
-            strokeWidth="1"
-          />
-        ))}
-        {/* spokes */}
-        {axes.map((_, i) => {
-          const [x, y] = point(i, radius);
-          return (
-            <line
-              key={i}
-              x1={cx}
-              y1={cy}
-              x2={x}
-              y2={y}
-              stroke="rgba(255,255,255,0.06)"
-              strokeWidth="1"
-            />
-          );
-        })}
-        {/* filled */}
-        <path
-          d={path}
-          fill="url(#dna-fill)"
-          stroke="var(--brand)"
-          strokeWidth="2"
-          style={{ filter: "drop-shadow(0 0 12px rgba(204,255,0,0.35))" }}
-        />
-        {/* points */}
-        {dataPoints.map(([x, y], i) => {
-          const isSel = axes[i].key === selected;
-          return (
-            <g key={i} onClick={() => onSelect(axes[i].key)} style={{ cursor: "pointer" }}>
-              <circle
-                cx={x}
-                cy={y}
-                r={isSel ? 6 : 4}
-                fill={isSel ? "var(--brand)" : "#0a0a0a"}
-                stroke="var(--brand)"
-                strokeWidth="2"
-              />
-            </g>
-          );
-        })}
-        {/* labels */}
-        {axes.map((a, i) => {
-          const [x, y] = point(i, radius + 22);
-          return (
-            <text
-              key={a.key}
-              x={x}
-              y={y}
-              textAnchor="middle"
-              dominantBaseline="middle"
-              className="fill-muted-foreground"
-              style={{
-                fontSize: 10,
-                fontFamily: "var(--font-mono, monospace)",
-                textTransform: "uppercase",
-                letterSpacing: "0.1em",
-              }}
-            >
-              {a.label}
-            </text>
-          );
-        })}
-        {/* center score */}
-        <circle cx={cx} cy={cy} r="22" fill="rgba(0,0,0,0.6)" stroke="var(--brand)" strokeWidth="1" />
-        <text
-          x={cx}
-          y={cy + 4}
-          textAnchor="middle"
-          className="fill-primary"
-          style={{ fontSize: 12, fontWeight: 900, letterSpacing: "0.1em" }}
-        >
-          DNA
-        </text>
-      </svg>
+    <div className="flex items-start gap-3 rounded-2xl border border-border bg-surface/60 p-4">
+      <div className="grid size-9 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary">
+        <Icon className="size-4" />
+      </div>
+      <div>
+        <p className="text-xs font-black">{title}</p>
+        <p className="mt-1 text-[10px] leading-relaxed text-muted-foreground">
+          {body}
+        </p>
+      </div>
     </div>
   );
 }
