@@ -23,9 +23,11 @@ jobs:
       - run: bun run app:smoke
       - run: bun run typecheck
       - run: bun run build
+      - name: Build Node preview for browser smoke
+        run: NITRO_PRESET=node-server bun run build
       - name: Browser smoke
         run: |
-          bunx nitro preview --dir . --host 127.0.0.1 --port 4173 > /tmp/aura-preview.log 2>&1 &
+          HOST=127.0.0.1 PORT=4173 node .output/server/index.mjs > /tmp/aura-preview.log 2>&1 &
           SERVER_PID=$!
           trap 'kill "$SERVER_PID" 2>/dev/null || true' EXIT
 
