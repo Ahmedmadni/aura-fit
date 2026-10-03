@@ -16,7 +16,8 @@
     "app:smoke": "bun scripts/smoke-user-journey.ts",
     "typecheck": "tsc --noEmit",
     "cloud:validate": "node scripts/validate-cloud.mjs",
-    "realdata:validate": "node scripts/validate-real-data-pages.mjs"
+    "realdata:validate": "node scripts/validate-real-data-pages.mjs",
+    "browser:smoke": "node scripts/browser-smoke.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
