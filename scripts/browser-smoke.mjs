@@ -177,6 +177,12 @@ async function main() {
       cdp.send("Runtime.enable"),
       cdp.send("Network.enable"),
       cdp.send("Log.enable"),
+      cdp.send("Emulation.setDeviceMetricsOverride", {
+        width: 390,
+        height: 844,
+        deviceScaleFactor: 1,
+        mobile: true,
+      }),
     ]);
 
     const runtimeErrors = [];
@@ -220,7 +226,17 @@ async function main() {
       for (let attempt = 0; attempt < 100; attempt += 1) {
         body = String(await evaluate("document.body?.innerText ?? ''"));
         const ready = await evaluate('document.readyState === "complete"');
-        if (ready && body.includes(expectedText)) return body;
+        if (ready && body.includes(expectedText)) {
+          const overflow = await evaluate(
+            "document.documentElement.scrollWidth - document.documentElement.clientWidth",
+          );
+          if (Number(overflow) > 2) {
+            throw new Error(
+              "Horizontal overflow detected on " + route + ": " + overflow + "px",
+            );
+          }
+          return body;
+        }
         await timeout(100);
       }
       throw new Error(
@@ -233,53 +249,173 @@ async function main() {
       );
     }
 
-    await navigate("/", "أهلاً بعودتك");
+    async function waitForText(text, timeoutMs = 10000) {
+      const started = Date.now();
+      while (Date.now() - started < timeoutMs) {
+        const body = String(await evaluate("document.body?.innerText ?? ''"));
+        if (body.includes(text)) return body;
+        await timeout(100);
+      }
+      throw new Error("Timed out waiting for text " + JSON.stringify(text));
+    }
 
-    const today = new Date().toISOString().slice(0, 10);
-    const profile = {
-      name: "Browser Smoke",
-      level: "intermediate",
-      goals: ["muscle-gain"],
-      equipment: [
-        "none",
-        "mat",
-        "dumbbells",
-        "barbell",
-        "kettlebell",
-        "resistance-band",
-        "pullup-bar",
-        "bench",
-        "machine",
-        "cable",
-        "cardio-machine",
-        "weight-plate",
-        "wall",
-        "chair",
-        "doorway",
-        "towel",
-        "box",
-        "stability-ball",
-      ],
-      injuries: ["knee"],
-      daysPerWeek: 3,
-      sessionMinutes: 45,
-      sleepQuality: 4,
-      fatigue: 2,
-      age: 32,
-      weightKg: 80,
-      heightCm: 178,
-      gender: "male",
-    };
-    const readiness = [
-      {
-        dateKey: today,
-        recordedAt: new Date().toISOString(),
-        sleepQuality: 4,
-        fatigue: 2,
-        muscleSoreness: 2,
-        energy: 4,
-      },
-    ];
+    async function clickText(text, exact = false) {
+      const clicked = await evaluate(
+        `(() => {
+          const target = ${JSON.stringify(text)};
+          const elements = [...document.querySelectorAll("button, a")];
+          const element = elements.find((node) => {
+            const value = (node.textContent || "").trim().replace(/\\s+/g, " ");
+            return ${exact ? "value === target" : "value.includes(target)"};
+          });
+          if (!element) return false;
+          element.click();
+          return true;
+        })()`,
+      );
+      if (!clicked) {
+        throw new Error("Could not find clickable text " + JSON.stringify(text));
+      }
+      await timeout(120);
+    }
+
+    async function clickAria(label) {
+      const clicked = await evaluate(
+        `(() => {
+          const node = document.querySelector(
+            '[aria-label="' + ${JSON.stringify(label)}.replace(/"/g, '\\"') + '"]'
+          );
+          if (!node) return false;
+          node.click();
+          return true;
+        })()`,
+      );
+      if (!clicked) {
+        throw new Error("Could not find aria-label " + JSON.stringify(label));
+      }
+      await timeout(80);
+    }
+
+    async function setLabeledInput(label, value) {
+      const changed = await evaluate(
+        `(() => {
+          const target = ${JSON.stringify(label)};
+          const labels = [...document.querySelectorAll("label")];
+          const wrapper = labels.find((node) =>
+            (node.textContent || "").includes(target)
+          );
+          const input = wrapper?.querySelector("input");
+          if (!input) return false;
+          const setter = Object.getOwnPropertyDescriptor(
+            HTMLInputElement.prototype,
+            "value"
+          )?.set;
+          setter?.call(input, ${JSON.stringify(value)});
+          input.dispatchEvent(new Event("input", { bubbles: true }));
+          input.dispatchEvent(new Event("change", { bubbles: true }));
+          return true;
+        })()`,
+      );
+      if (!changed) {
+        throw new Error("Could not find input for label " + JSON.stringify(label));
+      }
+      await timeout(80);
+    }
+
+    await navigate("/", "أهلاً بعودتك");
+    await evaluate("localStorage.clear(); true");
+
+    // Full mobile onboarding through the actual UI.
+    await navigate("/onboarding", "الخطوة ١ من ٨");
+    await setLabeledInput("الاسم", "Browser E2E");
+    await setLabeledInput("العمر", "32");
+    await clickText("التالي", true);
+
+    await waitForText("الخطوة ٢ من ٨");
+    await clickText("ذكر", true);
+    await clickText("التالي", true);
+
+    await waitForText("الخطوة ٣ من ٨");
+    await setLabeledInput("الطول", "178");
+    await setLabeledInput("الوزن", "80");
+    await clickText("التالي", true);
+
+    await waitForText("الخطوة ٤ من ٨");
+    await clickText("متوسط", true);
+    await clickText("التالي", true);
+
+    await waitForText("الخطوة ٥ من ٨");
+    await clickText("بناء العضلات", true);
+    await clickText("التالي", true);
+
+    await waitForText("الخطوة ٦ من ٨");
+    await clickText("دمبل", true);
+    await clickText("باربل", true);
+    await clickText("كابل / أجهزة", true);
+    await clickText("التالي", true);
+
+    await waitForText("الخطوة ٧ من ٨");
+    await clickText("الركبة", true);
+    await clickText("التالي", true);
+
+    await waitForText("الخطوة ٨ من ٨");
+    await clickText("3", true);
+    await clickText("45 د", true);
+    await clickText("أنشئ خطتي الأسبوعية");
+
+    await waitForText("Browser E2E");
+    const onboardingProfile = await evaluate(
+      'JSON.parse(localStorage.getItem("kp.profile") || "{}")',
+    );
+    if (
+      onboardingProfile.name !== "Browser E2E" ||
+      onboardingProfile.level !== "intermediate" ||
+      onboardingProfile.daysPerWeek !== 3 ||
+      onboardingProfile.sessionMinutes !== 45 ||
+      !onboardingProfile.injuries?.includes("knee") ||
+      !onboardingProfile.equipment?.includes("dumbbells") ||
+      !onboardingProfile.equipment?.includes("barbell")
+    ) {
+      throw new Error(
+        "Onboarding did not persist the expected profile: " +
+          JSON.stringify(onboardingProfile),
+      );
+    }
+
+    // Daily readiness through the actual controls.
+    await waitForText("كيف حالك اليوم؟");
+    await clickAria("جودة النوم 5 من 5");
+    await clickAria("التعب 2 من 5");
+    await clickAria("ألم العضلات 2 من 5");
+    await clickAria("الطاقة 5 من 5");
+    await clickText("حفظ تقييم اليوم");
+    await waitForText("تقييم اليوم مسجل");
+
+    const storedReadiness = await evaluate(
+      'JSON.parse(localStorage.getItem("kp.readiness") || "[]")',
+    );
+    if (
+      !storedReadiness.length ||
+      storedReadiness[0].sleepQuality !== 5 ||
+      storedReadiness[0].fatigue !== 2 ||
+      storedReadiness[0].muscleSoreness !== 2 ||
+      storedReadiness[0].energy !== 5
+    ) {
+      throw new Error(
+        "Readiness check-in did not persist through the UI: " +
+          JSON.stringify(storedReadiness),
+      );
+    }
+
+    const workoutBody = await navigate("/workout?day=0", "استجابة الخطة");
+    if (!workoutBody.includes("فلترة الإصابة فعّالة")) {
+      throw new Error("Workout did not show active knee safety filtering.");
+    }
+    if (workoutBody.includes("لم يتم تسجيل Check-in اليوم")) {
+      throw new Error("Workout ignored the daily readiness check-in.");
+    }
+
+    // Seed only a completed strength entry so progress analytics can be tested.
     const history = [
       {
         id: "browser-smoke-workout",
@@ -311,19 +447,16 @@ async function main() {
 
     await evaluate(
       `(() => {
-        localStorage.setItem("kp.profile", ${JSON.stringify(JSON.stringify(profile))});
-        localStorage.setItem("kp.profile.updated-at", ${JSON.stringify(new Date().toISOString())});
-        localStorage.setItem("kp.readiness", ${JSON.stringify(JSON.stringify(readiness))});
         localStorage.setItem("kp.history", ${JSON.stringify(JSON.stringify(history))});
         return true;
       })()`,
     );
 
-    await navigate("/", "Browser Smoke");
+    await navigate("/", "Browser E2E");
 
     const routes = [
       ["/programs", "التوزيع الحالي"],
-      ["/workout?day=0", "استجابة الخطة"],
+      ["/workout?day=0", "فلترة الإصابة فعّالة"],
       ["/progress", "سجل القوة"],
       ["/profile", "ملف التدريب"],
       ["/coach", "المدرب التحليلي"],
@@ -414,7 +547,7 @@ async function main() {
     }
 
     console.log(
-      "Browser smoke PASS: hydrated routes, real-data pages, workout UI, service worker and offline cached navigation all verified in headless Chrome.",
+      "Browser smoke PASS: mobile onboarding, injury selection, readiness UI, adaptive workout, real-data routes, service worker and offline cached navigation all verified in headless Chrome.",
     );
 
     cdp.close();
