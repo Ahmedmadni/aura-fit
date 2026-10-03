@@ -1,6 +1,6 @@
 /**
  * Local-first user profile + workout history.
- * Persisted to localStorage; portable to Lovable Cloud later without API changes.
+ * localStorage remains the source used by the UI; optional cloud sync mirrors it.
  */
 
 import type { Equipment, Goal, Injury, Level } from "./exercise-db";
@@ -94,8 +94,27 @@ export interface CompletedWorkout {
 }
 
 const P_KEY = "kp.profile";
+const P_UPDATED_KEY = "kp.profile.updated-at";
 const H_KEY = "kp.history";
 const R_KEY = "kp.readiness";
+
+export const LOCAL_DATA_CHANGED_EVENT = "aura:local-data-changed";
+export type LocalDataChange =
+  | { kind: "profile" }
+  | { kind: "workout"; id: string }
+  | { kind: "readiness"; dateKey: string };
+
+function emitLocalDataChanged(detail: LocalDataChange) {
+  if (
+    typeof window === "undefined" ||
+    typeof window.dispatchEvent !== "function"
+  ) {
+    return;
+  }
+  window.dispatchEvent(
+    new CustomEvent<LocalDataChange>(LOCAL_DATA_CHANGED_EVENT, { detail }),
+  );
+}
 
 export const DEFAULT_PROFILE: UserProfile = {
   level: "beginner",
@@ -119,11 +138,28 @@ export function loadProfile(): UserProfile {
   }
 }
 
+export function loadProfileUpdatedAt() {
+  if (typeof window === "undefined") return null;
+  return localStorage.getItem(P_UPDATED_KEY);
+}
+
+export function replaceLocalProfile(
+  profile: UserProfile,
+  updatedAt = new Date().toISOString(),
+  emit = false,
+) {
+  if (typeof window === "undefined") return;
+  localStorage.setItem(P_KEY, JSON.stringify({ ...DEFAULT_PROFILE, ...profile }));
+  localStorage.setItem(P_UPDATED_KEY, updatedAt);
+  if (emit) emitLocalDataChanged({ kind: "profile" });
+}
+
 export function saveProfile(p: Partial<UserProfile>) {
   if (typeof window === "undefined") return;
   const current = loadProfile();
   const next = { ...current, ...p };
-  localStorage.setItem(P_KEY, JSON.stringify(next));
+  replaceLocalProfile(next, new Date().toISOString(), false);
+  emitLocalDataChanged({ kind: "profile" });
 }
 
 export function loadHistory(): CompletedWorkout[] {
@@ -136,11 +172,32 @@ export function loadHistory(): CompletedWorkout[] {
   }
 }
 
+export function replaceLocalHistory(
+  history: CompletedWorkout[],
+  emit = false,
+) {
+  if (typeof window === "undefined") return;
+  const unique = Array.from(
+    new Map(history.map((workout) => [workout.id, workout])).values(),
+  )
+    .sort(
+      (a, b) =>
+        new Date(b.date).getTime() - new Date(a.date).getTime(),
+    )
+    .slice(0, 200);
+  localStorage.setItem(H_KEY, JSON.stringify(unique));
+  if (emit) {
+    for (const workout of unique) {
+      emitLocalDataChanged({ kind: "workout", id: workout.id });
+    }
+  }
+}
+
 export function recordWorkout(w: CompletedWorkout) {
   if (typeof window === "undefined") return;
-  const all = loadHistory();
-  all.unshift(w);
-  localStorage.setItem(H_KEY, JSON.stringify(all.slice(0, 200)));
+  const all = loadHistory().filter((item) => item.id !== w.id);
+  replaceLocalHistory([w, ...all], false);
+  emitLocalDataChanged({ kind: "workout", id: w.id });
 }
 
 export function loadReadinessHistory(): DailyReadinessCheckIn[] {
@@ -177,6 +234,38 @@ export function loadTodayReadiness(
   return readinessForDate(loadReadinessHistory(), readinessDateKey(date));
 }
 
+export function replaceLocalReadinessHistory(
+  entries: DailyReadinessCheckIn[],
+  emit = false,
+) {
+  if (typeof window === "undefined") return;
+  const byDate = new Map<string, DailyReadinessCheckIn>();
+  for (const entry of entries) {
+    const normalized = normalizeReadinessCheckIn(entry);
+    const existing = byDate.get(normalized.dateKey);
+    if (
+      !existing ||
+      new Date(normalized.recordedAt).getTime() >
+        new Date(existing.recordedAt).getTime()
+    ) {
+      byDate.set(normalized.dateKey, normalized);
+    }
+  }
+  const next = Array.from(byDate.values())
+    .sort(
+      (a, b) =>
+        new Date(b.recordedAt).getTime() -
+        new Date(a.recordedAt).getTime(),
+    )
+    .slice(0, 90);
+  localStorage.setItem(R_KEY, JSON.stringify(next));
+  if (emit) {
+    for (const item of next) {
+      emitLocalDataChanged({ kind: "readiness", dateKey: item.dateKey });
+    }
+  }
+}
+
 export function saveDailyReadiness(
   values: Omit<DailyReadinessCheckIn, "recordedAt"> &
     Partial<Pick<DailyReadinessCheckIn, "recordedAt">>,
@@ -189,10 +278,8 @@ export function saveDailyReadiness(
   const all = loadReadinessHistory().filter(
     (item) => item.dateKey !== next.dateKey,
   );
-  localStorage.setItem(
-    R_KEY,
-    JSON.stringify([next, ...all].slice(0, 90)),
-  );
+  replaceLocalReadinessHistory([next, ...all], false);
+  emitLocalDataChanged({ kind: "readiness", dateKey: next.dateKey });
   return next;
 }
 

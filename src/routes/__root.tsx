@@ -10,6 +10,7 @@ import {
 import { useEffect, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
+import { CloudSyncBridge } from "../components/cloud-sync-bridge";
 import { PwaRegister } from "../components/pwa-register";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 
@@ -149,6 +150,7 @@ function RootComponent() {
   return (
     <QueryClientProvider client={queryClient}>
       <PwaRegister />
+      <CloudSyncBridge />
       <Outlet />
     </QueryClientProvider>
   );

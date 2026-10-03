@@ -14,7 +14,8 @@
     "workout:validate": "bun scripts/validate-workout-program.ts",
     "pwa:validate": "node scripts/validate-pwa.mjs",
     "app:smoke": "bun scripts/smoke-user-journey.ts",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "cloud:validate": "node scripts/validate-cloud.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",

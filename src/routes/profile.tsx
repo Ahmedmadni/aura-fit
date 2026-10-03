@@ -1,17 +1,36 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Activity,
   Award,
   CalendarDays,
   ChevronLeft,
+  Cloud,
+  CloudOff,
   Dumbbell,
+  LogIn,
+  LogOut,
+  RefreshCw,
   Settings,
   ShieldCheck,
   Target,
   Zap,
 } from "lucide-react";
 import { BottomNav } from "@/components/bottom-nav";
+import {
+  CLOUD_AUTH_CHANGED_EVENT,
+  loadCloudSession,
+  signInCloud,
+  signOutCloud,
+  signUpCloud,
+  type CloudSession,
+} from "@/lib/cloud-auth";
+import { isCloudConfigured } from "@/lib/cloud-config";
+import {
+  CLOUD_SYNC_STATUS_EVENT,
+  runFullCloudSync,
+  type CloudSyncStatus,
+} from "@/lib/cloud-sync";
 import { FontSizeSetting } from "@/components/font-size-setting";
 import { PageShell } from "@/components/page-shell";
 import { INJURY_LABEL_AR, LEVEL_LABEL_AR } from "@/lib/exercise-db";
@@ -27,8 +46,39 @@ export const Route = createFileRoute("/profile")({
 });
 
 function Profile() {
-  const profile = useMemo(() => loadProfile(), []);
-  const history = useMemo(() => loadHistory(), []);
+  const [profile, setProfile] = useState(() => loadProfile());
+  const [history, setHistory] = useState(() => loadHistory());
+  const cloudConfigured = isCloudConfigured();
+  const [cloudSession, setCloudSession] = useState<CloudSession | null>(
+    () => loadCloudSession(),
+  );
+  const [cloudStatus, setCloudStatus] = useState<CloudSyncStatus>({
+    state: "idle",
+    message: "لم تبدأ المزامنة بعد",
+  });
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [cloudBusy, setCloudBusy] = useState(false);
+  const [cloudMessage, setCloudMessage] = useState("");
+
+  useEffect(() => {
+    const refreshSession = () => setCloudSession(loadCloudSession());
+    const onStatus = (event: Event) => {
+      setCloudStatus(
+        (event as CustomEvent<CloudSyncStatus>).detail ?? {
+          state: "idle",
+          message: "حالة المزامنة غير متاحة",
+        },
+      );
+    };
+
+    window.addEventListener(CLOUD_AUTH_CHANGED_EVENT, refreshSession);
+    window.addEventListener(CLOUD_SYNC_STATUS_EVENT, onStatus);
+    return () => {
+      window.removeEventListener(CLOUD_AUTH_CHANGED_EVENT, refreshSession);
+      window.removeEventListener(CLOUD_SYNC_STATUS_EVENT, onStatus);
+    };
+  }, []);
   const achievements = useMemo(
     () => computeAchievements(history),
     [history],
@@ -56,6 +106,91 @@ function Profile() {
         year: "numeric",
       }).format(new Date(oldestWorkout.date))
     : "لم تسجل جلسة بعد";
+
+  async function handleCloudSignIn() {
+    if (!email.trim() || password.length < 6) {
+      setCloudMessage("أدخل البريد وكلمة مرور لا تقل عن 6 أحرف.");
+      return;
+    }
+    setCloudBusy(true);
+    setCloudMessage("");
+    try {
+      await signInCloud(email.trim(), password);
+      await runFullCloudSync();
+      setProfile(loadProfile());
+      setHistory(loadHistory());
+      setCloudMessage("تم تسجيل الدخول ومزامنة بياناتك.");
+      setPassword("");
+    } catch (error) {
+      setCloudMessage(
+        error instanceof Error ? error.message : "تعذر تسجيل الدخول.",
+      );
+    } finally {
+      setCloudBusy(false);
+    }
+  }
+
+  async function handleCloudSignUp() {
+    if (!email.trim() || password.length < 6) {
+      setCloudMessage("أدخل البريد وكلمة مرور لا تقل عن 6 أحرف.");
+      return;
+    }
+    setCloudBusy(true);
+    setCloudMessage("");
+    try {
+      const result = await signUpCloud(email.trim(), password);
+      if (result.session) {
+        await runFullCloudSync();
+        setProfile(loadProfile());
+        setHistory(loadHistory());
+        setCloudMessage("تم إنشاء الحساب ومزامنة بياناتك.");
+      } else if (result.confirmationRequired) {
+        setCloudMessage(
+          "تم إنشاء الحساب. افتح رسالة التأكيد في بريدك ثم سجّل الدخول.",
+        );
+      } else {
+        setCloudMessage("تم إرسال طلب إنشاء الحساب.");
+      }
+      setPassword("");
+    } catch (error) {
+      setCloudMessage(
+        error instanceof Error ? error.message : "تعذر إنشاء الحساب.",
+      );
+    } finally {
+      setCloudBusy(false);
+    }
+  }
+
+  async function handleCloudSync() {
+    setCloudBusy(true);
+    setCloudMessage("");
+    try {
+      const result = await runFullCloudSync();
+      setProfile(loadProfile());
+      setHistory(loadHistory());
+      setCloudMessage(
+        result.signedIn
+          ? `تمت المزامنة: ${result.workouts} جلسة و${result.readiness} تقييم يومي.`
+          : "سجّل الدخول أولًا.",
+      );
+    } catch (error) {
+      setCloudMessage(
+        error instanceof Error ? error.message : "تعذرت المزامنة.",
+      );
+    } finally {
+      setCloudBusy(false);
+    }
+  }
+
+  async function handleCloudSignOut() {
+    setCloudBusy(true);
+    try {
+      await signOutCloud();
+      setCloudMessage("تم تسجيل الخروج. بيانات الجهاز المحلية لم تُحذف.");
+    } finally {
+      setCloudBusy(false);
+    }
+  }
 
   return (
     <PageShell>
@@ -154,6 +289,128 @@ function Profile() {
           label="سعرة تقديرية"
           value={formatCompact(totalCalories)}
         />
+      </section>
+
+      <section className="relative px-6 mb-7 animate-enter [animation-delay:120ms]">
+        <div
+          className={
+            "rounded-2xl border p-4 " +
+            (cloudSession
+              ? "border-primary/25 bg-primary/5"
+              : "border-border bg-surface/60")
+          }
+        >
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="text-[10px] font-mono uppercase tracking-[0.2em] text-muted-foreground">
+                المزامنة السحابية
+              </p>
+              <h3 className="mt-1 text-sm font-black">
+                {!cloudConfigured
+                  ? "غير مفعلة على هذا الإصدار"
+                  : cloudSession
+                    ? "الحساب متصل"
+                    : "اختيارية · Local-first"}
+              </h3>
+            </div>
+            {cloudSession ? (
+              <Cloud className="size-5 text-primary" />
+            ) : (
+              <CloudOff className="size-5 text-muted-foreground" />
+            )}
+          </div>
+
+          {!cloudConfigured ? (
+            <p className="mt-3 text-[10px] leading-relaxed text-muted-foreground">
+              أضف VITE_SUPABASE_URL وVITE_SUPABASE_PUBLISHABLE_KEY لتفعيل
+              الحسابات والمزامنة. يظل التطبيق المحلي يعمل بالكامل بدونها.
+            </p>
+          ) : cloudSession ? (
+            <>
+              <div className="mt-3 rounded-xl border border-border bg-background/50 p-3">
+                <p className="truncate text-xs font-black" dir="ltr">
+                  {cloudSession.user.email ?? cloudSession.user.id}
+                </p>
+                <p className="mt-1 text-[9px] text-muted-foreground">
+                  {cloudStatus.message}
+                </p>
+              </div>
+              <div className="mt-3 grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  disabled={cloudBusy}
+                  onClick={handleCloudSync}
+                  className="flex items-center justify-center gap-2 rounded-xl bg-primary px-3 py-3 text-xs font-black text-primary-foreground disabled:opacity-50"
+                >
+                  <RefreshCw className={"size-3.5 " + (cloudBusy ? "animate-spin" : "")} />
+                  مزامنة الآن
+                </button>
+                <button
+                  type="button"
+                  disabled={cloudBusy}
+                  onClick={handleCloudSignOut}
+                  className="flex items-center justify-center gap-2 rounded-xl border border-border bg-background/50 px-3 py-3 text-xs font-bold text-muted-foreground disabled:opacity-50"
+                >
+                  <LogOut className="size-3.5" />
+                  خروج
+                </button>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="mt-3 space-y-2">
+                <input
+                  type="email"
+                  autoComplete="email"
+                  value={email}
+                  onChange={(event) => setEmail(event.target.value)}
+                  placeholder="البريد الإلكتروني"
+                  dir="ltr"
+                  className="h-11 w-full rounded-xl border border-input bg-background px-3 text-sm outline-none focus:border-primary"
+                />
+                <input
+                  type="password"
+                  autoComplete="current-password"
+                  value={password}
+                  onChange={(event) => setPassword(event.target.value)}
+                  placeholder="كلمة المرور"
+                  dir="ltr"
+                  className="h-11 w-full rounded-xl border border-input bg-background px-3 text-sm outline-none focus:border-primary"
+                />
+              </div>
+              <div className="mt-3 grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  disabled={cloudBusy}
+                  onClick={handleCloudSignIn}
+                  className="flex items-center justify-center gap-2 rounded-xl bg-primary px-3 py-3 text-xs font-black text-primary-foreground disabled:opacity-50"
+                >
+                  <LogIn className="size-3.5" />
+                  دخول
+                </button>
+                <button
+                  type="button"
+                  disabled={cloudBusy}
+                  onClick={handleCloudSignUp}
+                  className="rounded-xl border border-border bg-background/50 px-3 py-3 text-xs font-bold disabled:opacity-50"
+                >
+                  إنشاء حساب
+                </button>
+              </div>
+            </>
+          )}
+
+          {cloudMessage && (
+            <p className="mt-3 rounded-lg border border-border bg-background/40 p-2.5 text-[10px] leading-relaxed text-muted-foreground">
+              {cloudMessage}
+            </p>
+          )}
+
+          <p className="mt-3 text-[9px] leading-relaxed text-muted-foreground">
+            تسجيل الدخول اختياري. يبقى سجل الجهاز متاحًا محليًا، وتُستخدم
+            السحابة للنسخ والمزامنة بين الأجهزة عند تفعيلها.
+          </p>
+        </div>
       </section>
 
       <section className="relative px-6 mb-7 animate-enter [animation-delay:140ms]">
