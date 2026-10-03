@@ -41,8 +41,14 @@ export const Route = createFileRoute("/workout")({
 function WorkoutPlayer() {
   const navigate = useNavigate();
   const { day } = Route.useSearch();
+  const [hydrated, setHydrated] = useState(false);
 
-  // Build a stable session from the selected weekly-plan day.
+  useEffect(() => {
+    setHydrated(true);
+  }, []);
+
+  // localStorage is unavailable during SSR. Rebuild once after hydration so
+  // direct navigation always uses the real local profile/history/readiness.
   const workout = useMemo(
     () =>
       generateWorkout(loadProfile(), {
@@ -50,7 +56,7 @@ function WorkoutPlayer() {
         history: loadHistory(),
         readiness: loadTodayReadiness(),
       }),
-    [day],
+    [day, hydrated],
   );
   const plan = workout.exercises;
 
@@ -85,6 +91,26 @@ function WorkoutPlayer() {
     [plan],
   );
   const [elapsed, setElapsed] = useState(0);
+
+  useEffect(() => {
+    if (!hydrated) return;
+    setIndex(0);
+    setSetIdx(1);
+    setPhase("work");
+    setRemaining(plan[0]?.workSeconds ?? 45);
+    setRunning(true);
+    setCompleted(new Set());
+    setSetReps({});
+    setSetLoadsKg({});
+    setSetRir({});
+    setCurrentReps(suggestedReps(plan[0]?.reps));
+    setCurrentLoadKg(
+      plan[0]?.suggestedLoadKg ?? plan[0]?.lastLoadKg ?? 0,
+    );
+    setCurrentRir(null);
+    setElapsed(0);
+    startedAt.current = Date.now();
+  }, [hydrated, plan]);
 
   function saveCurrentSet() {
     setSetReps((all) => {
@@ -137,7 +163,7 @@ function WorkoutPlayer() {
 
   // main timer
   useEffect(() => {
-    if (!running || phase === "done") return;
+    if (!hydrated || !running || phase === "done") return;
     const id = setInterval(() => {
       setRemaining((r) => {
         if (r <= 4 && r > 1) sfxTick();
@@ -179,7 +205,7 @@ function WorkoutPlayer() {
 
   // save on completion
   useEffect(() => {
-    if (phase !== "done") return;
+    if (!hydrated || phase !== "done") return;
     const durationSec = Math.round((Date.now() - startedAt.current) / 1000);
     const calories = Math.round(
       plan.reduce(
@@ -254,6 +280,21 @@ function WorkoutPlayer() {
       setRemaining(next.workSeconds);
       sfxGo();
     }
+  }
+
+  if (!hydrated) {
+    return (
+      <PageShell>
+        <div className="grid min-h-[70vh] place-items-center p-6 text-center">
+          <div>
+            <p className="font-mono text-[10px] uppercase tracking-[0.3em] text-primary">
+              AURA FIT
+            </p>
+            <p className="mt-2 text-sm font-bold">جارٍ تجهيز جلستك من بيانات الجهاز…</p>
+          </div>
+        </div>
+      </PageShell>
+    );
   }
 
   if (phase === "done") {
