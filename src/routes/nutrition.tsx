@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Beef,
   Droplet,
@@ -9,7 +9,11 @@ import {
 } from "lucide-react";
 import { BottomNav } from "@/components/bottom-nav";
 import { PageShell, PageHeader } from "@/components/page-shell";
-import { loadProfile } from "@/lib/user-profile";
+import {
+  DEFAULT_PROFILE,
+  loadProfile,
+  type UserProfile,
+} from "@/lib/user-profile";
 
 export const Route = createFileRoute("/nutrition")({
   head: () => ({
@@ -41,7 +45,11 @@ function goalFactor(goals: string[]) {
 }
 
 function Nutrition() {
-  const profile = useMemo(() => loadProfile(), []);
+  const [profile, setProfile] = useState<UserProfile>(DEFAULT_PROFILE);
+
+  useEffect(() => {
+    setProfile(loadProfile());
+  }, []);
   const ready =
     profile.age !== undefined &&
     profile.weightKg !== undefined &&

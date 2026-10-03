@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Activity,
   CalendarCheck,
@@ -18,11 +18,15 @@ import {
   MOVEMENT_FAMILY_LABEL_AR,
 } from "@/lib/exercise-db";
 import {
+  DEFAULT_PROFILE,
   currentStreak,
   exerciseStrengthAnalyses,
   loadHistory,
   loadProfile,
   loadTodayReadiness,
+  type CompletedWorkout,
+  type DailyReadinessCheckIn,
+  type UserProfile,
 } from "@/lib/user-profile";
 import {
   PERIODIZATION_PHASE_LABEL_AR,
@@ -45,9 +49,15 @@ export const Route = createFileRoute("/dna")({
 });
 
 function TrainingFingerprint() {
-  const profile = useMemo(() => loadProfile(), []);
-  const history = useMemo(() => loadHistory(), []);
-  const readiness = useMemo(() => loadTodayReadiness(), []);
+  const [profile, setProfile] = useState<UserProfile>(DEFAULT_PROFILE);
+  const [history, setHistory] = useState<CompletedWorkout[]>([]);
+  const [readiness, setReadiness] = useState<DailyReadinessCheckIn>();
+
+  useEffect(() => {
+    setProfile(loadProfile());
+    setHistory(loadHistory());
+    setReadiness(loadTodayReadiness());
+  }, []);
   const weekly = useMemo(
     () => generateWeeklyPlan(profile, history, readiness),
     [profile, history, readiness],

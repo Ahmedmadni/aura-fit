@@ -39,15 +39,21 @@ import {
   levelFromXp,
   totalXp,
 } from "@/lib/achievements";
-import { loadHistory, loadProfile } from "@/lib/user-profile";
+import {
+  DEFAULT_PROFILE,
+  loadHistory,
+  loadProfile,
+  type CompletedWorkout,
+  type UserProfile,
+} from "@/lib/user-profile";
 
 export const Route = createFileRoute("/profile")({
   component: Profile,
 });
 
 function Profile() {
-  const [profile, setProfile] = useState(() => loadProfile());
-  const [history, setHistory] = useState(() => loadHistory());
+  const [profile, setProfile] = useState<UserProfile>(DEFAULT_PROFILE);
+  const [history, setHistory] = useState<CompletedWorkout[]>([]);
   const cloudConfigured = isCloudConfigured();
   const [cloudSession, setCloudSession] = useState<CloudSession | null>(
     () => loadCloudSession(),
@@ -60,6 +66,11 @@ function Profile() {
   const [password, setPassword] = useState("");
   const [cloudBusy, setCloudBusy] = useState(false);
   const [cloudMessage, setCloudMessage] = useState("");
+
+  useEffect(() => {
+    setProfile(loadProfile());
+    setHistory(loadHistory());
+  }, []);
 
   useEffect(() => {
     const refreshSession = () => setCloudSession(loadCloudSession());

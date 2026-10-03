@@ -1,5 +1,5 @@
 import { createFileRoute, Link, notFound } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   AlertTriangle,
   CheckCircle2,
@@ -33,9 +33,12 @@ import {
   MUSCLE_LABEL_AR,
 } from "@/lib/exercise-db";
 import {
+  DEFAULT_PROFILE,
   analyzeExerciseStrength,
   loadHistory,
   loadProfile,
+  type CompletedWorkout,
+  type UserProfile,
 } from "@/lib/user-profile";
 import {
   getExerciseProgressionPrescription,
@@ -52,8 +55,13 @@ function ExerciseDetail() {
   if (!exercise) throw notFound();
 
   const [tab, setTab] = useState<"overview" | "motion" | "safety" | "source">("overview");
-  const history = useMemo(() => loadHistory(), []);
-  const profile = useMemo(() => loadProfile(), []);
+  const [history, setHistory] = useState<CompletedWorkout[]>([]);
+  const [profile, setProfile] = useState<UserProfile>(DEFAULT_PROFILE);
+
+  useEffect(() => {
+    setHistory(loadHistory());
+    setProfile(loadProfile());
+  }, []);
   const adaptation = useMemo(
     () => getTrainingAdaptation(profile, history),
     [profile, history],

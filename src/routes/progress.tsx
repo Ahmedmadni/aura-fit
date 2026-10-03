@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Activity,
   AlertTriangle,
@@ -16,11 +16,15 @@ import { BottomNav } from "@/components/bottom-nav";
 import { PageShell, PageHeader } from "@/components/page-shell";
 import { getExercise } from "@/lib/exercise-db";
 import {
+  DEFAULT_PROFILE,
   dailyExerciseBests,
   exerciseStrengthAnalyses,
   loadHistory,
   loadProfile,
   loadTodayReadiness,
+  type CompletedWorkout,
+  type DailyReadinessCheckIn,
+  type UserProfile,
 } from "@/lib/user-profile";
 import {
   PERIODIZATION_PHASE_LABEL_AR,
@@ -53,9 +57,16 @@ function Progress() {
   const [selectedDay, setSelectedDay] = useState(() =>
     localDateKey(new Date()),
   );
-  const history = useMemo(() => loadHistory(), []);
-  const profile = useMemo(() => loadProfile(), []);
-  const readinessCheckIn = useMemo(() => loadTodayReadiness(), []);
+  const [history, setHistory] = useState<CompletedWorkout[]>([]);
+  const [profile, setProfile] = useState<UserProfile>(DEFAULT_PROFILE);
+  const [readinessCheckIn, setReadinessCheckIn] =
+    useState<DailyReadinessCheckIn>();
+
+  useEffect(() => {
+    setHistory(loadHistory());
+    setProfile(loadProfile());
+    setReadinessCheckIn(loadTodayReadiness());
+  }, []);
   const adaptation = useMemo(
     () => getTrainingAdaptation(profile, history, readinessCheckIn),
     [profile, history, readinessCheckIn],
