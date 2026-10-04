@@ -493,15 +493,35 @@ async function main() {
     })()`);
     await waitForText("تثبيت Aura Fit");
     await clickText("تثبيت Aura Fit", true);
-    await waitForText("تم قبول تثبيت Aura Fit.");
-    const installPromptCalls = await evaluate(
-      "Number(window.__auraInstallPromptCalls || 0)",
-    );
+
+    let installPromptCalls = 0;
+    for (let attempt = 0; attempt < 50; attempt += 1) {
+      installPromptCalls = Number(
+        await evaluate("Number(window.__auraInstallPromptCalls || 0)"),
+      );
+      if (installPromptCalls === 1) break;
+      await timeout(100);
+    }
     if (installPromptCalls !== 1) {
       throw new Error(
         "PWA install prompt was not invoked exactly once: " +
           installPromptCalls,
       );
+    }
+
+    await evaluate(
+      'window.dispatchEvent(new Event("appinstalled")); true',
+    );
+    for (let attempt = 0; attempt < 50; attempt += 1) {
+      const body = String(await evaluate("document.body?.innerText ?? ''"));
+      if (!body.includes("تثبيت التطبيق")) break;
+      await timeout(100);
+    }
+    const installCardStillVisible = String(
+      await evaluate("document.body?.innerText ?? ''"),
+    ).includes("تثبيت التطبيق");
+    if (installCardStillVisible) {
+      throw new Error("PWA install card did not hide after appinstalled.");
     }
 
     const swState = await evaluate(
