@@ -195,14 +195,14 @@ function validateWorkout(value: unknown): CompletedWorkout {
       throw new Error("تفاصيل تمرين داخل النسخة غير صالحة.");
     }
 
-    const progressionAction =
+    const progressionAction: CompletedWorkout["exercises"][number]["progressionAction"] =
       item.progressionAction === "build-reps" ||
       item.progressionAction === "increase-load" ||
       item.progressionAction === "hold" ||
       item.progressionAction === "reduce"
         ? item.progressionAction
         : undefined;
-    const rotationReason =
+    const rotationReason: CompletedWorkout["exercises"][number]["rotationReason"] =
       item.rotationReason === "mesocycle" || item.rotationReason === "plateau"
         ? item.rotationReason
         : undefined;
