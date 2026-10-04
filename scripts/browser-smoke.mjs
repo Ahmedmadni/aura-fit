@@ -472,6 +472,38 @@ async function main() {
 
     await navigate("/profile", "ملف التدريب");
 
+    // Simulate Chromium's installability event so the profile install UX is
+    // exercised without depending on CI's browser-installability heuristics.
+    await evaluate(`(() => {
+      window.__auraInstallPromptCalls = 0;
+      const event = new Event("beforeinstallprompt", { cancelable: true });
+      Object.defineProperty(event, "prompt", {
+        value: async () => {
+          window.__auraInstallPromptCalls += 1;
+        },
+      });
+      Object.defineProperty(event, "userChoice", {
+        value: Promise.resolve({
+          outcome: "accepted",
+          platform: "web",
+        }),
+      });
+      window.dispatchEvent(event);
+      return true;
+    })()`);
+    await waitForText("تثبيت Aura Fit");
+    await clickText("تثبيت Aura Fit", true);
+    await waitForText("تم قبول تثبيت Aura Fit.");
+    const installPromptCalls = await evaluate(
+      "Number(window.__auraInstallPromptCalls || 0)",
+    );
+    if (installPromptCalls !== 1) {
+      throw new Error(
+        "PWA install prompt was not invoked exactly once: " +
+          installPromptCalls,
+      );
+    }
+
     const swState = await evaluate(
       `navigator.serviceWorker
         ? navigator.serviceWorker.ready.then((registration) => ({
@@ -575,7 +607,7 @@ async function main() {
     }
 
     console.log(
-      "Browser smoke PASS: mobile onboarding, injury selection, readiness UI, adaptive workout, real-data routes, service worker and offline cached navigation all verified in headless Chrome.",
+      "Browser smoke PASS: mobile onboarding, readiness, injury-safe workout, PWA install UX, real-data routes, service worker and offline cached navigation all verified in headless Chrome.",
     );
 
     cdp.close();

@@ -59,6 +59,32 @@ if (!register.includes('navigator.serviceWorker.register("/sw.js"')) {
   fail("PWA registration does not register /sw.js");
 }
 
+const installCardPath = path.join(
+  root,
+  "src",
+  "components",
+  "pwa-install-card.tsx",
+);
+if (!fs.existsSync(installCardPath)) fail("missing PWA install card");
+const installCard = fs.readFileSync(installCardPath, "utf8");
+for (const required of [
+  "beforeinstallprompt",
+  "appinstalled",
+  "display-mode: standalone",
+  "تثبيت Aura Fit",
+  "إضافة إلى الشاشة الرئيسية",
+]) {
+  if (!installCard.includes(required)) {
+    fail("PWA install card missing " + required);
+  }
+}
+
+const profilePath = path.join(root, "src", "routes", "profile.tsx");
+const profile = fs.readFileSync(profilePath, "utf8");
+if (!profile.includes("<PwaInstallCard />")) {
+  fail("profile route does not expose the install experience");
+}
+
 console.log(
-  "PWA validation PASS: manifest, icons, service worker, offline fallback and registration are present.",
+  "PWA validation PASS: manifest, icons, service worker, offline fallback, registration and install UX are present.",
 );

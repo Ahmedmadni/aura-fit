@@ -35,6 +35,7 @@ import {
   type CloudSyncStatus,
 } from "@/lib/cloud-sync";
 import { FontSizeSetting } from "@/components/font-size-setting";
+import { PwaInstallCard } from "@/components/pwa-install-card";
 import { PageShell } from "@/components/page-shell";
 import { INJURY_LABEL_AR, LEVEL_LABEL_AR } from "@/lib/exercise-db";
 import {
@@ -299,6 +300,10 @@ function Profile() {
 
         <div className="mb-4">
           <FontSizeSetting />
+        </div>
+
+        <div className="mb-4">
+          <PwaInstallCard />
         </div>
 
         <div className="rounded-2xl border border-border bg-surface p-4 backdrop-blur-xl">
