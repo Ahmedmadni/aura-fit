@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Activity,
   Award,
@@ -7,13 +7,16 @@ import {
   ChevronLeft,
   Cloud,
   CloudOff,
+  Download,
   Dumbbell,
+  HardDrive,
   LogIn,
   LogOut,
   RefreshCw,
   Settings,
   ShieldCheck,
   Target,
+  Upload,
   Zap,
 } from "lucide-react";
 import { BottomNav } from "@/components/bottom-nav";
@@ -34,6 +37,10 @@ import {
 import { FontSizeSetting } from "@/components/font-size-setting";
 import { PageShell } from "@/components/page-shell";
 import { INJURY_LABEL_AR, LEVEL_LABEL_AR } from "@/lib/exercise-db";
+import {
+  restoreLocalBackup,
+  serializeLocalBackup,
+} from "@/lib/local-backup";
 import {
   computeAchievements,
   levelFromXp,
@@ -66,6 +73,8 @@ function Profile() {
   const [password, setPassword] = useState("");
   const [cloudBusy, setCloudBusy] = useState(false);
   const [cloudMessage, setCloudMessage] = useState("");
+  const [backupMessage, setBackupMessage] = useState("");
+  const backupInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     setProfile(loadProfile());
@@ -200,6 +209,51 @@ function Profile() {
       setCloudMessage("تم تسجيل الخروج. بيانات الجهاز المحلية لم تُحذف.");
     } finally {
       setCloudBusy(false);
+    }
+  }
+
+  function handleBackupExport() {
+    try {
+      const text = serializeLocalBackup();
+      const blob = new Blob([text], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      const date = new Date().toISOString().slice(0, 10);
+      link.href = url;
+      link.download = `aura-fit-backup-${date}.json`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+      setBackupMessage(
+        `تم تصدير ${history.length} جلسة. ملف النسخة لا يحتوي بيانات تسجيل الدخول السحابي.`,
+      );
+    } catch (error) {
+      setBackupMessage(
+        error instanceof Error ? error.message : "تعذر إنشاء النسخة الاحتياطية.",
+      );
+    }
+  }
+
+  async function handleBackupImport(file?: File) {
+    if (!file) return;
+    setBackupMessage("");
+    try {
+      if (file.size > 10 * 1024 * 1024) {
+        throw new Error("ملف النسخة أكبر من الحد المسموح 10 MB.");
+      }
+      const result = restoreLocalBackup(await file.text());
+      setProfile(loadProfile());
+      setHistory(loadHistory());
+      setBackupMessage(
+        `تمت الاستعادة: ${result.workouts} جلسة و${result.readiness} تقييم جاهزية. الحساب السحابي لم يتغير.`,
+      );
+    } catch (error) {
+      setBackupMessage(
+        error instanceof Error ? error.message : "تعذر استعادة النسخة.",
+      );
+    } finally {
+      if (backupInputRef.current) backupInputRef.current.value = "";
     }
   }
 
@@ -421,6 +475,60 @@ function Profile() {
             تسجيل الدخول اختياري. يبقى سجل الجهاز متاحًا محليًا، وتُستخدم
             السحابة للنسخ والمزامنة بين الأجهزة عند تفعيلها.
           </p>
+        </div>
+      </section>
+
+      <section className="relative px-6 mb-7 animate-enter [animation-delay:135ms]">
+        <div className="rounded-2xl border border-border bg-surface/60 p-4">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="text-[10px] font-mono uppercase tracking-[0.2em] text-muted-foreground">
+                نسخة الجهاز
+              </p>
+              <h3 className="mt-1 text-sm font-black">
+                تصدير واستعادة بيانات التدريب
+              </h3>
+            </div>
+            <HardDrive className="size-5 text-primary" />
+          </div>
+
+          <p className="mt-2 text-[10px] leading-relaxed text-muted-foreground">
+            احفظ ملف JSON يحتوي ملف التدريب، تقييمات الجاهزية وسجل الجلسات.
+            لا يتم تضمين جلسة Supabase أو رموز تسجيل الدخول.
+          </p>
+
+          <input
+            ref={backupInputRef}
+            type="file"
+            accept="application/json,.json"
+            className="hidden"
+            onChange={(event) => void handleBackupImport(event.target.files?.[0])}
+          />
+
+          <div className="mt-4 grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={handleBackupExport}
+              className="flex items-center justify-center gap-2 rounded-xl bg-primary px-3 py-3 text-xs font-black text-primary-foreground"
+            >
+              <Download className="size-3.5" />
+              تنزيل نسخة
+            </button>
+            <button
+              type="button"
+              onClick={() => backupInputRef.current?.click()}
+              className="flex items-center justify-center gap-2 rounded-xl border border-border bg-background/50 px-3 py-3 text-xs font-bold"
+            >
+              <Upload className="size-3.5" />
+              استعادة ملف
+            </button>
+          </div>
+
+          {backupMessage && (
+            <p className="mt-3 rounded-lg border border-border bg-background/40 p-2.5 text-[10px] leading-relaxed text-muted-foreground">
+              {backupMessage}
+            </p>
+          )}
         </div>
       </section>
 
