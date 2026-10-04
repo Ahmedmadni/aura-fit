@@ -27,6 +27,9 @@ export function PwaInstallCard() {
   const [ios, setIos] = useState(false);
   const [installed, setInstalled] = useState(true);
   const [message, setMessage] = useState("");
+  const [installResult, setInstallResult] = useState<
+    "accepted" | "dismissed" | null
+  >(null);
 
   useEffect(() => {
     const standalone = isStandalone();
@@ -41,6 +44,7 @@ export function PwaInstallCard() {
     const onInstalled = () => {
       setInstalled(true);
       setPromptEvent(null);
+      setInstallResult("accepted");
       setMessage("تم تثبيت Aura Fit على جهازك.");
     };
 
@@ -58,8 +62,10 @@ export function PwaInstallCard() {
       await promptEvent.prompt();
       const choice = await promptEvent.userChoice;
       if (choice.outcome === "accepted") {
+        setInstallResult("accepted");
         setMessage("تم قبول تثبيت Aura Fit.");
       } else {
+        setInstallResult("dismissed");
         setMessage("لم يتم التثبيت. يمكنك المحاولة لاحقًا.");
       }
     } finally {
@@ -67,7 +73,7 @@ export function PwaInstallCard() {
     }
   }
 
-  if (installed || (!promptEvent && !ios)) return null;
+  if (installed || (!promptEvent && !ios && !installResult)) return null;
 
   return (
     <div className="rounded-2xl border border-primary/20 bg-primary/5 p-4">
@@ -100,6 +106,12 @@ export function PwaInstallCard() {
             تثبيت Aura Fit
           </button>
         </>
+      ) : installResult ? (
+        <div className="mt-3 rounded-xl border border-border bg-background/50 p-3">
+          <p className="text-[10px] leading-relaxed text-muted-foreground">
+            {message}
+          </p>
+        </div>
       ) : (
         <div className="mt-3 rounded-xl border border-border bg-background/50 p-3">
           <div className="flex items-start gap-2">
@@ -113,12 +125,6 @@ export function PwaInstallCard() {
             </p>
           </div>
         </div>
-      )}
-
-      {message && (
-        <p className="mt-3 text-[9px] leading-relaxed text-muted-foreground">
-          {message}
-        </p>
       )}
     </div>
   );
