@@ -1983,7 +1983,14 @@
     "matchConfidence": "none"
   },
   "banded-monster-walk": {
-    "matchConfidence": "none"
+    "source": "hasaneyldrm/exercises-dataset",
+    "sourceExerciseId": "0628",
+    "sourceName": "monster walk",
+    "gif": "videos/0628-O95afRA.gif",
+    "poster": "images/0628-O95afRA.jpg",
+    "matchConfidence": "high",
+    "equipment": "body weight",
+    "target": "glutes"
   },
   "banded-squat": {
     "source": "hasaneyldrm/exercises-dataset",
@@ -2085,7 +2092,14 @@
     "target": "abs"
   },
   "flutter-kick": {
-    "matchConfidence": "none"
+    "source": "hasaneyldrm/exercises-dataset",
+    "sourceExerciseId": "0459",
+    "sourceName": "flutter kicks",
+    "gif": "videos/0459-UVo2Qs2.gif",
+    "poster": "images/0459-UVo2Qs2.jpg",
+    "matchConfidence": "high",
+    "equipment": "body weight",
+    "target": "glutes"
   },
   "lying-leg-raise": {
     "source": "hasaneyldrm/exercises-dataset",

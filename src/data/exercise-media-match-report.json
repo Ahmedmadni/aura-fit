@@ -5,13 +5,13 @@
   "sourceExerciseCount": 1324,
   "auraExerciseCount": 302,
   "exact": 79,
-  "high": 104,
+  "high": 106,
   "review": 74,
-  "none": 45,
-  "activePreferredMedia": 183,
+  "none": 43,
+  "activePreferredMedia": 185,
   "previousActiveMedia": 169,
   "retainedPreviousMedia": 88,
-  "newlyVerifiedMedia": 95,
+  "newlyVerifiedMedia": 97,
   "demotedForQualityGate": [
     "cable-kickback",
     "donkey-calf-raise",
@@ -23,10 +23,10 @@
   "latestReviewBatch": {
     "promoted": 2,
     "promotedSlugs": [
-      "back-extension",
-      "wrist-extension"
+      "flutter-kick",
+      "banded-monster-walk"
     ],
-    "method": "manual poster and English instruction audit with unique source-ID verification; hyperextension matches Aura Back Extension mechanics and dumbbell reverse wrist curl matches wrist-extension mechanics"
+    "method": "manual source-instruction and media audit with unique source-ID verification; movements match exactly, while confidence remains high due source taxonomy/equipment metadata quirks"
   },
   "reviewBatches": [
     {
@@ -156,6 +156,14 @@
         "wrist-extension"
       ],
       "method": "manual poster and English instruction audit with unique source-ID verification; hyperextension matches Aura Back Extension mechanics and dumbbell reverse wrist curl matches wrist-extension mechanics"
+    },
+    {
+      "promoted": 2,
+      "promotedSlugs": [
+        "flutter-kick",
+        "banded-monster-walk"
+      ],
+      "method": "manual source-instruction and media audit with unique source-ID verification; movements match exactly, while confidence remains high due source taxonomy/equipment metadata quirks"
     }
   ]
 }
