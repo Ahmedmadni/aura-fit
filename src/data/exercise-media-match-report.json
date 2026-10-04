@@ -5,13 +5,13 @@
   "sourceExerciseCount": 1324,
   "auraExerciseCount": 302,
   "exact": 79,
-  "high": 106,
+  "high": 108,
   "review": 74,
-  "none": 43,
-  "activePreferredMedia": 185,
+  "none": 41,
+  "activePreferredMedia": 187,
   "previousActiveMedia": 169,
   "retainedPreviousMedia": 88,
-  "newlyVerifiedMedia": 97,
+  "newlyVerifiedMedia": 99,
   "demotedForQualityGate": [
     "cable-kickback",
     "donkey-calf-raise",
@@ -23,10 +23,10 @@
   "latestReviewBatch": {
     "promoted": 2,
     "promotedSlugs": [
-      "flutter-kick",
-      "banded-monster-walk"
+      "machine-glute-kickback",
+      "banded-glute-bridge"
     ],
-    "method": "manual source-instruction and media audit with unique source-ID verification; movements match exactly, while confidence remains high due source taxonomy/equipment metadata quirks"
+    "method": "manual poster and English-instruction audit with unique source-ID verification; machine hip extension matches glute-kickback mechanics, and band hip lift instructions describe a resistance-band glute bridge exactly; removed false-positive hip-abduction candidate"
   },
   "reviewBatches": [
     {
@@ -164,6 +164,14 @@
         "banded-monster-walk"
       ],
       "method": "manual source-instruction and media audit with unique source-ID verification; movements match exactly, while confidence remains high due source taxonomy/equipment metadata quirks"
+    },
+    {
+      "promoted": 2,
+      "promotedSlugs": [
+        "machine-glute-kickback",
+        "banded-glute-bridge"
+      ],
+      "method": "manual poster and English-instruction audit with unique source-ID verification; machine hip extension matches glute-kickback mechanics, and band hip lift instructions describe a resistance-band glute bridge exactly; removed false-positive hip-abduction candidate"
     }
   ]
 }
