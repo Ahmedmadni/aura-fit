@@ -5,13 +5,13 @@
   "sourceExerciseCount": 1324,
   "auraExerciseCount": 302,
   "exact": 79,
-  "high": 102,
+  "high": 104,
   "review": 74,
-  "none": 47,
-  "activePreferredMedia": 181,
+  "none": 45,
+  "activePreferredMedia": 183,
   "previousActiveMedia": 169,
   "retainedPreviousMedia": 88,
-  "newlyVerifiedMedia": 93,
+  "newlyVerifiedMedia": 95,
   "demotedForQualityGate": [
     "cable-kickback",
     "donkey-calf-raise",
@@ -23,10 +23,10 @@
   "latestReviewBatch": {
     "promoted": 2,
     "promotedSlugs": [
-      "machine-row",
-      "chest-supported-row"
+      "back-extension",
+      "wrist-extension"
     ],
-    "method": "manual source instruction + poster review with unique source-ID verification; both exercises use leverage machines with horizontal upper-back pulling, and the chest-supported variant explicitly keeps the chest against the pad"
+    "method": "manual poster and English instruction audit with unique source-ID verification; hyperextension matches Aura Back Extension mechanics and dumbbell reverse wrist curl matches wrist-extension mechanics"
   },
   "reviewBatches": [
     {
@@ -148,6 +148,14 @@
         "chest-supported-row"
       ],
       "method": "manual source instruction + poster review with unique source-ID verification; both exercises use leverage machines with horizontal upper-back pulling, and the chest-supported variant explicitly keeps the chest against the pad"
+    },
+    {
+      "promoted": 2,
+      "promotedSlugs": [
+        "back-extension",
+        "wrist-extension"
+      ],
+      "method": "manual poster and English instruction audit with unique source-ID verification; hyperextension matches Aura Back Extension mechanics and dumbbell reverse wrist curl matches wrist-extension mechanics"
     }
   ]
 }

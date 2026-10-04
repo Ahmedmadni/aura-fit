@@ -931,7 +931,14 @@
     "target": "glutes"
   },
   "back-extension": {
-    "matchConfidence": "none"
+    "source": "hasaneyldrm/exercises-dataset",
+    "sourceExerciseId": "0489",
+    "sourceName": "hyperextension",
+    "gif": "videos/0489-zhMwOwE.gif",
+    "poster": "images/0489-zhMwOwE.jpg",
+    "matchConfidence": "high",
+    "equipment": "body weight",
+    "target": "spine"
   },
   "dumbbell-shrug": {
     "source": "hasaneyldrm/exercises-dataset",
@@ -1375,7 +1382,14 @@
     "target": "triceps"
   },
   "wrist-extension": {
-    "matchConfidence": "none"
+    "source": "hasaneyldrm/exercises-dataset",
+    "sourceExerciseId": "0385",
+    "sourceName": "dumbbell reverse wrist curl",
+    "gif": "videos/0385-BLCvwr2.gif",
+    "poster": "images/0385-BLCvwr2.jpg",
+    "matchConfidence": "high",
+    "equipment": "dumbbell",
+    "target": "forearms"
   },
   "farmer-carry": {
     "source": "hasaneyldrm/exercises-dataset",
