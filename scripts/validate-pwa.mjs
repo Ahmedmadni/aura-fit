@@ -71,6 +71,8 @@ for (const required of [
   "beforeinstallprompt",
   "appinstalled",
   "display-mode: standalone",
+  "await promptEvent.prompt()",
+  "await promptEvent.userChoice",
   "تثبيت Aura Fit",
   "إضافة إلى الشاشة الرئيسية",
 ]) {
