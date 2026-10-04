@@ -263,7 +263,14 @@
     "target": "upper back"
   },
   "chest-supported-row": {
-    "matchConfidence": "none"
+    "source": "hasaneyldrm/exercises-dataset",
+    "sourceExerciseId": "1349",
+    "sourceName": "lever reverse t-bar row",
+    "gif": "videos/1349-BgljGjd.gif",
+    "poster": "images/1349-BgljGjd.jpg",
+    "matchConfidence": "high",
+    "equipment": "leverage machine",
+    "target": "upper back"
   },
   "seated-row": {
     "source": "hasaneyldrm/exercises-dataset",
@@ -276,7 +283,14 @@
     "target": "upper back"
   },
   "machine-row": {
-    "matchConfidence": "none"
+    "source": "hasaneyldrm/exercises-dataset",
+    "sourceExerciseId": "1350",
+    "sourceName": "lever seated row",
+    "gif": "videos/1350-7I6LNUG.gif",
+    "poster": "images/1350-7I6LNUG.jpg",
+    "matchConfidence": "high",
+    "equipment": "leverage machine",
+    "target": "upper back"
   },
   "lat-pulldown": {
     "source": "hasaneyldrm/exercises-dataset",

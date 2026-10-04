@@ -5,13 +5,13 @@
   "sourceExerciseCount": 1324,
   "auraExerciseCount": 302,
   "exact": 79,
-  "high": 100,
+  "high": 102,
   "review": 74,
-  "none": 49,
-  "activePreferredMedia": 179,
+  "none": 47,
+  "activePreferredMedia": 181,
   "previousActiveMedia": 169,
   "retainedPreviousMedia": 88,
-  "newlyVerifiedMedia": 91,
+  "newlyVerifiedMedia": 93,
   "demotedForQualityGate": [
     "cable-kickback",
     "donkey-calf-raise",
@@ -21,15 +21,12 @@
   ],
   "rule": "Only exact/high mappings are active. Review/none always use Workout Guide fallback.",
   "latestReviewBatch": {
-    "promoted": 5,
+    "promoted": 2,
     "promotedSlugs": [
-      "ab-wheel",
-      "cycling",
-      "reverse-lunge",
-      "farmer-carry",
-      "banded-pallof-press"
+      "machine-row",
+      "chest-supported-row"
     ],
-    "method": "manual source instruction + poster review with independent source-ID check; exact/equivalent movement and required equipment verified, while SkiErg was explicitly rejected because the source visual/instructions did not match a standard standing SkiErg"
+    "method": "manual source instruction + poster review with unique source-ID verification; both exercises use leverage machines with horizontal upper-back pulling, and the chest-supported variant explicitly keeps the chest against the pad"
   },
   "reviewBatches": [
     {
@@ -143,6 +140,14 @@
         "banded-pallof-press"
       ],
       "method": "manual source instruction + poster review with independent source-ID check; exact/equivalent movement and required equipment verified, while SkiErg was explicitly rejected because the source visual/instructions did not match a standard standing SkiErg"
+    },
+    {
+      "promoted": 2,
+      "promotedSlugs": [
+        "machine-row",
+        "chest-supported-row"
+      ],
+      "method": "manual source instruction + poster review with unique source-ID verification; both exercises use leverage machines with horizontal upper-back pulling, and the chest-supported variant explicitly keeps the chest against the pad"
     }
   ]
 }
