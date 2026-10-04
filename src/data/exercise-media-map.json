@@ -649,7 +649,14 @@
     "target": "abs"
   },
   "ab-wheel": {
-    "matchConfidence": "none"
+    "source": "hasaneyldrm/exercises-dataset",
+    "sourceExerciseId": "0857",
+    "sourceName": "wheel rollerout",
+    "gif": "videos/0857-NAgVB3t.gif",
+    "poster": "images/0857-NAgVB3t.jpg",
+    "equipment": "wheel roller",
+    "target": "abs",
+    "matchConfidence": "high"
   },
   "running": {
     "source": "hasaneyldrm/exercises-dataset",
@@ -667,7 +674,14 @@
     "candidateSourceName": "walking on stepmill"
   },
   "cycling": {
-    "matchConfidence": "none"
+    "source": "hasaneyldrm/exercises-dataset",
+    "sourceExerciseId": "2138",
+    "sourceName": "stationary bike run v. 3",
+    "gif": "videos/2138-H1PESYI.gif",
+    "poster": "images/2138-H1PESYI.jpg",
+    "equipment": "stationary bike",
+    "target": "cardiovascular system",
+    "matchConfidence": "high"
   },
   "rowing": {
     "matchConfidence": "none"
@@ -982,7 +996,14 @@
     "target": "glutes"
   },
   "reverse-lunge": {
-    "matchConfidence": "none"
+    "source": "hasaneyldrm/exercises-dataset",
+    "sourceExerciseId": "0381",
+    "sourceName": "dumbbell rear lunge",
+    "gif": "videos/0381-SSsBDwB.gif",
+    "poster": "images/0381-SSsBDwB.jpg",
+    "equipment": "dumbbell",
+    "target": "glutes",
+    "matchConfidence": "high"
   },
   "split-squat": {
     "matchConfidence": "review",
@@ -1343,7 +1364,14 @@
     "matchConfidence": "none"
   },
   "farmer-carry": {
-    "matchConfidence": "none"
+    "source": "hasaneyldrm/exercises-dataset",
+    "sourceExerciseId": "2133",
+    "sourceName": "farmers walk",
+    "gif": "videos/2133-qPEzJjA.gif",
+    "poster": "images/2133-qPEzJjA.jpg",
+    "equipment": "dumbbell",
+    "target": "quads",
+    "matchConfidence": "high"
   },
   "crunch": {
     "source": "hasaneyldrm/exercises-dataset",
@@ -1997,7 +2025,14 @@
     "target": "lats"
   },
   "banded-pallof-press": {
-    "matchConfidence": "none"
+    "source": "hasaneyldrm/exercises-dataset",
+    "sourceExerciseId": "0979",
+    "sourceName": "band horizontal pallof press",
+    "gif": "videos/0979-9pa4H5m.gif",
+    "poster": "images/0979-9pa4H5m.jpg",
+    "equipment": "band",
+    "target": "abs",
+    "matchConfidence": "high"
   },
   "banded-woodchop": {
     "matchConfidence": "none"
