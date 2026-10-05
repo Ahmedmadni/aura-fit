@@ -2,7 +2,11 @@ import type { ReactNode } from "react";
 
 export function PageShell({ children }: { children: ReactNode }) {
   return (
-    <main className="min-h-screen bg-background text-foreground max-w-[430px] mx-auto overflow-x-hidden pb-32 relative">
+    <main
+      id="main-content"
+      tabIndex={-1}
+      className="min-h-screen bg-background text-foreground max-w-[430px] mx-auto overflow-x-hidden pb-32 relative"
+    >
       <div
         className="pointer-events-none absolute -top-32 -right-24 size-72 rounded-full bg-primary/20 blur-[100px]"
         aria-hidden
