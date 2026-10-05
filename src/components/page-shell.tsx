@@ -6,7 +6,10 @@ export function PageShell({ children }: { children: ReactNode }) {
       id="main-content"
       tabIndex={-1}
       className="min-h-screen bg-background text-foreground max-w-[430px] mx-auto overflow-x-hidden pb-32 relative"
-      style={{ paddingBottom: "calc(8rem + env(safe-area-inset-bottom))" }}
+      style={{
+        minHeight: "100dvh",
+        paddingBottom: "calc(8rem + env(safe-area-inset-bottom))",
+      }}
     >
       <div
         className="pointer-events-none absolute -top-32 -right-24 size-72 rounded-full bg-primary/20 blur-[100px]"
