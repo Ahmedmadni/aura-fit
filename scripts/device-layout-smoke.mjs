@@ -42,6 +42,10 @@ function validateSafeAreaSources() {
     ],
     [
       "src/components/page-shell.tsx",
+      'minHeight: "100dvh"',
+    ],
+    [
+      "src/components/page-shell.tsx",
       'env(safe-area-inset-top)',
     ],
     [
@@ -55,6 +59,10 @@ function validateSafeAreaSources() {
     [
       "src/routes/builder.tsx",
       'calc(1.25rem + env(safe-area-inset-bottom))',
+    ],
+    [
+      "src/routes/builder.tsx",
+      'maxHeight: "75dvh"',
     ],
     [
       "src/routes/__root.tsx",
