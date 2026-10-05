@@ -29,6 +29,51 @@ const ROUTES = [
   ["/builder", "ابنِ جلستك"],
 ];
 
+function validateSafeAreaSources() {
+  const requirements = [
+    [
+      "src/components/bottom-nav.tsx",
+      'calc(1.25rem + env(safe-area-inset-bottom))',
+    ],
+    [
+      "src/components/page-shell.tsx",
+      'calc(8rem + env(safe-area-inset-bottom))',
+    ],
+    [
+      "src/components/page-shell.tsx",
+      'env(safe-area-inset-top)',
+    ],
+    [
+      "src/routes/exercise.$id.tsx",
+      'calc(6rem + env(safe-area-inset-bottom))',
+    ],
+    [
+      "src/routes/onboarding.tsx",
+      'calc(2rem + env(safe-area-inset-bottom))',
+    ],
+    [
+      "src/routes/builder.tsx",
+      'calc(1.25rem + env(safe-area-inset-bottom))',
+    ],
+    [
+      "src/routes/__root.tsx",
+      'viewport-fit=cover',
+    ],
+  ];
+
+  for (const [relativePath, marker] of requirements) {
+    const filePath = path.join(process.cwd(), relativePath);
+    const source = fs.readFileSync(filePath, "utf8");
+    if (!source.includes(marker)) {
+      throw new Error(
+        "Safe-area device gate missing " + JSON.stringify(marker) +
+          " in " + relativePath,
+      );
+    }
+  }
+}
+
+
 function findChrome() {
   const explicit = process.env.CHROME_PATH || process.env.CHROME_BIN;
   if (explicit && fs.existsSync(explicit)) return explicit;
@@ -107,6 +152,7 @@ class CdpClient {
 }
 
 async function main() {
+  validateSafeAreaSources();
   const chromePath = findChrome();
   const profileDir = fs.mkdtempSync(path.join(os.tmpdir(), "aura-device-qa-"));
   const chrome = spawn(
@@ -259,6 +305,9 @@ async function main() {
           navLeft: navRect?.left ?? null,
           navRight: navRect?.right ?? null,
           navWidth: navRect?.width ?? null,
+          viewportFitCover:
+            document.querySelector('meta[name="viewport"]')?.content?.includes("viewport-fit=cover") ??
+            false,
         };
       })()`);
 
@@ -278,6 +327,10 @@ async function main() {
           "Main content escaped viewport on " + route + ": " +
             JSON.stringify(layout),
         );
+      }
+
+      if (!layout.viewportFitCover) {
+        throw new Error("viewport-fit=cover missing on " + route);
       }
 
       if (
