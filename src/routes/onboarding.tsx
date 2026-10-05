@@ -350,7 +350,10 @@ function Onboarding() {
         )}
       </section>
 
-      <div className="fixed bottom-0 left-1/2 z-20 w-full max-w-[430px] -translate-x-1/2 bg-gradient-to-t from-background via-background to-transparent px-6 pb-8 pt-4">
+      <div
+        className="fixed bottom-0 left-1/2 z-20 w-full max-w-[430px] -translate-x-1/2 bg-gradient-to-t from-background via-background to-transparent px-6 pb-8 pt-4"
+        style={{ paddingBottom: "calc(2rem + env(safe-area-inset-bottom))" }}
+      >
         {step === titles.length - 1 ? (
           <button
             type="button"
