@@ -173,5 +173,11 @@
       ],
       "method": "manual poster and English-instruction audit with unique source-ID verification; machine hip extension matches glute-kickback mechanics, and band hip lift instructions describe a resistance-band glute bridge exactly; removed false-positive hip-abduction candidate"
     }
-  ]
+  ],
+  "candidateQueueAudit": {
+    "activeSourceIdCollisions": 0,
+    "removedBlockedCandidates": 19,
+    "auditedOn": "2026-10-05",
+    "method": "removed review candidates whose candidate source exercise ID is already claimed by a different exact/high active mapping; these candidates could never be promoted without violating the unique active source-ID gate"
+  }
 }
