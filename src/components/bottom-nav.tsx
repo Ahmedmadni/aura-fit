@@ -21,6 +21,7 @@ export function BottomNav() {
       dir="ltr"
       aria-label="التنقل الرئيسي"
       className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[430px] px-5 pb-5 pt-3 z-50 pointer-events-none"
+      style={{ paddingBottom: "calc(1.25rem + env(safe-area-inset-bottom))" }}
     >
       <div className="bg-card/80 backdrop-blur-2xl border border-border rounded-2xl p-2 flex justify-between items-center shadow-[0_20px_60px_rgba(0,0,0,0.5)] pointer-events-auto">
         <NavLink item={items[0]} active={pathname === "/"} />
