@@ -1,5 +1,3 @@
-import type { Muscle } from "./exercise-db";
-
 /**
  * Lightweight exercise metadata safe to load in the app shell.
  *
@@ -25,4 +23,6 @@ export const MUSCLE_LABEL_AR = {
   "lower-back": "أسفل الظهر",
   core: "الجذع",
   "full-body": "كامل الجسم",
-} as const satisfies Record<Muscle, string>;
+} as const;
+
+export type ExerciseMuscleKey = keyof typeof MUSCLE_LABEL_AR;
