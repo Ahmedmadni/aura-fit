@@ -22,14 +22,10 @@ import { BottomNav } from "@/components/bottom-nav";
 import { PageShell } from "@/components/page-shell";
 import { ReadinessCheckInCard } from "@/components/readiness-check-in";
 import {
-  EXERCISES,
+  EXERCISE_COUNT,
   MUSCLE_LABEL_AR,
-} from "@/lib/exercise-db";
-import {
-  generateWeeklyPlan,
-  generateWeeklySchedule,
-  getWeeklyVolumeStatus,
-} from "@/lib/workout-engine";
+  type ExerciseMuscleKey,
+} from "@/lib/exercise-meta";
 import {
   DEFAULT_PROFILE,
   currentStreak,
@@ -51,56 +47,128 @@ const programs = [
   { title: "ذروة هوائية", meta: "٦ أسابيع · كارديو", img: programCardio },
 ];
 
+type DashboardWorkout = {
+  title: string;
+  intensity: number;
+  targetMuscles: ExerciseMuscleKey[];
+  estimatedMinutes: number;
+  estimatedCalories: number;
+  exercises: unknown[];
+};
+
+type DashboardDay = {
+  weekday: number;
+  dayLabel: string;
+  isRest: boolean;
+  workoutIndex?: number;
+  workout?: DashboardWorkout;
+};
+
+type DashboardPlanner = {
+  weeklyLength: number;
+  weeklyCalories: number;
+  onTargetVolume: number;
+  volumeLength: number;
+  schedule: DashboardDay[];
+  adaptation?: {
+    readinessSource: "daily-checkin" | "profile";
+    readinessScore: number;
+    sleepQuality: number;
+    fatigue: number;
+  };
+};
+
 function Dashboard() {
   const [profile, setProfile] = useState<UserProfile>(DEFAULT_PROFILE);
   const [history, setHistory] = useState<CompletedWorkout[]>([]);
   const [readinessCheckIn, setReadinessCheckIn] =
     useState<DailyReadinessCheckIn>();
+  const [hydrated, setHydrated] = useState(false);
+  const [planner, setPlanner] = useState<DashboardPlanner>();
   const [now] = useState(() => new Date());
 
   useEffect(() => {
     setProfile(loadProfile());
     setHistory(loadHistory());
     setReadinessCheckIn(loadTodayReadiness());
+    setHydrated(true);
   }, []);
 
-  const weekly = useMemo(
-    () => generateWeeklyPlan(profile, history, readinessCheckIn),
-    [profile, history, readinessCheckIn],
-  );
-  const schedule = useMemo(
-    () =>
-      generateWeeklySchedule(
-        profile,
-        undefined,
-        history,
-        readinessCheckIn,
-      ),
-    [profile, history, readinessCheckIn],
-  );
-  const volume = useMemo(
-    () => getWeeklyVolumeStatus(weekly, profile),
-    [weekly, profile],
-  );
+  useEffect(() => {
+    if (!hydrated) return;
 
+    let cancelled = false;
+    const timer = window.setTimeout(() => {
+      void import("@/lib/workout-engine")
+        .then(
+          ({
+            generateWeeklyPlan,
+            generateWeeklySchedule,
+            getWeeklyVolumeStatus,
+          }) => {
+            if (cancelled) return;
+
+            const weekly = generateWeeklyPlan(
+              profile,
+              history,
+              readinessCheckIn,
+            );
+            const schedule = generateWeeklySchedule(
+              profile,
+              undefined,
+              history,
+              readinessCheckIn,
+            );
+            const volume = getWeeklyVolumeStatus(weekly, profile);
+
+            if (cancelled) return;
+            setPlanner({
+              weeklyLength: weekly.length,
+              weeklyCalories: weekly.reduce(
+                (sum, workout) => sum + workout.estimatedCalories,
+                0,
+              ),
+              onTargetVolume: volume.filter(
+                (item) => item.status === "target",
+              ).length,
+              volumeLength: volume.length,
+              schedule,
+              adaptation: weekly[0]?.adaptation,
+            });
+          },
+        )
+        .catch((error) => {
+          console.error("Dashboard planner failed to load.", error);
+        });
+    }, 0);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [hydrated, profile, history, readinessCheckIn]);
+
+  const schedule = planner?.schedule ?? [];
   const today = schedule[now.getDay()];
   const todayWorkout = today?.workout;
+  const todayWorkoutIndex = today?.workoutIndex;
   const nextTraining = useMemo(() => {
+    if (!planner) return undefined;
     if (todayWorkout) return today;
     for (let offset = 1; offset < 7; offset += 1) {
       const candidate = schedule[(now.getDay() + offset) % 7];
       if (candidate?.workout) return candidate;
     }
     return undefined;
-  }, [now, schedule, today, todayWorkout]);
+  }, [now, planner, schedule, today, todayWorkout]);
 
-  const adaptation = weekly[0]?.adaptation;
+  const adaptation = planner?.adaptation;
   const readiness = adaptation?.readinessScore ?? 50;
-  const weeklyCalories = weekly.reduce(
-    (sum, workout) => sum + workout.estimatedCalories,
-    0,
-  );
-  const onTargetVolume = volume.filter((item) => item.status === "target").length;
+  const weeklyCalories = planner?.weeklyCalories ?? 0;
+  const onTargetVolume = planner?.onTargetVolume ?? 0;
+  const volumeLength = planner?.volumeLength ?? 0;
+  const weeklyLength = planner?.weeklyLength ?? 0;
+  const plannerReady = Boolean(planner);
   const streak = currentStreak(history);
   const displayName = profile.name?.trim() || "بطل";
   const dateLabel = new Intl.DateTimeFormat("ar-SA-u-ca-gregory", {
