@@ -49,3 +49,4 @@ jobs:
           fi
 
           bun run browser:smoke
+          bun run device:smoke
