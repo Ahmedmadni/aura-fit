@@ -448,9 +448,7 @@
     "target": "quads"
   },
   "leg-curl": {
-    "matchConfidence": "review",
-    "candidateSourceExerciseId": "0586",
-    "candidateSourceName": "lever lying leg curl"
+    "matchConfidence": "review"
   },
   "seated-leg-curl": {
     "source": "hasaneyldrm/exercises-dataset",
@@ -683,9 +681,7 @@
     "target": "cardiovascular system"
   },
   "walking": {
-    "matchConfidence": "review",
-    "candidateSourceExerciseId": "2311",
-    "candidateSourceName": "walking on stepmill"
+    "matchConfidence": "review"
   },
   "cycling": {
     "source": "hasaneyldrm/exercises-dataset",
@@ -1027,9 +1023,7 @@
     "matchConfidence": "high"
   },
   "split-squat": {
-    "matchConfidence": "review",
-    "candidateSourceExerciseId": "0410",
-    "candidateSourceName": "dumbbell single leg split squat"
+    "matchConfidence": "review"
   },
   "cable-kickback": {
     "matchConfidence": "review"
@@ -1075,9 +1069,7 @@
     "candidateSourceName": "dumbbell contralateral forward lunge"
   },
   "smith-machine-hip-thrust": {
-    "matchConfidence": "review",
-    "candidateSourceExerciseId": "0770",
-    "candidateSourceName": "smith squat"
+    "matchConfidence": "review"
   },
   "smith-machine-romanian-deadlift": {
     "matchConfidence": "review",
@@ -1156,14 +1148,10 @@
     "matchConfidence": "none"
   },
   "smith-machine-split-squat": {
-    "matchConfidence": "review",
-    "candidateSourceExerciseId": "0770",
-    "candidateSourceName": "smith squat"
+    "matchConfidence": "review"
   },
   "heel-elevated-goblet-squat": {
-    "matchConfidence": "review",
-    "candidateSourceExerciseId": "1760",
-    "candidateSourceName": "dumbbell goblet squat"
+    "matchConfidence": "review"
   },
   "dumbbell-sumo-squat": {
     "matchConfidence": "review",
@@ -1199,9 +1187,7 @@
     "candidateSourceName": "barbell single leg split squat"
   },
   "landmine-romanian-deadlift": {
-    "matchConfidence": "review",
-    "candidateSourceExerciseId": "0085",
-    "candidateSourceName": "barbell romanian deadlift"
+    "matchConfidence": "review"
   },
   "kettlebell-swing": {
     "source": "hasaneyldrm/exercises-dataset",
@@ -1214,9 +1200,7 @@
     "target": "glutes"
   },
   "glute-focused-back-extension": {
-    "matchConfidence": "review",
-    "candidateSourceExerciseId": "3561",
-    "candidateSourceName": "glute bridge march"
+    "matchConfidence": "review"
   },
   "reverse-hyperextension": {
     "source": "hasaneyldrm/exercises-dataset",
@@ -1475,9 +1459,7 @@
     "matchConfidence": "none"
   },
   "cable-woodchop": {
-    "matchConfidence": "review",
-    "candidateSourceExerciseId": "0175",
-    "candidateSourceName": "cable kneeling crunch"
+    "matchConfidence": "review"
   },
   "half-kneeling-pallof-press": {
     "matchConfidence": "none"
@@ -1557,17 +1539,13 @@
     "target": "cardiovascular system"
   },
   "assault-bike": {
-    "matchConfidence": "review",
-    "candidateSourceExerciseId": "2138",
-    "candidateSourceName": "stationary bike run v. 3"
+    "matchConfidence": "review"
   },
   "skierg": {
     "matchConfidence": "none"
   },
   "hiking": {
-    "matchConfidence": "review",
-    "candidateSourceExerciseId": "2311",
-    "candidateSourceName": "walking on stepmill"
+    "matchConfidence": "review"
   },
   "treadmill-incline-walk": {
     "source": "hasaneyldrm/exercises-dataset",
@@ -1640,14 +1618,10 @@
     "target": "pectorals"
   },
   "pike-push-up": {
-    "matchConfidence": "review",
-    "candidateSourceExerciseId": "0662",
-    "candidateSourceName": "push-up"
+    "matchConfidence": "review"
   },
   "feet-elevated-pike-push-up": {
-    "matchConfidence": "review",
-    "candidateSourceExerciseId": "0662",
-    "candidateSourceName": "push-up"
+    "matchConfidence": "review"
   },
   "archer-push-up": {
     "source": "hasaneyldrm/exercises-dataset",
@@ -1660,9 +1634,7 @@
     "target": "pectorals"
   },
   "typewriter-push-up": {
-    "matchConfidence": "review",
-    "candidateSourceExerciseId": "0662",
-    "candidateSourceName": "push-up"
+    "matchConfidence": "review"
   },
   "explosive-push-up": {
     "source": "hasaneyldrm/exercises-dataset",
@@ -1715,9 +1687,7 @@
     "candidateSourceName": "one arm against wall"
   },
   "wall-handstand-push-up": {
-    "matchConfidence": "review",
-    "candidateSourceExerciseId": "0662",
-    "candidateSourceName": "push-up"
+    "matchConfidence": "review"
   },
   "handstand-push-up": {
     "source": "hasaneyldrm/exercises-dataset",
@@ -1786,14 +1756,10 @@
     "target": "traps"
   },
   "negative-pull-up": {
-    "matchConfidence": "review",
-    "candidateSourceExerciseId": "0652",
-    "candidateSourceName": "pull-up"
+    "matchConfidence": "review"
   },
   "commando-pull-up": {
-    "matchConfidence": "review",
-    "candidateSourceExerciseId": "0652",
-    "candidateSourceName": "pull-up"
+    "matchConfidence": "review"
   },
   "l-sit-pull-up": {
     "source": "hasaneyldrm/exercises-dataset",
@@ -1806,9 +1772,7 @@
     "target": "lats"
   },
   "towel-pull-up": {
-    "matchConfidence": "review",
-    "candidateSourceExerciseId": "0652",
-    "candidateSourceName": "pull-up"
+    "matchConfidence": "review"
   },
   "bodyweight-squat": {
     "source": "hasaneyldrm/exercises-dataset",
@@ -2268,9 +2232,7 @@
     "target": "quads"
   },
   "sprawl": {
-    "matchConfidence": "review",
-    "candidateSourceExerciseId": "3360",
-    "candidateSourceName": "bear crawl"
+    "matchConfidence": "review"
   },
   "seal-jack": {
     "matchConfidence": "none"

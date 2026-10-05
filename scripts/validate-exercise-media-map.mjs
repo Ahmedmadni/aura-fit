@@ -81,6 +81,42 @@ for (const [slug, entry] of mapEntries) {
   }
 }
 
+let candidateSourceIdCollisions = 0;
+
+for (const [slug, entry] of mapEntries) {
+  const hasCandidateId = Boolean(entry.candidateSourceExerciseId);
+  const hasCandidateName = Boolean(entry.candidateSourceName);
+
+  if (hasCandidateId !== hasCandidateName) {
+    fail(
+      `${slug}: candidateSourceExerciseId and candidateSourceName must be provided together.`,
+    );
+  }
+
+  if (entry.matchConfidence === "none" && (hasCandidateId || hasCandidateName)) {
+    fail(`${slug}: none entries must not carry review-candidate metadata.`);
+  }
+
+  if (entry.matchConfidence === "review" && entry.candidateSourceExerciseId) {
+    const activeOwner = activeSourceIds.get(entry.candidateSourceExerciseId);
+    if (activeOwner && activeOwner !== slug) {
+      candidateSourceIdCollisions += 1;
+      fail(
+        `${slug}: review candidate sourceExerciseId ${entry.candidateSourceExerciseId} is already active for ${activeOwner}.`,
+      );
+    }
+  }
+}
+
+if (
+  report.candidateQueueAudit?.activeSourceIdCollisions !==
+  candidateSourceIdCollisions
+) {
+  fail(
+    `Match report candidateQueueAudit.activeSourceIdCollisions=${report.candidateQueueAudit?.activeSourceIdCollisions} but media map requires ${candidateSourceIdCollisions}.`,
+  );
+}
+
 const activePreferredMedia = counts.exact + counts.high;
 const reportChecks = {
   auraExerciseCount: manifest.length,
