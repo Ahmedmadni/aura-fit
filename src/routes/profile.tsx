@@ -65,9 +65,7 @@ function Profile() {
   const [profile, setProfile] = useState<UserProfile>(DEFAULT_PROFILE);
   const [history, setHistory] = useState<CompletedWorkout[]>([]);
   const cloudConfigured = isCloudConfigured();
-  const [cloudSession, setCloudSession] = useState<CloudSession | null>(
-    () => loadCloudSession(),
-  );
+  const [cloudSession, setCloudSession] = useState<CloudSession | null>(null);
   const [cloudStatus, setCloudStatus] = useState<CloudSyncStatus>({
     state: "idle",
     message: "لم تبدأ المزامنة بعد",
@@ -91,6 +89,8 @@ function Profile() {
 
   useEffect(() => {
     const refreshSession = () => setCloudSession(loadCloudSession());
+    refreshSession();
+
     const onStatus = (event: Event) => {
       setCloudStatus(
         (event as CustomEvent<CloudSyncStatus>).detail ?? {
