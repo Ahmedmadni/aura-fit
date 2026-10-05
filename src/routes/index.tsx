@@ -191,7 +191,9 @@ function Dashboard() {
     },
     {
       icon: TrendingUp,
-      label: `${onTargetVolume}/${volume.length} حجم متوازن`,
+      label: plannerReady
+        ? `${onTargetVolume}/${volumeLength} حجم متوازن`
+        : "جاري تحليل الحجم",
       value: "VOL",
     },
   ];
@@ -276,7 +278,13 @@ function Dashboard() {
         <div className="relative overflow-hidden rounded-3xl aspect-[4/5] bg-card border border-border">
           <img
             src={heroWorkout}
-            alt={todayWorkout ? "جلسة اليوم التدريبية" : "يوم الاستشفاء"}
+            alt={
+              !plannerReady
+                ? "جاري تجهيز خطة اليوم"
+                : todayWorkout
+                  ? "جلسة اليوم التدريبية"
+                  : "يوم الاستشفاء"
+            }
             className="absolute inset-0 w-full h-full object-cover opacity-80"
             width={832}
             height={1024}
@@ -288,15 +296,30 @@ function Dashboard() {
             <div className="flex gap-2 flex-wrap">
               <Tag className="bg-primary text-primary-foreground">
                 <Sparkles className="size-3" />
-                {todayWorkout ? "خطة اليوم" : "استشفاء مخطط"}
+                {!plannerReady
+                  ? "تجهيز الخطة"
+                  : todayWorkout
+                    ? "خطة اليوم"
+                    : "استشفاء مخطط"}
               </Tag>
               <Tag className="bg-white/10 backdrop-blur-md text-white border border-white/10">
                 <Zap className="size-3" />
-                {todayWorkout ? `شدة ${todayWorkout.intensity}%` : "راحة"}
+                {!plannerReady
+                  ? "تحليل"
+                  : todayWorkout
+                    ? `شدة ${todayWorkout.intensity}%`
+                    : "راحة"}
               </Tag>
             </div>
 
-            {todayWorkout ? (
+            {!plannerReady ? (
+              <div className="rounded-2xl border border-white/10 bg-black/20 p-4 backdrop-blur">
+                <p className="type-card-title">جاري تجهيز خطة اليوم</p>
+                <p className="type-small mt-1 text-white/65">
+                  نحمل محرك التدريب بعد ظهور الصفحة لتقليل زمن الفتح الأول.
+                </p>
+              </div>
+            ) : todayWorkout ? (
               <>
                 <div>
                   <h2 className="text-4xl font-black leading-[1] mb-2 tracking-tight">
@@ -318,7 +341,7 @@ function Dashboard() {
                 </div>
                 <Link
                   to="/workout"
-                  search={{ day: today.workoutIndex }}
+                  search={{ day: todayWorkoutIndex }}
                   className="w-full bg-primary hover:bg-white text-primary-foreground font-black py-4 rounded-xl transition-colors uppercase tracking-widest text-sm active:scale-[0.98] flex items-center justify-center gap-2"
                 >
                   <Play className="size-4 fill-current" />
@@ -350,7 +373,10 @@ function Dashboard() {
         </div>
       </section>
 
-      <section className="relative px-6 mb-8 animate-enter [animation-delay:300ms]">
+      <section
+        data-dashboard-planner={plannerReady ? "ready" : "loading"}
+        className="relative px-6 mb-8 animate-enter [animation-delay:300ms]"
+      >
         <div className="flex justify-between items-center mb-4">
           <h3 className="text-[10px] font-mono uppercase tracking-[0.2em] text-muted-foreground">
             توزيع الأسبوع
@@ -364,40 +390,59 @@ function Dashboard() {
         </div>
         <div className="bg-surface border border-border rounded-2xl p-5 backdrop-blur-xl">
           <div className="flex items-end justify-between h-24 gap-2">
-            {schedule.map((day) => {
-              const active = day.weekday === now.getDay();
-              return (
-                <div key={day.weekday} className="flex-1 flex flex-col items-center gap-2">
-                  <div className="w-full flex-1 bg-white/5 rounded-t-md overflow-hidden relative flex items-end">
-                    <div
-                      className={
-                        "w-full rounded-t-md transition-all " +
-                        (active
-                          ? "bg-primary shadow-[0_0_20px_rgba(204,255,0,0.4)]"
-                          : day.isRest
-                            ? "bg-white/10"
-                            : "bg-white/30")
-                      }
-                      style={{ height: day.isRest ? "18%" : "80%" }}
-                    />
-                  </div>
-                  <span
-                    className={
-                      "text-[10px] font-bold " +
-                      (active ? "text-primary" : "text-muted-foreground")
-                    }
+            {plannerReady
+              ? schedule.map((day) => {
+                  const active = day.weekday === now.getDay();
+                  return (
+                    <div key={day.weekday} className="flex-1 flex flex-col items-center gap-2">
+                      <div className="w-full flex-1 bg-white/5 rounded-t-md overflow-hidden relative flex items-end">
+                        <div
+                          className={
+                            "w-full rounded-t-md transition-all " +
+                            (active
+                              ? "bg-primary shadow-[0_0_20px_rgba(204,255,0,0.4)]"
+                              : day.isRest
+                                ? "bg-white/10"
+                                : "bg-white/30")
+                          }
+                          style={{ height: day.isRest ? "18%" : "80%" }}
+                        />
+                      </div>
+                      <span
+                        className={
+                          "text-[10px] font-bold " +
+                          (active ? "text-primary" : "text-muted-foreground")
+                        }
+                      >
+                        {day.dayLabel.slice(0, 1)}
+                      </span>
+                    </div>
+                  );
+                })
+              : Array.from({ length: 7 }, (_, index) => (
+                  <div
+                    key={index}
+                    className="flex-1 flex flex-col items-center gap-2"
+                    aria-hidden="true"
                   >
-                    {day.dayLabel.slice(0, 1)}
-                  </span>
-                </div>
-              );
-            })}
+                    <div className="w-full flex-1 bg-white/5 rounded-t-md overflow-hidden relative flex items-end">
+                      <div className="h-1/2 w-full animate-pulse rounded-t-md bg-white/10" />
+                    </div>
+                    <span className="h-2 w-2 animate-pulse rounded-full bg-white/10" />
+                  </div>
+                ))}
           </div>
 
           <div className="mt-4 pt-4 border-t border-border grid grid-cols-3 gap-3">
-            <MiniStat label="جلسات" value={String(weekly.length)} />
-            <MiniStat label="حجم مناسب" value={onTargetVolume + "/" + volume.length} />
-            <MiniStat label="حرق مخطط" value={"~" + weeklyCalories} />
+            <MiniStat label="جلسات" value={plannerReady ? String(weeklyLength) : "—"} />
+            <MiniStat
+              label="حجم مناسب"
+              value={plannerReady ? onTargetVolume + "/" + volumeLength : "—"}
+            />
+            <MiniStat
+              label="حرق مخطط"
+              value={plannerReady ? "~" + weeklyCalories : "—"}
+            />
           </div>
         </div>
       </section>
@@ -445,7 +490,7 @@ function Dashboard() {
             to="/library"
             icon={BookOpen}
             label="مكتبة التمارين"
-            hint={EXERCISES.length + " تمرين"}
+            hint={EXERCISE_COUNT + " تمرين"}
           />
           <QuickLink to="/builder" icon={LayoutGrid} label="منشئ الجلسات" hint="ابنِ أو ولّد بـAI" />
         </div>
