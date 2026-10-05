@@ -18,6 +18,7 @@ const ROUTES = [
   ["/", "أهلاً بعودتك"],
   ["/onboarding", "الخطوة ١ من ٨"],
   ["/exercises", "مكتبة التمارين"],
+  ["/exercise/meadows-row", "Meadows Row"],
   ["/library", "المكتبة الشاملة"],
   ["/programs", "التوزيع الحالي"],
   ["/workout?day=0", "استجابة الخطة"],
