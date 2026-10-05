@@ -109,6 +109,19 @@
   button, input, textarea, select {
     font: inherit;
   }
+
+  :where(
+    a,
+    button,
+    input,
+    textarea,
+    select,
+    [role="button"],
+    [tabindex]:not([tabindex="-1"])
+  ):focus-visible {
+    outline: 3px solid var(--brand);
+    outline-offset: 3px;
+  }
   h1, h2, h3, h4, h5, h6 {
     font-family: var(--font-display);
     font-weight: 700;
@@ -169,5 +182,40 @@
     line-height: 1.55;
     font-weight: 600;
     letter-spacing: 0;
+  }
+}
+
+
+.skip-link {
+  position: fixed;
+  inset-block-start: max(0.75rem, env(safe-area-inset-top));
+  inset-inline-start: 50%;
+  z-index: 100;
+  transform: translate(-50%, -220%);
+  border-radius: 0.75rem;
+  background: var(--brand);
+  color: #000;
+  padding: 0.7rem 1rem;
+  font-weight: 700;
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.45);
+  transition: transform 160ms ease;
+}
+
+.skip-link:focus-visible {
+  transform: translate(-50%, 0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto !important;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }

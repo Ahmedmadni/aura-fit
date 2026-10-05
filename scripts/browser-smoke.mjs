@@ -323,6 +323,70 @@ async function main() {
     }
 
     await navigate("/", "أهلاً بعودتك");
+
+    const accessibilityShell = await evaluate(`(() => {
+      const skip = document.querySelector('a.skip-link[href="#main-content"]');
+      const main = document.querySelector("main#main-content");
+      const nav = document.querySelector('nav[aria-label="التنقل الرئيسي"]');
+      const current = nav?.querySelector('[aria-current="page"]');
+      const navTargets = nav
+        ? [...nav.querySelectorAll("a")].map((node) =>
+            Math.round(node.getBoundingClientRect().height),
+          )
+        : [];
+      return {
+        hasSkip: Boolean(skip),
+        hasMain: Boolean(main),
+        mainTabIndex: main?.getAttribute("tabindex"),
+        hasNav: Boolean(nav),
+        currentText: (current?.textContent || "").trim(),
+        minNavTargetHeight: navTargets.length ? Math.min(...navTargets) : 0,
+      };
+    })()`);
+
+    if (
+      !accessibilityShell?.hasSkip ||
+      !accessibilityShell?.hasMain ||
+      accessibilityShell.mainTabIndex !== "-1" ||
+      !accessibilityShell.hasNav ||
+      !accessibilityShell.currentText.includes("الرئيسية") ||
+      accessibilityShell.minNavTargetHeight < 44
+    ) {
+      throw new Error(
+        "Accessibility shell validation failed: " +
+          JSON.stringify(accessibilityShell),
+      );
+    }
+
+    await cdp.send("Emulation.setEmulatedMedia", {
+      features: [{ name: "prefers-reduced-motion", value: "reduce" }],
+    });
+    const reducedMotionDuration = await evaluate(`(() => {
+      const probe = document.createElement("div");
+      probe.className = "animate-enter";
+      document.body.appendChild(probe);
+      const value = getComputedStyle(probe).animationDuration;
+      probe.remove();
+      return value;
+    })()`);
+    const reducedMotionSeconds = Number.parseFloat(
+      String(reducedMotionDuration).replace("ms", ""),
+    );
+    const reducedMotionIsMs = String(reducedMotionDuration).includes("ms");
+    const normalizedReducedMotionSeconds = reducedMotionIsMs
+      ? reducedMotionSeconds / 1000
+      : reducedMotionSeconds;
+    if (
+      !Number.isFinite(normalizedReducedMotionSeconds) ||
+      normalizedReducedMotionSeconds > 0.001
+    ) {
+      throw new Error(
+        "Reduced-motion preference did not suppress animation duration: " +
+          reducedMotionDuration,
+      );
+    }
+    await cdp.send("Emulation.setEmulatedMedia", { features: [] });
+
     await evaluate("localStorage.clear(); true");
 
     // Full mobile onboarding through the actual UI.

@@ -138,6 +138,9 @@ function RootShell({ children }: { children: ReactNode }) {
         />
       </head>
       <body>
+        <a href="#main-content" className="skip-link">
+          تخطي إلى المحتوى الرئيسي
+        </a>
         {children}
         <Scripts />
       </body>
