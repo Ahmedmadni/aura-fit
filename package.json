@@ -18,7 +18,8 @@
     "cloud:validate": "node scripts/validate-cloud.mjs",
     "realdata:validate": "node scripts/validate-real-data-pages.mjs",
     "browser:smoke": "node scripts/browser-smoke.mjs",
-    "backup:validate": "bun scripts/validate-local-backup.ts"
+    "backup:validate": "bun scripts/validate-local-backup.ts",
+    "performance:validate": "node scripts/validate-performance.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
