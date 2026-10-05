@@ -39,8 +39,10 @@ import { PwaInstallCard } from "@/components/pwa-install-card";
 import { PageShell } from "@/components/page-shell";
 import { INJURY_LABEL_AR, LEVEL_LABEL_AR } from "@/lib/exercise-db";
 import {
+  parseLocalBackup,
   restoreLocalBackup,
   serializeLocalBackup,
+  type AuraLocalBackupV1,
 } from "@/lib/local-backup";
 import {
   computeAchievements,
@@ -75,6 +77,11 @@ function Profile() {
   const [cloudBusy, setCloudBusy] = useState(false);
   const [cloudMessage, setCloudMessage] = useState("");
   const [backupMessage, setBackupMessage] = useState("");
+  const [pendingBackup, setPendingBackup] = useState<{
+    text: string;
+    parsed: AuraLocalBackupV1;
+    fileName: string;
+  } | null>(null);
   const backupInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -239,13 +246,38 @@ function Profile() {
   async function handleBackupImport(file?: File) {
     if (!file) return;
     setBackupMessage("");
+    setPendingBackup(null);
     try {
       if (file.size > 10 * 1024 * 1024) {
         throw new Error("ملف النسخة أكبر من الحد المسموح 10 MB.");
       }
-      const result = restoreLocalBackup(await file.text());
+
+      const text = await file.text();
+      const parsed = parseLocalBackup(text);
+      setPendingBackup({
+        text,
+        parsed,
+        fileName: file.name,
+      });
+      setBackupMessage(
+        "تم فحص النسخة بنجاح. راجع الملخص ثم أكد الاستعادة.",
+      );
+    } catch (error) {
+      setBackupMessage(
+        error instanceof Error ? error.message : "تعذر فحص النسخة.",
+      );
+    } finally {
+      if (backupInputRef.current) backupInputRef.current.value = "";
+    }
+  }
+
+  function confirmBackupRestore() {
+    if (!pendingBackup) return;
+    try {
+      const result = restoreLocalBackup(pendingBackup.text);
       setProfile(loadProfile());
       setHistory(loadHistory());
+      setPendingBackup(null);
       setBackupMessage(
         `تمت الاستعادة: ${result.workouts} جلسة و${result.readiness} تقييم جاهزية. الحساب السحابي لم يتغير.`,
       );
@@ -253,9 +285,12 @@ function Profile() {
       setBackupMessage(
         error instanceof Error ? error.message : "تعذر استعادة النسخة.",
       );
-    } finally {
-      if (backupInputRef.current) backupInputRef.current.value = "";
     }
+  }
+
+  function cancelBackupRestore() {
+    setPendingBackup(null);
+    setBackupMessage("تم إلغاء الاستعادة ولم تتغير بيانات الجهاز.");
   }
 
   return (
@@ -525,9 +560,59 @@ function Profile() {
               className="flex items-center justify-center gap-2 rounded-xl border border-border bg-background/50 px-3 py-3 text-xs font-bold"
             >
               <Upload className="size-3.5" />
-              استعادة ملف
+              فحص ملف للاستعادة
             </button>
           </div>
+
+          {pendingBackup && (
+            <div className="mt-3 rounded-xl border border-amber-400/25 bg-amber-400/5 p-3">
+              <p className="text-[10px] font-mono uppercase tracking-widest text-amber-400">
+                تأكيد الاستعادة
+              </p>
+              <p className="mt-1 truncate text-xs font-black" dir="ltr">
+                {pendingBackup.fileName}
+              </p>
+              <div className="mt-3 grid grid-cols-3 gap-2 text-center">
+                <BackupPreviewMetric
+                  label="جلسات"
+                  value={String(pendingBackup.parsed.workouts.length)}
+                />
+                <BackupPreviewMetric
+                  label="جاهزية"
+                  value={String(pendingBackup.parsed.readiness.length)}
+                />
+                <BackupPreviewMetric
+                  label="أيام أسبوعيًا"
+                  value={String(pendingBackup.parsed.profile.daysPerWeek)}
+                />
+              </div>
+              <p className="mt-3 text-[9px] leading-relaxed text-muted-foreground">
+                تاريخ النسخة:{" "}
+                {new Intl.DateTimeFormat("ar-SA-u-ca-gregory", {
+                  dateStyle: "medium",
+                  timeStyle: "short",
+                }).format(new Date(pendingBackup.parsed.exportedAt))}
+                . التأكيد سيستبدل بيانات التدريب المحلية الحالية فقط، ولن
+                يغيّر جلسة الحساب السحابي.
+              </p>
+              <div className="mt-3 grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={confirmBackupRestore}
+                  className="rounded-xl bg-amber-400 px-3 py-2.5 text-xs font-black text-black"
+                >
+                  تأكيد الاستعادة
+                </button>
+                <button
+                  type="button"
+                  onClick={cancelBackupRestore}
+                  className="rounded-xl border border-border bg-background/60 px-3 py-2.5 text-xs font-bold"
+                >
+                  إلغاء
+                </button>
+              </div>
+            </div>
+          )}
 
           {backupMessage && (
             <p className="mt-3 rounded-lg border border-border bg-background/40 p-2.5 text-[10px] leading-relaxed text-muted-foreground">
@@ -644,6 +729,23 @@ function Profile() {
 
       <BottomNav />
     </PageShell>
+  );
+}
+
+function BackupPreviewMetric({
+  label,
+  value,
+}: {
+  label: string;
+  value: string;
+}) {
+  return (
+    <div className="rounded-lg border border-border bg-background/50 p-2">
+      <p className="text-sm font-black" dir="ltr">
+        {value}
+      </p>
+      <p className="mt-0.5 text-[8px] text-muted-foreground">{label}</p>
+    </div>
   );
 }
 
