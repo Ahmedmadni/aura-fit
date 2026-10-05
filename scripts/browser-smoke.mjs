@@ -448,6 +448,17 @@ async function main() {
     await evaluate(
       `(() => {
         localStorage.setItem("kp.history", ${JSON.stringify(JSON.stringify(history))});
+        localStorage.setItem(
+          "kp.cloud.session",
+          JSON.stringify({
+            access_token: "BROWSER_SMOKE_ACCESS",
+            refresh_token: "BROWSER_SMOKE_REFRESH",
+            user: {
+              id: "browser-smoke-user",
+              email: "browser-smoke@example.test",
+            },
+          }),
+        );
         return true;
       })()`,
     );
@@ -470,7 +481,25 @@ async function main() {
       await navigate(route, text);
     }
 
-    await navigate("/profile", "ملف التدريب");
+    const profileBody = await navigate("/profile", "ملف التدريب");
+    if (
+      !profileBody.includes("تصدير واستعادة بيانات التدريب") ||
+      !profileBody.includes("فحص ملف للاستعادة")
+    ) {
+      throw new Error("Safe local backup controls are missing from Profile.");
+    }
+
+    const preservedCloudSession = await evaluate(
+      'JSON.parse(localStorage.getItem("kp.cloud.session") || "null")',
+    );
+    if (
+      preservedCloudSession?.user?.id !== "browser-smoke-user" ||
+      preservedCloudSession?.refresh_token !== "BROWSER_SMOKE_REFRESH"
+    ) {
+      throw new Error(
+        "Profile hydration changed the existing cloud session unexpectedly.",
+      );
+    }
 
     // Simulate Chromium's installability event so the profile install UX is
     // exercised without depending on CI's browser-installability heuristics.
@@ -615,7 +644,7 @@ async function main() {
     }
 
     console.log(
-      "Browser smoke PASS: mobile onboarding, readiness, injury-safe workout, PWA install UX, real-data routes, service worker and offline cached navigation all verified in headless Chrome.",
+      "Browser smoke PASS: mobile onboarding, readiness, injury-safe workout, hydration-safe cloud session, safe backup controls, PWA install UX, real-data routes, service worker and offline cached navigation all verified in headless Chrome.",
     );
 
     cdp.close();
