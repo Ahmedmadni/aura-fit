@@ -8,10 +8,10 @@ const DEBUG_PORT = Number(process.env.AURA_DEVICE_DEBUG_PORT ?? 9223);
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 const VIEWPORTS = [
-  { name: "small-mobile", width: 320, height: 568, mobile: true },
-  { name: "mobile", width: 390, height: 844, mobile: true },
-  { name: "tablet-portrait", width: 768, height: 1024, mobile: true },
-  { name: "tablet-landscape", width: 1024, height: 768, mobile: false },
+  { name: "small-mobile", width: 320, height: 568, dpr: 2, mobile: true },
+  { name: "mobile", width: 390, height: 844, dpr: 3, mobile: true },
+  { name: "tablet-portrait", width: 768, height: 1024, dpr: 2, mobile: true },
+  { name: "tablet-landscape", width: 1024, height: 768, dpr: 2, mobile: false },
 ];
 
 const ROUTES = [
@@ -248,7 +248,7 @@ async function main() {
       await cdp.send("Emulation.setDeviceMetricsOverride", {
         width: viewport.width,
         height: viewport.height,
-        deviceScaleFactor: 1,
+        deviceScaleFactor: viewport.dpr,
         mobile: viewport.mobile,
       });
 
@@ -257,7 +257,7 @@ async function main() {
       }
 
       console.log(
-        `Device layout PASS: ${viewport.name} ${viewport.width}x${viewport.height} across ${ROUTES.length} routes.`,
+        `Device layout PASS: ${viewport.name} ${viewport.width}x${viewport.height} @${viewport.dpr}x across ${ROUTES.length} routes.`,
       );
     }
 
