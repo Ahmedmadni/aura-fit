@@ -2,6 +2,7 @@ import manifest from "../data/workout-guide-manifest.json";
 import instructionEnrichment from "../data/exercise-instructions.json";
 import arabicNames from "../data/exercise-arabic-names.json";
 import mediaMap from "../data/exercise-media-map.json";
+import { MUSCLE_LABEL_AR as LIGHTWEIGHT_MUSCLE_LABEL_AR } from "./exercise-meta";
 
 export type Category =
   | "push"
@@ -787,23 +788,8 @@ export const CATEGORY_LABEL_AR: Record<Category, string> = {
   cooldown: "استرداد",
 };
 
-export const MUSCLE_LABEL_AR: Record<Muscle, string> = {
-  chest: "الصدر",
-  back: "الظهر",
-  shoulders: "الأكتاف",
-  biceps: "البايسبس",
-  triceps: "الترايسبس",
-  forearms: "الساعد",
-  quads: "الفخذ الأمامي",
-  hamstrings: "أوتار الركبة",
-  glutes: "المؤخرة",
-  calves: "السمانة",
-  adductors: "العضلات الضامة",
-  hips: "الحوض",
-  "lower-back": "أسفل الظهر",
-  core: "الجذع",
-  "full-body": "كامل الجسم",
-};
+export const MUSCLE_LABEL_AR: Record<Muscle, string> =
+  LIGHTWEIGHT_MUSCLE_LABEL_AR;
 
 export const EQUIPMENT_LABEL_AR: Record<Equipment, string> = {
   none: "بدون معدات",
