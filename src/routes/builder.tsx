@@ -225,6 +225,7 @@ function BuilderPage() {
             />
             <motion.div
               className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[430px] bg-background border-t border-border rounded-t-3xl p-5 z-50 max-h-[75vh] overflow-y-auto"
+              style={{ paddingBottom: "calc(1.25rem + env(safe-area-inset-bottom))" }}
               initial={{ y: "100%" }}
               animate={{ y: 0 }}
               exit={{ y: "100%" }}
