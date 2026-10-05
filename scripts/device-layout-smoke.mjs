@@ -176,10 +176,19 @@ async function main() {
         throw new Error("Could not open app origin before seeding device QA state.");
       }
 
+      const expectedOrigin = new URL(BASE_URL).origin;
+      let originReady = false;
       for (let attempt = 0; attempt < 100; attempt += 1) {
-        const ready = await evaluate('document.readyState === "complete"');
-        if (ready) break;
+        originReady = Boolean(
+          await evaluate(
+            `location.origin === ${JSON.stringify(expectedOrigin)} && document.readyState === "complete"`,
+          ),
+        );
+        if (originReady) break;
         await sleep(100);
+      }
+      if (!originReady) {
+        throw new Error("App origin did not become ready before seeding device QA state.");
       }
 
       const profile = {
