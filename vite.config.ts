@@ -12,4 +12,26 @@ export default defineConfig({
     // nitro/vite builds from this
     server: { entry: "server" },
   },
+  vite: {
+    build: {
+      rolldownOptions: {
+        output: {
+          codeSplitting: {
+            groups: [
+              {
+                name: "exercise-catalog",
+                test: /[\\/]src[\\/](?:lib[\\/]exercise-db\.ts|data[\\/](?:workout-guide-manifest|exercise-instructions|exercise-arabic-names|exercise-media-map)\.json)$/,
+                priority: 30,
+              },
+              {
+                name: "motion-vendor",
+                test: /[\\/]node_modules[\\/](?:framer-motion|motion-dom|motion-utils)[\\/]/,
+                priority: 20,
+              },
+            ],
+          },
+        },
+      },
+    },
+  },
 });

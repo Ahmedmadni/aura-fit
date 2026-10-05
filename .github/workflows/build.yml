@@ -24,6 +24,7 @@ jobs:
       - run: bun run app:smoke
       - run: bun run typecheck
       - run: bun run build
+      - run: bun run performance:validate
       - name: Build Node preview for browser smoke
         run: NITRO_PRESET=node-server bun run build
       - name: Browser smoke
