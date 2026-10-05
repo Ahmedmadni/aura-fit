@@ -6,7 +6,7 @@ type NavPath = "/" | "/exercises" | "/workout" | "/nutrition" | "/profile";
 export function BottomNav() {
   const { pathname } = useLocation();
   const items: {
-    icon: React.ComponentType<{ className?: string }>;
+    icon: React.ComponentType<{ className?: string; "aria-hidden"?: boolean | "true" | "false" }>;
     label: string;
     to: NavPath;
   }[] = [
@@ -47,7 +47,7 @@ function NavLink({
   item,
   active,
 }: {
-  item: { icon: React.ComponentType<{ className?: string }>; label: string; to: NavPath };
+  item: { icon: React.ComponentType<{ className?: string; "aria-hidden"?: boolean | "true" | "false" }>; label: string; to: NavPath };
   active?: boolean;
 }) {
   const Icon = item.icon;
