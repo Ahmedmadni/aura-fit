@@ -170,6 +170,44 @@ async function main() {
       return result.result?.value;
     }
 
+    async function seedStableProfile() {
+      const result = await cdp.send("Page.navigate", { url: BASE_URL });
+      if (result.errorText) {
+        throw new Error("Could not open app origin before seeding device QA state.");
+      }
+
+      for (let attempt = 0; attempt < 100; attempt += 1) {
+        const ready = await evaluate('document.readyState === "complete"');
+        if (ready) break;
+        await sleep(100);
+      }
+
+      const profile = {
+        name: "Device QA",
+        level: "intermediate",
+        goals: ["muscle-gain"],
+        equipment: ["dumbbells", "barbell", "machine", "cable"],
+        injuries: [],
+        daysPerWeek: 3,
+        sessionMinutes: 45,
+        sleepQuality: 4,
+        fatigue: 2,
+        age: 32,
+        weightKg: 80,
+        heightCm: 178,
+        gender: "male",
+      };
+
+      await evaluate(
+        `(() => {
+          localStorage.setItem("kp.profile", ${JSON.stringify(JSON.stringify(profile))});
+          localStorage.setItem("kp.history", "[]");
+          localStorage.setItem("kp.readiness", "[]");
+          return true;
+        })()`,
+      );
+    }
+
     async function navigate(route, expectedText) {
       const result = await cdp.send("Page.navigate", {
         url: new URL(route, BASE_URL).href,
@@ -243,6 +281,8 @@ async function main() {
         );
       }
     }
+
+    await seedStableProfile();
 
     for (const viewport of VIEWPORTS) {
       await cdp.send("Emulation.setDeviceMetricsOverride", {
