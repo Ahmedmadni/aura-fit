@@ -553,7 +553,10 @@ function ExerciseDetail() {
         </AnimatePresence>
       </section>
 
-      <div className="fixed bottom-24 left-1/2 -translate-x-1/2 w-full max-w-[430px] px-6 z-40">
+      <div
+        className="fixed bottom-24 left-1/2 -translate-x-1/2 w-full max-w-[430px] px-6 z-40"
+        style={{ bottom: "calc(6rem + env(safe-area-inset-bottom))" }}
+      >
         <Link
           to="/workout"
           search={{ day: undefined }}

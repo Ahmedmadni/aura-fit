@@ -145,7 +145,15 @@ function Onboarding() {
   }
 
   return (
-    <main className="relative mx-auto min-h-screen max-w-[430px] overflow-x-hidden bg-background pb-28 text-foreground">
+    <main
+      id="main-content"
+      tabIndex={-1}
+      className="relative mx-auto min-h-screen max-w-[430px] overflow-x-hidden bg-background pb-28 text-foreground"
+      style={{
+        minHeight: "100dvh",
+        paddingBottom: "calc(7rem + env(safe-area-inset-bottom))",
+      }}
+    >
       <div
         className="pointer-events-none absolute -right-24 -top-32 size-72 rounded-full bg-primary/20 blur-[100px]"
         aria-hidden
@@ -350,7 +358,10 @@ function Onboarding() {
         )}
       </section>
 
-      <div className="fixed bottom-0 left-1/2 z-20 w-full max-w-[430px] -translate-x-1/2 bg-gradient-to-t from-background via-background to-transparent px-6 pb-8 pt-4">
+      <div
+        className="fixed bottom-0 left-1/2 z-20 w-full max-w-[430px] -translate-x-1/2 bg-gradient-to-t from-background via-background to-transparent px-6 pb-8 pt-4"
+        style={{ paddingBottom: "calc(2rem + env(safe-area-inset-bottom))" }}
+      >
         {step === titles.length - 1 ? (
           <button
             type="button"

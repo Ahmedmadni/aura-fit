@@ -19,7 +19,8 @@
     "realdata:validate": "node scripts/validate-real-data-pages.mjs",
     "browser:smoke": "node scripts/browser-smoke.mjs",
     "backup:validate": "bun scripts/validate-local-backup.ts",
-    "performance:validate": "node scripts/validate-performance.mjs"
+    "performance:validate": "node scripts/validate-performance.mjs",
+    "device:smoke": "node scripts/device-layout-smoke.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
