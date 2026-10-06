@@ -5,13 +5,13 @@
   "sourceExerciseCount": 1324,
   "auraExerciseCount": 302,
   "exact": 79,
-  "high": 108,
-  "review": 74,
-  "none": 41,
-  "activePreferredMedia": 187,
+  "high": 112,
+  "review": 71,
+  "none": 40,
+  "activePreferredMedia": 191,
   "previousActiveMedia": 169,
   "retainedPreviousMedia": 88,
-  "newlyVerifiedMedia": 99,
+  "newlyVerifiedMedia": 103,
   "demotedForQualityGate": [
     "cable-kickback",
     "donkey-calf-raise",
@@ -21,12 +21,14 @@
   ],
   "rule": "Only exact/high mappings are active. Review/none always use Workout Guide fallback.",
   "latestReviewBatch": {
-    "promoted": 2,
+    "promoted": 4,
     "promotedSlugs": [
-      "machine-glute-kickback",
-      "banded-glute-bridge"
+      "meadows-row",
+      "banded-kickback",
+      "cable-kickback",
+      "cable-woodchop"
     ],
-    "method": "manual poster and English-instruction audit with unique source-ID verification; machine hip extension matches glute-kickback mechanics, and band hip lift instructions describe a resistance-band glute bridge exactly; removed false-positive hip-abduction candidate"
+    "method": "manual source metadata + poster + English-instruction audit with unique source-ID verification; verified Meadows Row end-loaded one-arm row mechanics, banded/cable standing hip-extension kickbacks, and the high-to-low diagonal cable twist used for Cable Woodchop"
   },
   "reviewBatches": [
     {
@@ -172,12 +174,24 @@
         "banded-glute-bridge"
       ],
       "method": "manual poster and English-instruction audit with unique source-ID verification; machine hip extension matches glute-kickback mechanics, and band hip lift instructions describe a resistance-band glute bridge exactly; removed false-positive hip-abduction candidate"
+    },
+    {
+      "promoted": 4,
+      "promotedSlugs": [
+        "meadows-row",
+        "banded-kickback",
+        "cable-kickback",
+        "cable-woodchop"
+      ],
+      "method": "manual source metadata + poster + English-instruction audit with unique source-ID verification; verified Meadows Row end-loaded one-arm row mechanics, banded/cable standing hip-extension kickbacks, and the high-to-low diagonal cable twist used for Cable Woodchop"
     }
   ],
   "candidateQueueAudit": {
     "activeSourceIdCollisions": 0,
     "removedBlockedCandidates": 19,
-    "auditedOn": "2026-10-05",
-    "method": "removed review candidates whose candidate source exercise ID is already claimed by a different exact/high active mapping; these candidates could never be promoted without violating the unique active source-ID gate"
+    "auditedOn": "2026-10-06",
+    "method": "removed semantic false positives, then rescanned the full 1324-source catalogue; promoted four visually/instruction-verified mappings and retained only three plausible review candidates",
+    "removedSemanticMismatches": 48,
+    "remainingReviewCandidates": 3
   }
 }

@@ -20,7 +20,8 @@
     "browser:smoke": "node scripts/browser-smoke.mjs",
     "backup:validate": "bun scripts/validate-local-backup.ts",
     "performance:validate": "node scripts/validate-performance.mjs",
-    "device:smoke": "node scripts/device-layout-smoke.mjs"
+    "device:smoke": "node scripts/device-layout-smoke.mjs",
+    "media-runtime:validate": "node scripts/validate-media-runtime.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",

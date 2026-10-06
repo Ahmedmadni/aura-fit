@@ -82,6 +82,7 @@ for (const [slug, entry] of mapEntries) {
 }
 
 let candidateSourceIdCollisions = 0;
+let reviewCandidateCount = 0;
 
 for (const [slug, entry] of mapEntries) {
   const hasCandidateId = Boolean(entry.candidateSourceExerciseId);
@@ -98,6 +99,7 @@ for (const [slug, entry] of mapEntries) {
   }
 
   if (entry.matchConfidence === "review" && entry.candidateSourceExerciseId) {
+    reviewCandidateCount += 1;
     const activeOwner = activeSourceIds.get(entry.candidateSourceExerciseId);
     if (activeOwner && activeOwner !== slug) {
       candidateSourceIdCollisions += 1;
@@ -114,6 +116,14 @@ if (
 ) {
   fail(
     `Match report candidateQueueAudit.activeSourceIdCollisions=${report.candidateQueueAudit?.activeSourceIdCollisions} but media map requires ${candidateSourceIdCollisions}.`,
+  );
+}
+
+if (
+  report.candidateQueueAudit?.remainingReviewCandidates !== reviewCandidateCount
+) {
+  fail(
+    `Match report candidateQueueAudit.remainingReviewCandidates=${report.candidateQueueAudit?.remainingReviewCandidates} but media map contains ${reviewCandidateCount} review candidates.`,
   );
 }
 

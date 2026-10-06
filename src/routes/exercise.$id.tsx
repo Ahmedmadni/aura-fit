@@ -527,11 +527,13 @@ function ExerciseDetail() {
                 <Card>
                   <CardHeader label="مصدر التعليمات" />
                   <p className="type-small text-muted-foreground">
-                    {exercise.media.gif
-                      ? "تمت مطابقة هذا التمرين مع exercises-dataset باستخدام نفس sourceId، ويستخدم التطبيق الـGIF والصورة والتعليمات المرتبطة بهذا السجل."
-                      : exercise.sourceInstructionsEn
-                        ? "توجد مطابقة موثقة لنص التعليمات، لكن لا توجد وسائط GIF مفعلة لهذا السجل في خريطة الوسائط الحالية."
-                        : "لا توجد مطابقة قطعية مع مصدر التعليمات الإضافي، لذلك يعتمد التطبيق على البيانات المنظمة والإطارات الأصلية."}
+                    {exercise.media.gif && exercise.sourceInstructionsEn
+                      ? "تم توثيق وسائط الحركة من exercises-dataset، وتوجد كذلك مطابقة مستقلة لنص التعليمات الأصلي المعروض للمراجعة أدناه."
+                      : exercise.media.gif
+                        ? "تم توثيق الـGIF والصورة من exercises-dataset لهذا التمرين. لا توجد مطابقة مستقلة لنص تعليمات إضافي، لذلك تبقى خطوات الأداء العربية مبنية على بيانات Workout Guide المنظمة."
+                        : exercise.sourceInstructionsEn
+                          ? "توجد مطابقة موثقة لنص التعليمات، لكن لا توجد وسائط GIF مفعلة لهذا السجل في خريطة الوسائط الحالية."
+                          : "لا توجد مطابقة قطعية مع مصدر التعليمات الإضافي، لذلك يعتمد التطبيق على البيانات المنظمة والإطارات الأصلية."}
                   </p>
 
                   {exercise.sourceInstructionStepsEn?.length ? (
