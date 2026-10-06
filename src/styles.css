@@ -36,7 +36,7 @@
   --color-cyan: var(--cyan);
   --font-sans: "IBM Plex Sans Arabic", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "IBM Plex Sans Arabic", ui-sans-serif, system-ui, sans-serif;
-  --font-display: "IBM Plex Sans Arabic", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Noto Kufi Arabic", "IBM Plex Sans Arabic", ui-sans-serif, system-ui, sans-serif;
   --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
 }
 
