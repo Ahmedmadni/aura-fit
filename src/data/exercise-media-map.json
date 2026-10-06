@@ -98,9 +98,7 @@
     "target": "pectorals"
   },
   "weighted-push-up": {
-    "matchConfidence": "review",
-    "candidateSourceExerciseId": "1310",
-    "candidateSourceName": "weighted drop push up"
+    "matchConfidence": "review"
   },
   "overhead-press": {
     "source": "hasaneyldrm/exercises-dataset",
@@ -423,9 +421,7 @@
     "target": "quads"
   },
   "walking-lunge": {
-    "matchConfidence": "review",
-    "candidateSourceExerciseId": "2796",
-    "candidateSourceName": "dumbbell step-up lunge"
+    "matchConfidence": "review"
   },
   "step-up": {
     "source": "hasaneyldrm/exercises-dataset",
@@ -631,14 +627,10 @@
     "target": "triceps"
   },
   "plank": {
-    "matchConfidence": "review",
-    "candidateSourceExerciseId": "3239",
-    "candidateSourceName": "kneeling plank tap shoulder (male)"
+    "matchConfidence": "review"
   },
   "side-plank": {
-    "matchConfidence": "review",
-    "candidateSourceExerciseId": "0664",
-    "candidateSourceName": "push-up to side plank"
+    "matchConfidence": "review"
   },
   "hanging-leg-raise": {
     "source": "hasaneyldrm/exercises-dataset",
@@ -747,9 +739,7 @@
     "target": "pectorals"
   },
   "landmine-press": {
-    "matchConfidence": "review",
-    "candidateSourceExerciseId": "0086",
-    "candidateSourceName": "barbell seated behind head military press"
+    "matchConfidence": "review"
   },
   "chest-dip": {
     "source": "hasaneyldrm/exercises-dataset",
@@ -792,9 +782,7 @@
     "target": "delts"
   },
   "push-press": {
-    "matchConfidence": "review",
-    "candidateSourceExerciseId": "0086",
-    "candidateSourceName": "barbell seated behind head military press"
+    "matchConfidence": "review"
   },
   "machine-lateral-raise": {
     "source": "hasaneyldrm/exercises-dataset",
@@ -867,9 +855,14 @@
     "target": "upper back"
   },
   "meadows-row": {
-    "matchConfidence": "review",
-    "candidateSourceExerciseId": "0064",
-    "candidateSourceName": "barbell one arm bent over row"
+    "source": "hasaneyldrm/exercises-dataset",
+    "sourceExerciseId": "0064",
+    "sourceName": "barbell one arm bent over row",
+    "gif": "videos/0064-Jsgsc27.gif",
+    "poster": "images/0064-Jsgsc27.jpg",
+    "matchConfidence": "high",
+    "equipment": "barbell",
+    "target": "upper back"
   },
   "single-arm-cable-row": {
     "source": "hasaneyldrm/exercises-dataset",
@@ -882,9 +875,7 @@
     "target": "upper back"
   },
   "wide-grip-lat-pulldown": {
-    "matchConfidence": "review",
-    "candidateSourceExerciseId": "1325",
-    "candidateSourceName": "cable wide grip rear pulldown behind neck"
+    "matchConfidence": "review"
   },
   "neutral-grip-pull-up": {
     "source": "hasaneyldrm/exercises-dataset",
@@ -1026,7 +1017,14 @@
     "matchConfidence": "review"
   },
   "cable-kickback": {
-    "matchConfidence": "review"
+    "source": "hasaneyldrm/exercises-dataset",
+    "sourceExerciseId": "0228",
+    "sourceName": "cable standing hip extension",
+    "gif": "videos/0228-Kpajagk.gif",
+    "poster": "images/0228-Kpajagk.jpg",
+    "matchConfidence": "high",
+    "equipment": "cable",
+    "target": "glutes"
   },
   "hip-abduction-machine": {
     "source": "hasaneyldrm/exercises-dataset",
@@ -1059,22 +1057,16 @@
     "target": "glutes"
   },
   "dumbbell-glute-bridge": {
-    "matchConfidence": "review",
-    "candidateSourceExerciseId": "0336",
-    "candidateSourceName": "dumbbell lunge"
+    "matchConfidence": "review"
   },
   "dumbbell-hip-thrust": {
-    "matchConfidence": "review",
-    "candidateSourceExerciseId": "3635",
-    "candidateSourceName": "dumbbell contralateral forward lunge"
+    "matchConfidence": "review"
   },
   "smith-machine-hip-thrust": {
     "matchConfidence": "review"
   },
   "smith-machine-romanian-deadlift": {
-    "matchConfidence": "review",
-    "candidateSourceExerciseId": "0752",
-    "candidateSourceName": "smith deadlift"
+    "matchConfidence": "review"
   },
   "dumbbell-romanian-deadlift": {
     "source": "hasaneyldrm/exercises-dataset",
@@ -1110,9 +1102,7 @@
     "target": "glutes"
   },
   "cable-standing-hip-abduction": {
-    "matchConfidence": "review",
-    "candidateSourceExerciseId": "0157",
-    "candidateSourceName": "cable deadlift"
+    "matchConfidence": "review"
   },
   "cable-standing-hip-adduction": {
     "source": "hasaneyldrm/exercises-dataset",
@@ -1154,37 +1144,25 @@
     "matchConfidence": "review"
   },
   "dumbbell-sumo-squat": {
-    "matchConfidence": "review",
-    "candidateSourceExerciseId": "0413",
-    "candidateSourceName": "dumbbell squat"
+    "matchConfidence": "review"
   },
   "dumbbell-sumo-deadlift": {
-    "matchConfidence": "review",
-    "candidateSourceExerciseId": "0300",
-    "candidateSourceName": "dumbbell deadlift"
+    "matchConfidence": "review"
   },
   "front-foot-elevated-split-squat": {
     "matchConfidence": "none"
   },
   "deficit-reverse-lunge": {
-    "matchConfidence": "review",
-    "candidateSourceExerciseId": "0336",
-    "candidateSourceName": "dumbbell lunge"
+    "matchConfidence": "review"
   },
   "dumbbell-lateral-lunge": {
-    "matchConfidence": "review",
-    "candidateSourceExerciseId": "0336",
-    "candidateSourceName": "dumbbell lunge"
+    "matchConfidence": "review"
   },
   "dumbbell-curtsy-lunge": {
-    "matchConfidence": "review",
-    "candidateSourceExerciseId": "0336",
-    "candidateSourceName": "dumbbell lunge"
+    "matchConfidence": "review"
   },
   "landmine-squat": {
-    "matchConfidence": "review",
-    "candidateSourceExerciseId": "0099",
-    "candidateSourceName": "barbell single leg split squat"
+    "matchConfidence": "review"
   },
   "landmine-romanian-deadlift": {
     "matchConfidence": "review"
@@ -1233,9 +1211,7 @@
     "target": "calves"
   },
   "wall-sit": {
-    "matchConfidence": "review",
-    "candidateSourceExerciseId": "0624",
-    "candidateSourceName": "march sit (wall)"
+    "matchConfidence": "review"
   },
   "jump-squat": {
     "source": "hasaneyldrm/exercises-dataset",
@@ -1278,9 +1254,7 @@
     "target": "biceps"
   },
   "spider-curl": {
-    "matchConfidence": "review",
-    "candidateSourceExerciseId": "1675",
-    "candidateSourceName": "dumbbell reverse spider curl"
+    "matchConfidence": "review"
   },
   "rope-hammer-curl": {
     "source": "hasaneyldrm/exercises-dataset",
@@ -1459,7 +1433,14 @@
     "matchConfidence": "none"
   },
   "cable-woodchop": {
-    "matchConfidence": "review"
+    "source": "hasaneyldrm/exercises-dataset",
+    "sourceExerciseId": "0862",
+    "sourceName": "cable twist (up-down)",
+    "gif": "videos/0862-fhZQPlV.gif",
+    "poster": "images/0862-fhZQPlV.jpg",
+    "matchConfidence": "high",
+    "equipment": "cable",
+    "target": "abs"
   },
   "half-kneeling-pallof-press": {
     "matchConfidence": "none"
@@ -1478,9 +1459,7 @@
     "target": "abs"
   },
   "captains-chair-knee-raise": {
-    "matchConfidence": "review",
-    "candidateSourceExerciseId": "0756",
-    "candidateSourceName": "smith hip raise"
+    "matchConfidence": "review"
   },
   "decline-sit-up": {
     "source": "hasaneyldrm/exercises-dataset",
@@ -1682,9 +1661,7 @@
     "target": "pectorals"
   },
   "wall-walk": {
-    "matchConfidence": "review",
-    "candidateSourceExerciseId": "1355",
-    "candidateSourceName": "one arm against wall"
+    "matchConfidence": "review"
   },
   "wall-handstand-push-up": {
     "matchConfidence": "review"
@@ -1795,19 +1772,13 @@
     "target": "glutes"
   },
   "assisted-pistol-squat": {
-    "matchConfidence": "review",
-    "candidateSourceExerciseId": "1686",
-    "candidateSourceName": "squat to overhead reach with twist"
+    "matchConfidence": "review"
   },
   "shrimp-squat": {
-    "matchConfidence": "review",
-    "candidateSourceExerciseId": "1685",
-    "candidateSourceName": "squat to overhead reach"
+    "matchConfidence": "review"
   },
   "cossack-squat": {
-    "matchConfidence": "review",
-    "candidateSourceExerciseId": "1685",
-    "candidateSourceName": "squat to overhead reach"
+    "matchConfidence": "review"
   },
   "sissy-squat": {
     "source": "hasaneyldrm/exercises-dataset",
@@ -1843,19 +1814,13 @@
     "target": "glutes"
   },
   "skater-squat": {
-    "matchConfidence": "review",
-    "candidateSourceExerciseId": "1685",
-    "candidateSourceName": "squat to overhead reach"
+    "matchConfidence": "review"
   },
   "single-leg-box-squat": {
-    "matchConfidence": "review",
-    "candidateSourceExerciseId": "1374",
-    "candidateSourceName": "box jump down with one leg stabilization"
+    "matchConfidence": "review"
   },
   "step-down": {
-    "matchConfidence": "review",
-    "candidateSourceExerciseId": "3672",
-    "candidateSourceName": "back and forth step"
+    "matchConfidence": "review"
   },
   "calf-raise": {
     "source": "hasaneyldrm/exercises-dataset",
@@ -1888,14 +1853,10 @@
     "target": "glutes"
   },
   "frog-pump": {
-    "matchConfidence": "review",
-    "candidateSourceExerciseId": "2571",
-    "candidateSourceName": "rocking frog stretch"
+    "matchConfidence": "review"
   },
   "donkey-kick": {
-    "matchConfidence": "review",
-    "candidateSourceExerciseId": "0661",
-    "candidateSourceName": "push-up inside leg kick"
+    "matchConfidence": "review"
   },
   "fire-hydrant": {
     "matchConfidence": "none"
@@ -1904,9 +1865,7 @@
     "matchConfidence": "none"
   },
   "hip-airplane": {
-    "matchConfidence": "review",
-    "candidateSourceExerciseId": "1427",
-    "candidateSourceName": "straight leg outer hip abductor"
+    "matchConfidence": "review"
   },
   "side-lying-hip-abduction": {
     "source": "hasaneyldrm/exercises-dataset",
@@ -1919,14 +1878,10 @@
     "target": "abductors"
   },
   "side-lying-leg-raise": {
-    "matchConfidence": "review",
-    "candidateSourceExerciseId": "1374",
-    "candidateSourceName": "box jump down with one leg stabilization"
+    "matchConfidence": "review"
   },
   "lying-hamstring-walkout": {
-    "matchConfidence": "review",
-    "candidateSourceExerciseId": "1710",
-    "candidateSourceName": "assisted lying gluteus and piriformis stretch"
+    "matchConfidence": "review"
   },
   "towel-hamstring-curl": {
     "matchConfidence": "none"
@@ -1947,9 +1902,7 @@
     "target": "glutes"
   },
   "banded-hip-thrust": {
-    "matchConfidence": "review",
-    "candidateSourceExerciseId": "0984",
-    "candidateSourceName": "band lying hip internal rotation"
+    "matchConfidence": "review"
   },
   "banded-frog-pump": {
     "matchConfidence": "none"
@@ -1987,7 +1940,14 @@
     "matchConfidence": "none"
   },
   "banded-kickback": {
-    "matchConfidence": "none"
+    "source": "hasaneyldrm/exercises-dataset",
+    "sourceExerciseId": "0980",
+    "sourceName": "band bent-over hip extension",
+    "gif": "videos/0980-wSScovH.gif",
+    "poster": "images/0980-wSScovH.jpg",
+    "matchConfidence": "high",
+    "equipment": "band",
+    "target": "glutes"
   },
   "banded-standing-hip-abduction": {
     "matchConfidence": "review"
@@ -2088,9 +2048,7 @@
     "target": "abs"
   },
   "toe-touch": {
-    "matchConfidence": "review",
-    "candidateSourceExerciseId": "1468",
-    "candidateSourceName": "crab twist toe touch"
+    "matchConfidence": "review"
   },
   "heel-tap": {
     "source": "hasaneyldrm/exercises-dataset",
@@ -2113,14 +2071,10 @@
     "target": "abs"
   },
   "plank-jack": {
-    "matchConfidence": "review",
-    "candidateSourceExerciseId": "3239",
-    "candidateSourceName": "kneeling plank tap shoulder (male)"
+    "matchConfidence": "review"
   },
   "bear-plank": {
-    "matchConfidence": "review",
-    "candidateSourceExerciseId": "3239",
-    "candidateSourceName": "kneeling plank tap shoulder (male)"
+    "matchConfidence": "review"
   },
   "bear-crawl": {
     "source": "hasaneyldrm/exercises-dataset",
@@ -2156,24 +2110,16 @@
     "target": "abs"
   },
   "seated-knee-tuck": {
-    "matchConfidence": "review",
-    "candidateSourceExerciseId": "2355",
-    "candidateSourceName": "arm slingers hanging bent knee legs"
+    "matchConfidence": "review"
   },
   "side-plank-hip-dip": {
-    "matchConfidence": "review",
-    "candidateSourceExerciseId": "3239",
-    "candidateSourceName": "kneeling plank tap shoulder (male)"
+    "matchConfidence": "review"
   },
   "copenhagen-plank": {
-    "matchConfidence": "review",
-    "candidateSourceExerciseId": "3663",
-    "candidateSourceName": "reverse plank with leg lift"
+    "matchConfidence": "review"
   },
   "dragon-flag": {
-    "matchConfidence": "review",
-    "candidateSourceExerciseId": "3303",
-    "candidateSourceName": "flag"
+    "matchConfidence": "review"
   },
   "burpee": {
     "source": "hasaneyldrm/exercises-dataset",
@@ -2189,14 +2135,10 @@
     "matchConfidence": "none"
   },
   "squat-thrust": {
-    "matchConfidence": "review",
-    "candidateSourceExerciseId": "1685",
-    "candidateSourceName": "squat to overhead reach"
+    "matchConfidence": "review"
   },
   "high-knees": {
-    "matchConfidence": "review",
-    "candidateSourceExerciseId": "3655",
-    "candidateSourceName": "walking high knees lunge"
+    "matchConfidence": "review"
   },
   "jumping-jack": {
     "source": "hasaneyldrm/exercises-dataset",
@@ -2238,14 +2180,10 @@
     "matchConfidence": "none"
   },
   "cat-cow-stretch": {
-    "matchConfidence": "review",
-    "candidateSourceExerciseId": "0794",
-    "candidateSourceName": "standing lateral stretch"
+    "matchConfidence": "review"
   },
   "arm-circles": {
-    "matchConfidence": "review",
-    "candidateSourceExerciseId": "2355",
-    "candidateSourceName": "arm slingers hanging bent knee legs"
+    "matchConfidence": "review"
   },
   "worlds-greatest-stretch": {
     "source": "hasaneyldrm/exercises-dataset",
@@ -2258,27 +2196,19 @@
     "target": "hamstrings"
   },
   "leg-swings-stretch": {
-    "matchConfidence": "review",
-    "candidateSourceExerciseId": "1374",
-    "candidateSourceName": "box jump down with one leg stabilization"
+    "matchConfidence": "review"
   },
   "torso-twist-stretch": {
-    "matchConfidence": "review",
-    "candidateSourceExerciseId": "0464",
-    "candidateSourceName": "front plank with twist"
+    "matchConfidence": "review"
   },
   "doorway-chest-stretch": {
-    "matchConfidence": "review",
-    "candidateSourceExerciseId": "2363",
-    "candidateSourceName": "wide-grip chest dip on high parallel bars"
+    "matchConfidence": "review"
   },
   "childs-pose": {
     "matchConfidence": "none"
   },
   "kneeling-hip-flexor-stretch": {
-    "matchConfidence": "review",
-    "candidateSourceExerciseId": "1419",
-    "candidateSourceName": "iron cross stretch"
+    "matchConfidence": "review"
   },
   "hamstring-stretch": {
     "source": "hasaneyldrm/exercises-dataset",
