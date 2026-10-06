@@ -54,27 +54,25 @@ export function ExerciseMediaPlayer({
     setPreferredFailed(false);
   }, [exerciseId, preferredGif, poster]);
 
+  const usingFallback = !preferredGif || preferredFailed;
+
   useEffect(() => {
-    if (!running || !frames?.length) return;
+    if (!running || !usingFallback || !frames?.length) return;
     const timer = window.setInterval(
       () => setFrameIndex((current) => (current + 1) % frames.length),
       intervalMs,
     );
     return () => window.clearInterval(timer);
-  }, [frames, intervalMs, running]);
+  }, [frames, intervalMs, running, usingFallback]);
 
   useEffect(() => {
-    const preferredAsset = running ? preferredGif : poster;
-    if (preferredAsset) {
-      const image = new Image();
-      image.src = preferredAsset;
-    }
-    if (!frames) return;
-    frames.forEach((src) => {
-      const image = new Image();
-      image.src = src;
-    });
-  }, [frames, poster, preferredGif, running]);
+    if (!running || !usingFallback || !frames?.length) return;
+    const nextFrame = frames[(frameIndex + 1) % frames.length];
+    if (!nextFrame || nextFrame === frames[frameIndex]) return;
+
+    const image = new Image();
+    image.src = nextFrame;
+  }, [frameIndex, frames, running, usingFallback]);
 
   const containerStyle = fluid
     ? { width: "100%", aspectRatio: "1 / 1" }
