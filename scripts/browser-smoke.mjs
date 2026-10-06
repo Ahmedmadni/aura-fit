@@ -259,6 +259,16 @@ async function main() {
       throw new Error("Timed out waiting for text " + JSON.stringify(text));
     }
 
+    async function waitForExpression(expression, label, timeoutMs = 15000) {
+      const started = Date.now();
+      while (Date.now() - started < timeoutMs) {
+        if (await evaluate(expression)) return;
+        await timeout(100);
+      }
+      throw new Error("Timed out waiting for " + label);
+    }
+
+
     async function clickText(text, exact = false) {
       const clicked = await evaluate(
         `(() => {
@@ -427,7 +437,18 @@ async function main() {
     await clickText("45 د", true);
     await clickText("أنشئ خطتي الأسبوعية");
 
-    await waitForText("Browser E2E");
+    await waitForExpression(
+      `(() => {
+        try {
+          const profile = JSON.parse(localStorage.getItem("kp.profile") || "{}");
+          return location.pathname === "/" && profile.name === "Browser E2E";
+        } catch {
+          return false;
+        }
+      })()`,
+      "onboarding profile persistence and home navigation",
+    );
+    await waitForText("Browser E2E", 15000);
     const onboardingProfile = await evaluate(
       'JSON.parse(localStorage.getItem("kp.profile") || "{}")',
     );
