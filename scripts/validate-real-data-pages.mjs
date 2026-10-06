@@ -11,6 +11,7 @@ const files = {
   coach: path.join(root, "src", "routes", "coach.tsx"),
   nutrition: path.join(root, "src", "routes", "nutrition.tsx"),
   dna: path.join(root, "src", "routes", "dna.tsx"),
+  exerciseDetail: path.join(root, "src", "routes", "exercise.$id.tsx"),
 };
 
 for (const [name, file] of Object.entries(files)) {
@@ -20,6 +21,7 @@ for (const [name, file] of Object.entries(files)) {
 const coach = fs.readFileSync(files.coach, "utf8");
 const nutrition = fs.readFileSync(files.nutrition, "utf8");
 const dna = fs.readFileSync(files.dna, "utf8");
+const exerciseDetail = fs.readFileSync(files.exerciseDetail, "utf8");
 
 for (const required of [
   "loadProfile",
@@ -90,6 +92,22 @@ for (const required of [
   }
 }
 
+for (const required of [
+  "تم توثيق وسائط الحركة من exercises-dataset",
+  "تم توثيق الـGIF والصورة من exercises-dataset",
+  "لا توجد مطابقة مستقلة لنص تعليمات إضافي",
+]) {
+  if (!exerciseDetail.includes(required)) {
+    fail("exercise source provenance is missing explicit state: " + required);
+  }
+}
+
+const misleadingSourceClaim =
+  "ويستخدم التطبيق الـGIF والصورة والتعليمات المرتبطة بهذا السجل.";
+if (exerciseDetail.includes(misleadingSourceClaim)) {
+  fail("exercise page still implies every GIF mapping also has matched source instructions");
+}
+
 console.log(
-  "Real-data pages PASS: coach, nutrition and training fingerprint contain no seeded demo metrics.",
+  "Real-data pages PASS: coach, nutrition and training fingerprint contain no seeded demo metrics; exercise media/instruction provenance is explicit.",
 );
