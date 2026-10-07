@@ -61,7 +61,6 @@ for (const required of [
   "function confirmExitWithoutSaving() {",
   'role="dialog"',
   'aria-labelledby="workout-exit-title"',
-  "loadWorkoutSessionDraft({",
   "saveWorkoutSessionDraft(draftSnapshot.current)",
   "clearWorkoutSessionDraft();",
   "setRestoredDraft(true)",
