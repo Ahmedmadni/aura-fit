@@ -780,7 +780,7 @@ export function getWeeklyVolumeTargets(
       ? 0.65
       : adaptationFactor;
 
-  return RECOVERY_TRACKED_MUSCLES.map((muscle) => {
+  return MAJOR_MUSCLES.map((muscle) => {
     const coreFactor = muscle === "core" ? 0.75 : 1;
     const min = Math.max(
       2,
@@ -1843,7 +1843,7 @@ export function generateWeeklySchedule(
 export function getWeeklyRecoverySpacing(
   schedule: WeeklyScheduleDay[],
 ): MuscleRecoverySpacing[] {
-  return MAJOR_MUSCLES.map((muscle) => {
+  return RECOVERY_TRACKED_MUSCLES.map((muscle) => {
     const exposureDays = schedule
       .filter(
         (day) =>
