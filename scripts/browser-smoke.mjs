@@ -537,7 +537,7 @@ async function main() {
     await navigate("/", "Browser E2E");
     await waitForText("استئناف الجلسة", 15000);
     const dashboardHasDraftMarker = await evaluate(
-      'Boolean(document.querySelector("[data-active-workout-draft=\"true\"]"))',
+      `Boolean(document.querySelector('[data-active-workout-draft="true"]'))`,
     );
     if (!dashboardHasDraftMarker) {
       throw new Error("Dashboard did not expose the active workout recovery card.");
