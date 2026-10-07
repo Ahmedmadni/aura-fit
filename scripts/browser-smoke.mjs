@@ -522,6 +522,35 @@ async function main() {
       throw new Error("Workout ignored the daily readiness check-in.");
     }
 
+    // Active workout recovery: force the pagehide flush, reload the same workout,
+    // and verify the recovered session is paused instead of silently restarting.
+    await timeout(200);
+    await evaluate('window.dispatchEvent(new Event("pagehide"))');
+    const activeDraft = await evaluate(
+      'JSON.parse(localStorage.getItem("aura.workout-session.v1") || "null")',
+    );
+    if (!activeDraft || activeDraft.workoutId === undefined) {
+      throw new Error("Active workout did not persist a recovery draft on pagehide.");
+    }
+
+    const recoveredWorkoutBody = await navigate(
+      "/workout?day=0",
+      "جلسة مستعادة",
+    );
+    if (!recoveredWorkoutBody.includes("الجلسة متوقفة مؤقتًا للأمان")) {
+      throw new Error("Recovered workout did not explain the paused safety state.");
+    }
+    const recoveredPaused = await evaluate(
+      `(() => {
+        const buttons = [...document.querySelectorAll("button")];
+        return buttons.some((button) => (button.textContent || "").includes("▶"));
+      })()`,
+    );
+    if (!recoveredPaused) {
+      throw new Error("Recovered workout resumed its timer instead of staying paused.");
+    }
+    await evaluate('localStorage.removeItem("aura.workout-session.v1")');
+
     // Seed only a completed strength entry so progress analytics can be tested.
     const history = [
       {
@@ -751,7 +780,7 @@ async function main() {
     }
 
     console.log(
-      "Browser smoke PASS: mobile onboarding, readiness, injury-safe workout, hydration-safe cloud session, safe backup controls, PWA install UX, real-data routes, service worker and offline cached navigation all verified in headless Chrome.",
+      "Browser smoke PASS: mobile onboarding, readiness, injury-safe workout, active-session recovery, hydration-safe cloud session, safe backup controls, PWA install UX, real-data routes, service worker and offline cached navigation all verified in headless Chrome.",
     );
 
     cdp.close();

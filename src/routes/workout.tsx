@@ -42,6 +42,12 @@ import {
   recordWorkout,
 } from "@/lib/user-profile";
 import { checkNewAchievements } from "@/lib/achievements";
+import {
+  clearWorkoutSessionDraft,
+  loadWorkoutSessionDraft,
+  saveWorkoutSessionDraft,
+  type WorkoutSessionDraftState,
+} from "@/lib/workout-session";
 
 export const Route = createFileRoute("/workout")({
   validateSearch: (search: Record<string, unknown>) => {
@@ -57,6 +63,8 @@ function WorkoutPlayer() {
   const navigate = useNavigate();
   const { day } = Route.useSearch();
   const [hydrated, setHydrated] = useState(false);
+  const [sessionReady, setSessionReady] = useState(false);
+  const [restoredDraft, setRestoredDraft] = useState(false);
 
   useEffect(() => {
     setHydrated(true);
@@ -98,6 +106,7 @@ function WorkoutPlayer() {
   const startedAt = useRef(Date.now());
   const runningBeforeSwap = useRef(true);
   const runningBeforeExit = useRef(true);
+  const draftSnapshot = useRef<WorkoutSessionDraftState | null>(null);
 
   const current: PlannedExercise = plan[index];
   const next = plan[index + 1];
@@ -173,14 +182,48 @@ function WorkoutPlayer() {
 
   useEffect(() => {
     if (!hydrated) return;
+
+    const draft = loadWorkoutSessionDraft({
+      workoutId: workout.id,
+      day: day ?? null,
+    });
+
+    setShowSwapOptions(false);
+    setShowExitConfirm(false);
+    setFinishedDurationSec(null);
+
+    if (draft) {
+      setPlan(draft.plan);
+      setIndex(draft.index);
+      setSetIdx(draft.setIdx);
+      setPhase(draft.phase);
+      setRemaining(draft.remaining);
+      setRunning(false);
+      setMuted(draft.muted);
+      setCompleted(new Set(draft.completed));
+      setSkipped(new Set(draft.skipped));
+      setSetReps(draft.setReps);
+      setSetLoadsKg(draft.setLoadsKg);
+      setSetRir(draft.setRir);
+      setCurrentReps(draft.currentReps);
+      setCurrentLoadKg(draft.currentLoadKg);
+      setCurrentRir(draft.currentRir);
+      setElapsed(draft.elapsed);
+      runningBeforeSwap.current = false;
+      runningBeforeExit.current = false;
+      startedAt.current = Date.now() - draft.elapsed * 1000;
+      setRestoredDraft(true);
+      setSessionReady(true);
+      return;
+    }
+
     setPlan(generatedPlan);
     setIndex(0);
     setSetIdx(1);
     setPhase("work");
     setRemaining(generatedPlan[0]?.workSeconds ?? 45);
     setRunning(true);
-    setShowSwapOptions(false);
-    setShowExitConfirm(false);
+    setMuted(false);
     setCompleted(new Set());
     setSkipped(new Set());
     setSetReps({});
@@ -194,11 +237,90 @@ function WorkoutPlayer() {
     );
     setCurrentRir(null);
     setElapsed(0);
-    setFinishedDurationSec(null);
     runningBeforeSwap.current = true;
     runningBeforeExit.current = true;
     startedAt.current = Date.now();
-  }, [hydrated, generatedPlan]);
+    setRestoredDraft(false);
+    setSessionReady(true);
+  }, [day, generatedPlan, hydrated, workout.id]);
+
+  useEffect(() => {
+    if (!hydrated || !sessionReady || phase === "done") {
+      draftSnapshot.current = null;
+      return;
+    }
+
+    draftSnapshot.current = {
+      workoutId: workout.id,
+      day: day ?? null,
+      plan,
+      index,
+      setIdx,
+      phase,
+      remaining,
+      completed: [...completed],
+      skipped: [...skipped],
+      setReps,
+      setLoadsKg,
+      setRir,
+      currentReps,
+      currentLoadKg,
+      currentRir,
+      elapsed,
+      muted,
+    };
+  }, [
+    completed,
+    currentLoadKg,
+    currentReps,
+    currentRir,
+    day,
+    elapsed,
+    hydrated,
+    index,
+    muted,
+    phase,
+    plan,
+    remaining,
+    sessionReady,
+    setIdx,
+    setLoadsKg,
+    setReps,
+    setRir,
+    skipped,
+    workout.id,
+  ]);
+
+  useEffect(() => {
+    if (!hydrated || !sessionReady) return;
+
+    const flushDraft = () => {
+      if (draftSnapshot.current) {
+        saveWorkoutSessionDraft(draftSnapshot.current);
+      }
+    };
+    const handleVisibility = () => {
+      if (document.visibilityState === "hidden") flushDraft();
+    };
+
+    flushDraft();
+    const intervalId = window.setInterval(flushDraft, 5000);
+    window.addEventListener("pagehide", flushDraft);
+    document.addEventListener("visibilitychange", handleVisibility);
+
+    return () => {
+      window.clearInterval(intervalId);
+      window.removeEventListener("pagehide", flushDraft);
+      document.removeEventListener("visibilitychange", handleVisibility);
+      flushDraft();
+    };
+  }, [hydrated, sessionReady]);
+
+  useEffect(() => {
+    if (restoredDraft && running) setRestoredDraft(false);
+  }, [restoredDraft, running]);
+
+
 
   function saveCurrentSet() {
     setSetReps((all) => {
@@ -270,6 +392,8 @@ function WorkoutPlayer() {
   }
 
   function confirmExitWithoutSaving() {
+    draftSnapshot.current = null;
+    clearWorkoutSessionDraft();
     setShowExitConfirm(false);
     navigate({ to: "/" });
   }
@@ -422,6 +546,8 @@ function WorkoutPlayer() {
   // save on completion
   useEffect(() => {
     if (!hydrated || phase !== "done" || finishedDurationSec === null) return;
+    draftSnapshot.current = null;
+    clearWorkoutSessionDraft();
     recordWorkout({
       id: workout.id + "-" + Date.now(),
       date: new Date().toISOString(),
@@ -617,6 +743,20 @@ function WorkoutPlayer() {
             </button>
           </div>
         </div>
+
+        {restoredDraft && (
+          <div className="mb-4 rounded-2xl border border-cyan/30 bg-cyan/10 p-3">
+            <p className="text-[10px] font-mono uppercase tracking-widest text-cyan">
+              جلسة مستعادة
+            </p>
+            <p className="mt-1 text-xs font-bold">
+              استعدنا تقدمك من آخر حفظ على هذا الجهاز.
+            </p>
+            <p className="mt-1 text-[9px] leading-relaxed text-muted-foreground">
+              الجلسة متوقفة مؤقتًا للأمان. راجع التمرين والمجموعة الحالية ثم اضغط ▶ للمتابعة.
+            </p>
+          </div>
+        )}
 
         <div
           className={

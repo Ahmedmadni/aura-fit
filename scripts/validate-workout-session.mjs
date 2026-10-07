@@ -61,6 +61,12 @@ for (const required of [
   "function confirmExitWithoutSaving() {",
   'role="dialog"',
   'aria-labelledby="workout-exit-title"',
+  "loadWorkoutSessionDraft({",
+  "saveWorkoutSessionDraft(draftSnapshot.current)",
+  "clearWorkoutSessionDraft();",
+  "setRestoredDraft(true)",
+  "window.setInterval(flushDraft, 5000)",
+  'window.addEventListener("pagehide", flushDraft)',
 ]) {
   if (!workout.includes(required)) {
     fail("workout history/session marker missing: " + required);

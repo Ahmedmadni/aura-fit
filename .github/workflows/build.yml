@@ -19,6 +19,7 @@ jobs:
       - run: bun run media-runtime:validate
       - run: bun run workout:validate
       - run: bun run session:validate
+      - run: bun run recovery:validate
       - run: bun run pwa:validate
       - run: bun run cloud:validate
       - run: bun run realdata:validate
