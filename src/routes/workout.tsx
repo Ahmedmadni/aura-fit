@@ -134,6 +134,39 @@ function WorkoutPlayer() {
     [plan],
   );
   const [elapsed, setElapsed] = useState(0);
+  const [finishedDurationSec, setFinishedDurationSec] = useState<number | null>(
+    null,
+  );
+
+  const completedActiveSec = useMemo(
+    () =>
+      plan.reduce(
+        (sum, item) =>
+          completed.has(item.exercise.id)
+            ? sum + item.workSeconds * item.sets
+            : sum,
+        0,
+      ),
+    [completed, plan],
+  );
+
+  const completedCalories = useMemo(
+    () =>
+      Math.round(
+        plan.reduce(
+          (sum, item) =>
+            completed.has(item.exercise.id)
+              ? sum +
+                (item.exercise.caloriesPerMin *
+                  item.workSeconds *
+                  item.sets) /
+                  60
+              : sum,
+          0,
+        ),
+      ),
+    [completed, plan],
+  );
 
   useEffect(() => {
     if (!hydrated) return;
@@ -157,6 +190,7 @@ function WorkoutPlayer() {
     );
     setCurrentRir(null);
     setElapsed(0);
+    setFinishedDurationSec(null);
     startedAt.current = Date.now();
   }, [hydrated, generatedPlan]);
 
@@ -317,6 +351,9 @@ function WorkoutPlayer() {
             sfxGo();
             return plan[index + 1].workSeconds;
           }
+          setFinishedDurationSec(
+            Math.round((Date.now() - startedAt.current) / 1000),
+          );
           setPhase("done");
           sfxDone();
           return 0;
@@ -334,21 +371,7 @@ function WorkoutPlayer() {
 
   // save on completion
   useEffect(() => {
-    if (!hydrated || phase !== "done") return;
-    const durationSec = Math.round((Date.now() - startedAt.current) / 1000);
-    const calories = Math.round(
-      plan.reduce(
-        (s, p) =>
-          completed.has(p.exercise.id)
-            ? s + (p.exercise.caloriesPerMin * p.workSeconds * p.sets) / 60
-            : s,
-        0,
-      ),
-    );
-    const activeSec = plan.reduce(
-      (s, p) => (completed.has(p.exercise.id) ? s + p.workSeconds * p.sets : s),
-      0,
-    );
+    if (!hydrated || phase !== "done" || finishedDurationSec === null) return;
     recordWorkout({
       id: workout.id + "-" + Date.now(),
       date: new Date().toISOString(),
@@ -366,9 +389,9 @@ function WorkoutPlayer() {
         rotatedFromId: p.rotatedFromId,
         rotationReason: p.rotationReason,
       })),
-      durationSec,
-      activeSec,
-      calories,
+      durationSec: finishedDurationSec,
+      activeSec: completedActiveSec,
+      calories: completedCalories,
       intensity: workout.intensity,
       performance: Math.round((completed.size / total) * 100),
       adaptationMode: workout.adaptation.mode,
@@ -421,7 +444,10 @@ function WorkoutPlayer() {
   }
 
   if (phase === "done") {
-    const minutes = Math.round(elapsed / 60);
+    const minutes = Math.max(
+      1,
+      Math.round((finishedDurationSec ?? elapsed) / 60),
+    );
     return (
       <PageShell>
         <div className="p-6 pt-16 text-center animate-enter">
@@ -437,7 +463,7 @@ function WorkoutPlayer() {
           <div className="mt-10 grid grid-cols-3 gap-3">
             <StatCard label="المدة" value={`${minutes}د`} />
             <StatCard label="التمارين" value={String(completed.size)} />
-            <StatCard label="السعرات" value={`~${minutes * 8}`} />
+            <StatCard label="السعرات" value={`~${completedCalories}`} />
           </div>
 
           <div className="mt-10 space-y-3">
