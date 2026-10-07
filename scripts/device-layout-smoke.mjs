@@ -101,16 +101,42 @@ function findChrome() {
   throw new Error("Chrome/Chromium was not found on PATH.");
 }
 
-async function waitForJson(url, timeoutMs = 15000) {
+async function waitForJson(
+  url,
+  chrome,
+  getChromeStderr,
+  timeoutMs = 30000,
+) {
   const started = Date.now();
+  let lastError;
   while (Date.now() - started < timeoutMs) {
+    if (chrome.exitCode !== null) {
+      const stderr = getChromeStderr().trim();
+      throw new Error(
+        "Chrome exited before exposing DevTools (code " +
+          chrome.exitCode +
+          ")" +
+          (stderr ? "\nChrome stderr (tail):\n" + stderr : ""),
+      );
+    }
+
     try {
       const response = await fetch(url);
       if (response.ok) return await response.json();
-    } catch {}
-    await sleep(150);
+    } catch (error) {
+      lastError = error;
+    }
+    await sleep(200);
   }
-  throw new Error("Timed out waiting for Chrome DevTools endpoint.");
+
+  const stderr = getChromeStderr().trim();
+  throw new Error(
+    "Timed out after " +
+      timeoutMs +
+      "ms waiting for Chrome DevTools endpoint" +
+      (lastError instanceof Error ? ": " + lastError.message : "") +
+      (stderr ? "\nChrome stderr (tail):\n" + stderr : ""),
+  );
 }
 
 class CdpClient {
@@ -184,6 +210,12 @@ async function main() {
     { stdio: ["ignore", "pipe", "pipe"] },
   );
 
+  let chromeStderr = "";
+  chrome.stderr.on("data", (chunk) => {
+    chromeStderr += String(chunk);
+    if (chromeStderr.length > 6000) chromeStderr = chromeStderr.slice(-6000);
+  });
+
   const cleanup = () => {
     try {
       chrome.kill("SIGTERM");
@@ -196,6 +228,8 @@ async function main() {
   try {
     const pages = await waitForJson(
       "http://127.0.0.1:" + DEBUG_PORT + "/json/list",
+      chrome,
+      () => chromeStderr,
     );
     const page = pages.find((item) => item.type === "page") ?? pages[0];
     if (!page?.webSocketDebuggerUrl) {
@@ -373,6 +407,14 @@ async function main() {
     }
 
     cdp.close();
+  } catch (error) {
+    console.error(
+      error instanceof Error ? error.stack ?? error.message : error,
+    );
+    if (chromeStderr) {
+      console.error("\nChrome stderr (tail):\n" + chromeStderr);
+    }
+    process.exitCode = 1;
   } finally {
     cleanup();
   }
