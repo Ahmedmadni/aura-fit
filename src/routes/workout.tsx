@@ -45,7 +45,6 @@ import { checkNewAchievements } from "@/lib/achievements";
 import {
   clearWorkoutSessionDraft,
   loadRecoverableWorkoutSessionDraft,
-  loadWorkoutSessionDraft,
   saveWorkoutSessionDraft,
   type WorkoutSessionDraftState,
   type WorkoutSessionDraftV1,
