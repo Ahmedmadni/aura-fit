@@ -15,6 +15,7 @@ import {
   type Injury,
   type Level,
   type Muscle,
+  type MovementFamily,
 } from "./exercise-db";
 import {
   analyzeExerciseStrength,
@@ -158,6 +159,23 @@ export interface MuscleRecoverySpacing {
   exposureDays: number;
   minGapDays: number | null;
   status: RecoverySpacingStatus;
+}
+
+export type MovementPatternKey =
+  | "horizontal-push"
+  | "vertical-push"
+  | "horizontal-pull"
+  | "vertical-pull"
+  | "knee-dominant"
+  | "hip-dominant";
+
+export interface MovementBalanceItem {
+  pattern: MovementPatternKey;
+  families: MovementFamily[];
+  days: number;
+  exerciseCount: number;
+  exerciseIds: string[];
+  status: "covered" | "missing";
 }
 
 type DayBlueprint = {
@@ -744,6 +762,36 @@ export const MAJOR_MUSCLES: Muscle[] = [
 export const RECOVERY_TRACKED_MUSCLES: Muscle[] = MAJOR_MUSCLES.filter(
   (muscle) => muscle !== "core",
 );
+
+export const MOVEMENT_PATTERN_LABEL_AR: Record<MovementPatternKey, string> = {
+  "horizontal-push": "ضغط أفقي",
+  "vertical-push": "ضغط رأسي",
+  "horizontal-pull": "سحب أفقي",
+  "vertical-pull": "سحب رأسي",
+  "knee-dominant": "سكوات / ركبة",
+  "hip-dominant": "Hinge / ورك",
+};
+
+const MOVEMENT_PATTERN_FAMILIES: Record<
+  MovementPatternKey,
+  MovementFamily[]
+> = {
+  "horizontal-push": ["horizontal-press"],
+  "vertical-push": ["vertical-press"],
+  "horizontal-pull": ["horizontal-pull"],
+  "vertical-pull": ["vertical-pull"],
+  "knee-dominant": ["squat", "lunge", "knee-extension"],
+  "hip-dominant": ["hinge", "hip-extension"],
+};
+
+const MOVEMENT_PATTERN_ORDER: MovementPatternKey[] = [
+  "horizontal-push",
+  "vertical-push",
+  "horizontal-pull",
+  "vertical-pull",
+  "knee-dominant",
+  "hip-dominant",
+];
 
 const SMALLER_MUSCLES: Muscle[] = ["biceps", "triceps", "calves", "forearms"];
 
@@ -1836,6 +1884,35 @@ export function generateWeeklySchedule(
       isRest: false,
       workoutIndex,
       workout: weekly[workoutIndex],
+    };
+  });
+}
+
+export function getWeeklyMovementBalance(
+  workouts: GeneratedWorkout[],
+): MovementBalanceItem[] {
+  return MOVEMENT_PATTERN_ORDER.map((pattern) => {
+    const families = MOVEMENT_PATTERN_FAMILIES[pattern];
+    const exerciseIds = new Set<string>();
+    let days = 0;
+
+    for (const workout of workouts) {
+      const matching = workout.exercises.filter(
+        (item) =>
+          (item.phase === "main" || item.phase === "accessory") &&
+          families.includes(item.exercise.movementFamily),
+      );
+      if (matching.length) days += 1;
+      matching.forEach((item) => exerciseIds.add(item.exercise.id));
+    }
+
+    return {
+      pattern,
+      families,
+      days,
+      exerciseCount: exerciseIds.size,
+      exerciseIds: [...exerciseIds],
+      status: exerciseIds.size > 0 ? ("covered" as const) : ("missing" as const),
     };
   });
 }
