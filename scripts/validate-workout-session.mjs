@@ -54,7 +54,13 @@ for (const required of [
   "const runningBeforeSwap = useRef(true);",
   "runningBeforeSwap.current = running;",
   "setRunning(restoreRunning);",
-  'drag={showSwapOptions ? false : "x"}',
+  'drag={showSwapOptions || showExitConfirm ? false : "x"}',
+  "const runningBeforeExit = useRef(true);",
+  "function requestExit() {",
+  "function cancelExit() {",
+  "function confirmExitWithoutSaving() {",
+  'role="dialog"',
+  'aria-labelledby="workout-exit-title"',
 ]) {
   if (!workout.includes(required)) {
     fail("workout history/session marker missing: " + required);
@@ -79,6 +85,20 @@ if (applySwapMatch[1].includes("setRunning(true)")) {
 }
 if (!applySwapMatch[1].includes("runningBeforeSwap.current")) {
   fail("manual swap does not read the pre-swap timer state");
+}
+
+const exitMatch = workout.match(
+  /function requestExit\(\) \{([\s\S]*?)\n  \}\n\n/,
+);
+if (!exitMatch) fail("requestExit helper is missing");
+if (!exitMatch[1].includes("runningBeforeExit.current")) {
+  fail("exit guard does not preserve the pre-exit timer state");
+}
+if (!workout.includes("onClick={requestExit}")) {
+  fail("workout close button bypasses the exit guard");
+}
+if (workout.includes('onClick={() => navigate({ to: "/" })}')) {
+  fail("unguarded direct workout exit returned");
 }
 
 if (!profile.includes("skipped?: boolean;")) {

@@ -84,6 +84,7 @@ function WorkoutPlayer() {
   const [muted, setMuted] = useState(false);
   const [showRefs, setShowRefs] = useState(false);
   const [showSwapOptions, setShowSwapOptions] = useState(false);
+  const [showExitConfirm, setShowExitConfirm] = useState(false);
   const [completed, setCompleted] = useState<Set<string>>(new Set());
   const [skipped, setSkipped] = useState<Set<string>>(new Set());
   const [setReps, setSetReps] = useState<Record<string, number[]>>({});
@@ -96,6 +97,7 @@ function WorkoutPlayer() {
   const [currentRir, setCurrentRir] = useState<number | null>(null);
   const startedAt = useRef(Date.now());
   const runningBeforeSwap = useRef(true);
+  const runningBeforeExit = useRef(true);
 
   const current: PlannedExercise = plan[index];
   const next = plan[index + 1];
@@ -178,6 +180,7 @@ function WorkoutPlayer() {
     setRemaining(generatedPlan[0]?.workSeconds ?? 45);
     setRunning(true);
     setShowSwapOptions(false);
+    setShowExitConfirm(false);
     setCompleted(new Set());
     setSkipped(new Set());
     setSetReps({});
@@ -193,6 +196,7 @@ function WorkoutPlayer() {
     setElapsed(0);
     setFinishedDurationSec(null);
     runningBeforeSwap.current = true;
+    runningBeforeExit.current = true;
     startedAt.current = Date.now();
   }, [hydrated, generatedPlan]);
 
@@ -247,6 +251,29 @@ function WorkoutPlayer() {
     setRunning(restoreRunning);
     if (restoreRunning) sfxGo();
   }
+
+  function requestExit() {
+    const restoreRunning = showSwapOptions
+      ? runningBeforeSwap.current
+      : running;
+    runningBeforeExit.current = restoreRunning;
+    setShowSwapOptions(false);
+    setShowExitConfirm(true);
+    setRunning(false);
+  }
+
+  function cancelExit() {
+    const restoreRunning = runningBeforeExit.current;
+    setShowExitConfirm(false);
+    setRunning(restoreRunning);
+    if (restoreRunning) sfxGo();
+  }
+
+  function confirmExitWithoutSaving() {
+    setShowExitConfirm(false);
+    navigate({ to: "/" });
+  }
+
 
 
   function skipCurrentExercise() {
@@ -512,13 +539,47 @@ function WorkoutPlayer() {
 
   return (
     <PageShell>
+      {showExitConfirm && (
+        <div
+          className="fixed inset-0 z-[80] flex items-end justify-center bg-black/70 p-4 backdrop-blur-sm sm:items-center"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="workout-exit-title"
+        >
+          <div className="w-full max-w-[390px] rounded-3xl border border-border bg-background p-5 shadow-2xl">
+            <p className="type-eyebrow text-amber-400">جلسة قيد التنفيذ</p>
+            <h2 id="workout-exit-title" className="type-section-title mt-1">
+              الخروج من الجلسة؟
+            </h2>
+            <p className="type-small mt-3 leading-relaxed text-muted-foreground">
+              التقدم الحالي لا يُضاف إلى سجل التدريب إلا عند إكمال الجلسة.
+              الخروج الآن سيغلق الجلسة بدون حفظ نتائجها الحالية.
+            </p>
+
+            <div className="mt-5 grid gap-2">
+              <Button type="button" onClick={cancelExit}>
+                متابعة الجلسة
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={confirmExitWithoutSaving}
+                className="border-red-400/30 text-red-300 hover:bg-red-400/10"
+              >
+                خروج بدون حفظ
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="p-5 pt-8">
         {/* top bar */}
         <div className="flex items-center justify-between mb-4">
           <button
-            onClick={() => navigate({ to: "/" })}
+            onClick={requestExit}
             className="size-10 rounded-full border border-border grid place-items-center text-lg"
-            aria-label="إغلاق"
+            aria-label="إغلاق الجلسة"
           >
             ✕
           </button>
@@ -696,7 +757,7 @@ function WorkoutPlayer() {
 
         {/* Athlete + swipe */}
         <motion.div
-          drag={showSwapOptions ? false : "x"}
+          drag={showSwapOptions || showExitConfirm ? false : "x"}
           dragConstraints={{ left: 0, right: 0 }}
           onDragEnd={handleSwipe}
           className="relative mx-auto mb-4 rounded-3xl border border-border bg-surface/40 overflow-hidden cursor-grab active:cursor-grabbing"
