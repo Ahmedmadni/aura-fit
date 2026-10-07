@@ -15,10 +15,12 @@ import heroWorkout from "@/assets/hero-workout.jpg";
 import { BottomNav } from "@/components/bottom-nav";
 import { PageShell, PageHeader } from "@/components/page-shell";
 import {
+  MOVEMENT_PATTERN_LABEL_AR,
   PERIODIZATION_PHASE_LABEL_AR,
   PHASE_LABEL_AR,
   generateWeeklyPlan,
   generateWeeklySchedule,
+  getWeeklyMovementBalance,
   getWeeklyMuscleCoverage,
   getWeeklyRecoverySpacing,
   getWeeklyVolumeStatus,
@@ -106,6 +108,10 @@ function Programs() {
     () => getWeeklyRecoverySpacing(schedule),
     [schedule],
   );
+  const movementBalance = useMemo(
+    () => getWeeklyMovementBalance(weekly),
+    [weekly],
+  );
   const volume = useMemo(
     () => getWeeklyVolumeStatus(weekly, profile),
     [weekly, profile],
@@ -119,6 +125,9 @@ function Programs() {
   const volumeOnTarget = volume.filter((item) => item.status === "target").length;
   const recoveryOnTarget = recoverySpacing.filter(
     (item) => item.status === "optimal",
+  ).length;
+  const movementCovered = movementBalance.filter(
+    (item) => item.status === "covered",
   ).length;
   const periodization = weekly[0]?.periodization;
   const rotations = weekly
@@ -152,7 +161,10 @@ function Programs() {
               label="استشفاء ≥48س"
               value={recoveryOnTarget + "/" + recoverySpacing.length}
             />
-            <SummaryStat label="تدوير" value={String(rotations.length)} />
+            <SummaryStat
+              label="أنماط الحركة"
+              value={movementCovered + "/" + movementBalance.length}
+            />
             <SummaryStat
               label="متوسط الجلسة"
               value={
@@ -463,6 +475,60 @@ function Programs() {
             ترك يوم كامل على الأقل بين تعرضين رئيسيين (≈ 48 ساعة أو أكثر).
           </p>
         </div>
+      </section>
+
+      <section className="px-6 mb-8 animate-enter [animation-delay:145ms]">
+        <div className="mb-4">
+          <p className="type-eyebrow text-muted-foreground">توازن الحركة</p>
+          <h3 className="type-section-title">الأنماط الأساسية خلال الأسبوع</h3>
+          <p className="type-small mt-2 text-muted-foreground">
+            نراجع التمرينات الأساسية والمساعدة، حتى لا يتحول توازن العضلات إلى
+            تكرار نفس زاوية الضغط أو السحب طوال الأسبوع.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-2 gap-2">
+          {movementBalance.map((item) => {
+            const covered = item.status === "covered";
+            return (
+              <div
+                key={item.pattern}
+                className={
+                  "rounded-2xl border p-3 " +
+                  (covered
+                    ? "border-border bg-surface/70"
+                    : "border-amber-400/30 bg-amber-400/5")
+                }
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <p className="text-xs font-bold">
+                    {MOVEMENT_PATTERN_LABEL_AR[item.pattern]}
+                  </p>
+                  {covered ? (
+                    <CheckCircle2 className="size-3.5 shrink-0 text-primary" />
+                  ) : (
+                    <span className="text-[9px] font-bold text-amber-400">
+                      ناقص
+                    </span>
+                  )}
+                </div>
+                <p className="mt-2 font-mono text-lg font-black">
+                  {item.days}×
+                </p>
+                <p className="text-[9px] text-muted-foreground">
+                  {item.exerciseCount
+                    ? item.exerciseCount + " تمرين/تمارين مختلفة"
+                    : "لا يوجد تمرين من هذا النمط في الخطة الحالية"}
+                </p>
+              </div>
+            );
+          })}
+        </div>
+
+        <p className="type-caption mt-3 text-muted-foreground">
+          الأنماط الستة: ضغط أفقي ورأسي، سحب أفقي ورأسي، حركة ركبة
+          (Squat/Lunge)، وحركة سلسلة خلفية (Hinge/Hip Extension).
+        </p>
       </section>
 
       <section className="px-6 mb-8 animate-enter [animation-delay:150ms]">
