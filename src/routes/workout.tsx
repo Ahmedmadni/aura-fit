@@ -323,14 +323,14 @@ function WorkoutPlayer() {
   }, [day, generatedPlan, hydrated, workout.id]);
 
   useEffect(() => {
-    if (!hydrated || !sessionReady || phase === "done") {
+    if (!hydrated || !sessionReady || !sessionIdentity || phase === "done") {
       draftSnapshot.current = null;
       return;
     }
 
     draftSnapshot.current = {
-      workoutId: workout.id,
-      day: day ?? null,
+      workoutId: sessionIdentity.workoutId,
+      day: sessionIdentity.day,
       plan,
       index,
       setIdx,
@@ -366,7 +366,7 @@ function WorkoutPlayer() {
     setReps,
     setRir,
     skipped,
-    workout.id,
+    sessionIdentity,
   ]);
 
   useEffect(() => {
@@ -564,7 +564,6 @@ function WorkoutPlayer() {
 
   useEffect(() => {
     primeAudio();
-    sfxGo();
   }, []);
 
   useEffect(() => {
@@ -627,7 +626,7 @@ function WorkoutPlayer() {
     draftSnapshot.current = null;
     clearWorkoutSessionDraft();
     recordWorkout({
-      id: workout.id + "-" + Date.now(),
+      id: (sessionIdentity?.workoutId ?? workout.id) + "-" + Date.now(),
       date: new Date().toISOString(),
       exercises: plan.map((p) => ({
         id: p.exercise.id,
