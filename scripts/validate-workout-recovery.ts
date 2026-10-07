@@ -4,6 +4,7 @@ import {
   WORKOUT_SESSION_MAX_AGE_MS,
   parseWorkoutSessionDraft,
 } from "../src/lib/workout-session";
+import { parseWorkoutSessionMeta } from "../src/lib/workout-session-meta";
 
 const fail = (message: string) => {
   console.error("Workout recovery validation FAILED: " + message);
@@ -88,6 +89,42 @@ if (parseWorkoutSessionDraft(invalidIndex, now) !== null) {
   fail("draft with invalid exercise index was accepted");
 }
 
+const metaBase = {
+  version: 1,
+  workoutId: workout.id,
+  day: 0,
+  savedAt: new Date(now - 60_000).toISOString(),
+  index: 0,
+  setIdx: 1,
+  total: workout.exercises.length,
+  currentExerciseName: workout.exercises[0].exercise.name,
+};
+
+const parsedMeta = parseWorkoutSessionMeta(metaBase, now);
+if (
+  !parsedMeta ||
+  parsedMeta.workoutId !== workout.id ||
+  parsedMeta.currentExerciseName !== workout.exercises[0].exercise.name
+) {
+  fail("valid lightweight workout-session metadata was rejected");
+}
+
+const expiredMeta = {
+  ...metaBase,
+  savedAt: new Date(now - WORKOUT_SESSION_MAX_AGE_MS - 1).toISOString(),
+};
+if (parseWorkoutSessionMeta(expiredMeta, now) !== null) {
+  fail("expired lightweight workout-session metadata was accepted");
+}
+
+const invalidMetaIndex = {
+  ...metaBase,
+  index: workout.exercises.length,
+};
+if (parseWorkoutSessionMeta(invalidMetaIndex, now) !== null) {
+  fail("lightweight metadata accepted an out-of-range exercise index");
+}
+
 console.log(
-  "Workout recovery PASS: valid drafts restore, stale exercise metadata refreshes, and expired/corrupt drafts are rejected.",
+  "Workout recovery PASS: full drafts and lightweight navigation metadata validate expiry, bounds and current exercise state.",
 );
