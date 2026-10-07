@@ -188,43 +188,53 @@ function WorkoutPlayer() {
     [completed, plan],
   );
 
-  useEffect(() => {
-    if (!hydrated) return;
+  function restoreDraftSession(
+    draft: WorkoutSessionDraftV1,
+    identity = {
+      workoutId: draft.workoutId,
+      day: draft.day,
+    },
+  ) {
+    setSessionConflict(undefined);
+    setSessionIdentity(identity);
+    setPlan(draft.plan);
+    setIndex(draft.index);
+    setSetIdx(draft.setIdx);
+    setPhase(draft.phase);
+    setRemaining(draft.remaining);
+    setRunning(false);
+    setMuted(draft.muted);
+    setShowRefs(false);
+    setShowSwapOptions(false);
+    setShowExitConfirm(false);
+    setCompleted(new Set(draft.completed));
+    setSkipped(new Set(draft.skipped));
+    setSetReps(draft.setReps);
+    setSetLoadsKg(draft.setLoadsKg);
+    setSetRir(draft.setRir);
+    setCurrentReps(draft.currentReps);
+    setCurrentLoadKg(draft.currentLoadKg);
+    setCurrentRir(draft.currentRir);
+    setElapsed(draft.elapsed);
+    setFinishedDurationSec(null);
+    runningBeforeSwap.current = false;
+    runningBeforeExit.current = false;
+    startedAt.current = Date.now() - draft.elapsed * 1000;
+    setRestoredDraft(true);
+    setSessionReady(true);
+  }
 
-    const draft = loadWorkoutSessionDraft({
+  function initializeFreshSession(clearExistingDraft = false) {
+    if (clearExistingDraft) {
+      draftSnapshot.current = null;
+      clearWorkoutSessionDraft();
+    }
+
+    setSessionConflict(undefined);
+    setSessionIdentity({
       workoutId: workout.id,
       day: day ?? null,
     });
-
-    setShowSwapOptions(false);
-    setShowExitConfirm(false);
-    setFinishedDurationSec(null);
-
-    if (draft) {
-      setPlan(draft.plan);
-      setIndex(draft.index);
-      setSetIdx(draft.setIdx);
-      setPhase(draft.phase);
-      setRemaining(draft.remaining);
-      setRunning(false);
-      setMuted(draft.muted);
-      setCompleted(new Set(draft.completed));
-      setSkipped(new Set(draft.skipped));
-      setSetReps(draft.setReps);
-      setSetLoadsKg(draft.setLoadsKg);
-      setSetRir(draft.setRir);
-      setCurrentReps(draft.currentReps);
-      setCurrentLoadKg(draft.currentLoadKg);
-      setCurrentRir(draft.currentRir);
-      setElapsed(draft.elapsed);
-      runningBeforeSwap.current = false;
-      runningBeforeExit.current = false;
-      startedAt.current = Date.now() - draft.elapsed * 1000;
-      setRestoredDraft(true);
-      setSessionReady(true);
-      return;
-    }
-
     setPlan(generatedPlan);
     setIndex(0);
     setSetIdx(1);
@@ -232,6 +242,9 @@ function WorkoutPlayer() {
     setRemaining(generatedPlan[0]?.workSeconds ?? 45);
     setRunning(true);
     setMuted(false);
+    setShowRefs(false);
+    setShowSwapOptions(false);
+    setShowExitConfirm(false);
     setCompleted(new Set());
     setSkipped(new Set());
     setSetReps({});
@@ -245,11 +258,68 @@ function WorkoutPlayer() {
     );
     setCurrentRir(null);
     setElapsed(0);
+    setFinishedDurationSec(null);
     runningBeforeSwap.current = true;
     runningBeforeExit.current = true;
     startedAt.current = Date.now();
     setRestoredDraft(false);
     setSessionReady(true);
+  }
+
+  function resumeConflictingSession() {
+    if (!sessionConflict) return;
+
+    const requestedDay = day ?? null;
+    if (sessionConflict.day !== requestedDay) {
+      navigate({
+        to: "/workout",
+        search: { day: sessionConflict.day ?? undefined },
+      });
+      return;
+    }
+
+    restoreDraftSession(sessionConflict, {
+      workoutId: workout.id,
+      day: requestedDay,
+    });
+  }
+
+  function replaceConflictingSession() {
+    initializeFreshSession(true);
+    primeAudio();
+    sfxGo();
+  }
+
+  useEffect(() => {
+    if (!hydrated) return;
+
+    setSessionReady(false);
+    setSessionIdentity(undefined);
+    draftSnapshot.current = null;
+    setShowSwapOptions(false);
+    setShowExitConfirm(false);
+    setFinishedDurationSec(null);
+
+    const requestedDay = day ?? null;
+    const recoverable = loadRecoverableWorkoutSessionDraft();
+    if (recoverable) {
+      const matchesCurrent =
+        recoverable.workoutId === workout.id &&
+        recoverable.day === requestedDay;
+
+      if (matchesCurrent) {
+        restoreDraftSession(recoverable);
+        return;
+      }
+
+      setRunning(false);
+      setRestoredDraft(false);
+      setSessionConflict(recoverable);
+      return;
+    }
+
+    initializeFreshSession(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [day, generatedPlan, hydrated, workout.id]);
 
   useEffect(() => {
