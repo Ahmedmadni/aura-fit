@@ -4,6 +4,7 @@ import {
   generateWeeklySchedule,
   getExerciseProgressionPrescription,
   getWeeklyRecoverySpacing,
+  getWeeklyMovementBalance,
   getExerciseRotationDecision,
   getPeriodizationPlan,
   getTrainingAdaptation,
@@ -795,6 +796,7 @@ for (const daysPerWeek of [2, 3, 4, 5, 6]) {
   }
   const scheduledTrainingDays = schedule.filter((day) => !day.isRest);
   const recoverySpacing = getWeeklyRecoverySpacing(schedule);
+  const movementBalance = getWeeklyMovementBalance(plan);
   if (scheduledTrainingDays.length !== daysPerWeek) {
     fail(
       `${daysPerWeek}d: expected ${daysPerWeek} scheduled training days, got ${scheduledTrainingDays.length}`,
@@ -824,6 +826,25 @@ for (const daysPerWeek of [2, 3, 4, 5, 6]) {
     ) {
       fail(
         `${daysPerWeek}d: ${item.muscle} recovery spacing is too tight: ${item.dayLabels.join(">")} minGap=${item.minGapDays}`,
+      );
+    }
+  }
+
+  if (movementBalance.length !== 6) {
+    fail(
+      `${daysPerWeek}d: expected 6 movement-balance groups, got ${movementBalance.length}`,
+    );
+  }
+
+  if (daysPerWeek >= 3) {
+    const missingPatterns = movementBalance.filter(
+      (item) => item.status === "missing",
+    );
+    if (missingPatterns.length) {
+      fail(
+        `${daysPerWeek}d: missing weekly movement patterns: ${missingPatterns
+          .map((item) => item.pattern)
+          .join(",")}`,
       );
     }
   }
@@ -889,7 +910,11 @@ for (const daysPerWeek of [2, 3, 4, 5, 6]) {
       " | volume " +
       volume.map((item) => `${item.muscle}=${item.effectiveSets}/${item.min}-${item.max}`).join(", ") +
       " | recovery " +
-      recoverySpacing.map((item) => `${item.muscle}=${item.minGapDays}d`).join(", "),
+      recoverySpacing.map((item) => `${item.muscle}=${item.minGapDays}d`).join(", ") +
+      " | movement " +
+      movementBalance
+        .map((item) => `${item.pattern}=${item.days}d/${item.exerciseCount}ex`)
+        .join(", "),
   );
 }
 
