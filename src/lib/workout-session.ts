@@ -1,9 +1,15 @@
 import { getExercise } from "./exercise-db";
 import type { PlannedExercise } from "./workout-engine";
+import {
+  WORKOUT_SESSION_MAX_AGE_MS,
+  clearWorkoutSessionMeta,
+  saveWorkoutSessionMeta,
+} from "./workout-session-meta";
+
+export { WORKOUT_SESSION_MAX_AGE_MS } from "./workout-session-meta";
 
 const WORKOUT_SESSION_KEY = "aura.workout-session.v1";
 const WORKOUT_SESSION_VERSION = 1 as const;
-export const WORKOUT_SESSION_MAX_AGE_MS = 18 * 60 * 60 * 1000;
 
 export type RecoverableWorkoutPhase = "work" | "rest";
 
@@ -291,12 +297,12 @@ export function loadRecoverableWorkoutSessionDraft(): WorkoutSessionDraftV1 | nu
   try {
     const draft = parseWorkoutSessionDraft(JSON.parse(raw));
     if (!draft) {
-      localStorage.removeItem(WORKOUT_SESSION_KEY);
+      clearWorkoutSessionDraft();
       return null;
     }
     return draft;
   } catch {
-    localStorage.removeItem(WORKOUT_SESSION_KEY);
+    clearWorkoutSessionDraft();
     return null;
   }
 }
@@ -316,15 +322,32 @@ export function loadWorkoutSessionDraft(match: {
 export function saveWorkoutSessionDraft(state: WorkoutSessionDraftState) {
   if (typeof window === "undefined") return;
 
+  const savedAt = new Date().toISOString();
   const draft: WorkoutSessionDraftV1 = {
     ...state,
     version: WORKOUT_SESSION_VERSION,
-    savedAt: new Date().toISOString(),
+    savedAt,
   };
   localStorage.setItem(WORKOUT_SESSION_KEY, JSON.stringify(draft));
+
+  const current = state.plan[state.index];
+  if (current) {
+    saveWorkoutSessionMeta(
+      {
+        workoutId: state.workoutId,
+        day: state.day,
+        index: state.index,
+        setIdx: state.setIdx,
+        total: state.plan.length,
+        currentExerciseName: current.exercise.name,
+      },
+      savedAt,
+    );
+  }
 }
 
 export function clearWorkoutSessionDraft() {
   if (typeof window === "undefined") return;
   localStorage.removeItem(WORKOUT_SESSION_KEY);
+  clearWorkoutSessionMeta();
 }
