@@ -696,6 +696,61 @@ function WorkoutPlayer() {
     );
   }
 
+  if (sessionConflict) {
+    const savedCurrent = sessionConflict.plan[sessionConflict.index];
+    const sameRequestedDay = sessionConflict.day === (day ?? null);
+
+    return (
+      <PageShell>
+        <div className="grid min-h-[75vh] place-items-center p-6">
+          <div className="w-full rounded-3xl border border-amber-400/30 bg-amber-400/5 p-5">
+            <p className="type-eyebrow text-amber-400">جلسة غير مكتملة</p>
+            <h1 className="type-page-title mt-2">لديك جلسة محفوظة بالفعل</h1>
+            <p className="type-small mt-3 leading-relaxed text-muted-foreground">
+              لن نكتب فوق تقدمك المحفوظ تلقائيًا. اختر استئناف الجلسة السابقة
+              أو ابدأ الجلسة الجديدة بعد حذفها صراحة.
+            </p>
+
+            <div className="mt-4 rounded-2xl border border-border bg-background/60 p-3">
+              <p className="text-xs font-black">
+                {savedCurrent?.exercise.name ?? "جلسة محفوظة"}
+              </p>
+              <p className="mt-1 text-[10px] text-muted-foreground">
+                تمرين {sessionConflict.index + 1}/{sessionConflict.plan.length}
+                {" · "}
+                مجموعة {sessionConflict.setIdx}
+                {sameRequestedDay && sessionConflict.workoutId !== workout.id
+                  ? " · تغيرت الخطة الحالية منذ الحفظ"
+                  : ""}
+              </p>
+            </div>
+
+            <div className="mt-5 grid gap-2">
+              <Button type="button" onClick={resumeConflictingSession}>
+                استئناف الجلسة المحفوظة
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={replaceConflictingSession}
+                className="border-red-400/30 text-red-300 hover:bg-red-400/10"
+              >
+                بدء الجديدة وحذف المحفوظة
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => navigate({ to: "/" })}
+              >
+                العودة للرئيسية
+              </Button>
+            </div>
+          </div>
+        </div>
+      </PageShell>
+    );
+  }
+
   if (phase === "done") {
     const minutes = Math.max(
       1,
