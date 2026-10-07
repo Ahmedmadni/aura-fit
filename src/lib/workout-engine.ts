@@ -741,6 +741,10 @@ export const MAJOR_MUSCLES: Muscle[] = [
   "core",
 ];
 
+export const RECOVERY_TRACKED_MUSCLES: Muscle[] = MAJOR_MUSCLES.filter(
+  (muscle) => muscle !== "core",
+);
+
 const SMALLER_MUSCLES: Muscle[] = ["biceps", "triceps", "calves", "forearms"];
 
 function baseVolumeForLevel(level: Level) {
@@ -776,7 +780,7 @@ export function getWeeklyVolumeTargets(
       ? 0.65
       : adaptationFactor;
 
-  return MAJOR_MUSCLES.map((muscle) => {
+  return RECOVERY_TRACKED_MUSCLES.map((muscle) => {
     const coreFactor = muscle === "core" ? 0.75 : 1;
     const min = Math.max(
       2,
