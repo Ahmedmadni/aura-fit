@@ -534,7 +534,25 @@ async function main() {
       throw new Error("Active workout did not persist a recovery draft on pagehide.");
     }
 
-    await navigate("/", "Browser E2E");
+    const conflictBody = await navigate(
+      "/workout?day=1",
+      "لديك جلسة محفوظة بالفعل",
+    );
+    if (!conflictBody.includes("لن نكتب فوق تقدمك المحفوظ تلقائيًا")) {
+      throw new Error("Workout conflict guard did not explain draft preservation.");
+    }
+    const draftAfterConflict = await evaluate(
+      'JSON.parse(localStorage.getItem("aura.workout-session.v1") || "null")',
+    );
+    if (
+      !draftAfterConflict ||
+      draftAfterConflict.workoutId !== activeDraft.workoutId ||
+      draftAfterConflict.day !== activeDraft.day
+    ) {
+      throw new Error("Opening a different workout overwrote the saved active session.");
+    }
+
+    await clickText("العودة للرئيسية", true);
     await waitForText("استئناف الجلسة", 15000);
     const dashboardHasDraftMarker = await evaluate(
       `Boolean(document.querySelector('[data-active-workout-draft="true"]'))`,
@@ -614,7 +632,17 @@ async function main() {
       })()`,
     );
 
-    await navigate("/", "Browser E2E");
+    const postCleanupHome = await navigate("/", "Browser E2E");
+    await timeout(200);
+    if (postCleanupHome.includes("استئناف الجلسة")) {
+      throw new Error("Dashboard kept showing a ghost active-session resume after the full draft was removed.");
+    }
+    const orphanedMeta = await evaluate(
+      'localStorage.getItem("aura.workout-session-meta.v1")',
+    );
+    if (orphanedMeta !== null) {
+      throw new Error("Orphaned active-session metadata was not cleared automatically.");
+    }
 
     const routes = [
       ["/programs", "التوزيع الحالي"],
@@ -795,7 +823,7 @@ async function main() {
     }
 
     console.log(
-      "Browser smoke PASS: mobile onboarding, readiness, injury-safe workout, dashboard and bottom-nav session resume, active-session recovery, hydration-safe cloud session, safe backup controls, PWA install UX, real-data routes, service worker and offline cached navigation all verified in headless Chrome.",
+      "Browser smoke PASS: mobile onboarding, readiness, injury-safe workout, active-session conflict guard, dashboard and bottom-nav resume, recovery cleanup, hydration-safe cloud session, safe backup controls, PWA install UX, real-data routes, service worker and offline cached navigation all verified in headless Chrome.",
     );
 
     cdp.close();
