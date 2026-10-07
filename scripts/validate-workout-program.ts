@@ -285,6 +285,10 @@ if (analyzeExerciseStrength(skippedOnlyHistory, "bench-press") !== null) {
   fail("skipped-only exercise must not create strength analytics or PR data");
 }
 
+if (exerciseStrengthSummaries(skippedOnlyHistory).length !== 0) {
+  fail("skipped-only exercise must not appear in legacy strength summaries");
+}
+
 const oneCompletedOneSkipped = [
   historyEntry(
     "completed-before-skip",
