@@ -21,7 +21,8 @@
     "backup:validate": "bun scripts/validate-local-backup.ts",
     "performance:validate": "node scripts/validate-performance.mjs",
     "device:smoke": "node scripts/device-layout-smoke.mjs",
-    "media-runtime:validate": "node scripts/validate-media-runtime.mjs"
+    "media-runtime:validate": "node scripts/validate-media-runtime.mjs",
+    "session:validate": "node scripts/validate-workout-session.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
