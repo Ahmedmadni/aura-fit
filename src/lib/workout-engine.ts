@@ -149,6 +149,17 @@ export interface WeeklyScheduleDay {
   workout?: GeneratedWorkout;
 }
 
+export type RecoverySpacingStatus = "optimal" | "tight" | "single" | "none";
+
+export interface MuscleRecoverySpacing {
+  muscle: Muscle;
+  weekdays: number[];
+  dayLabels: string[];
+  exposureDays: number;
+  minGapDays: number | null;
+  status: RecoverySpacingStatus;
+}
+
 type DayBlueprint = {
   key: string;
   title: string;
@@ -729,6 +740,10 @@ export const MAJOR_MUSCLES: Muscle[] = [
   "glutes",
   "core",
 ];
+
+export const RECOVERY_TRACKED_MUSCLES: Muscle[] = MAJOR_MUSCLES.filter(
+  (muscle) => muscle !== "core",
+);
 
 const SMALLER_MUSCLES: Muscle[] = ["biceps", "triceps", "calves", "forearms"];
 
@@ -1821,6 +1836,64 @@ export function generateWeeklySchedule(
       isRest: false,
       workoutIndex,
       workout: weekly[workoutIndex],
+    };
+  });
+}
+
+export function getWeeklyRecoverySpacing(
+  schedule: WeeklyScheduleDay[],
+): MuscleRecoverySpacing[] {
+  return RECOVERY_TRACKED_MUSCLES.map((muscle) => {
+    const exposureDays = schedule
+      .filter(
+        (day) =>
+          !day.isRest &&
+          day.workout?.targetMuscles.includes(muscle),
+      )
+      .map((day) => ({
+        weekday: day.weekday,
+        dayLabel: day.dayLabel,
+      }))
+      .sort((a, b) => a.weekday - b.weekday);
+
+    if (!exposureDays.length) {
+      return {
+        muscle,
+        weekdays: [],
+        dayLabels: [],
+        exposureDays: 0,
+        minGapDays: null,
+        status: "none" as const,
+      };
+    }
+
+    if (exposureDays.length === 1) {
+      return {
+        muscle,
+        weekdays: [exposureDays[0].weekday],
+        dayLabels: [exposureDays[0].dayLabel],
+        exposureDays: 1,
+        minGapDays: 7,
+        status: "single" as const,
+      };
+    }
+
+    const gaps = exposureDays.map((day, index) => {
+      const next = exposureDays[index + 1];
+      const nextWeekday = next
+        ? next.weekday
+        : exposureDays[0].weekday + 7;
+      return nextWeekday - day.weekday;
+    });
+    const minGapDays = Math.min(...gaps);
+
+    return {
+      muscle,
+      weekdays: exposureDays.map((day) => day.weekday),
+      dayLabels: exposureDays.map((day) => day.dayLabel),
+      exposureDays: exposureDays.length,
+      minGapDays,
+      status: minGapDays >= 2 ? ("optimal" as const) : ("tight" as const),
     };
   });
 }

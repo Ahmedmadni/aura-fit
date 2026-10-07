@@ -3,6 +3,7 @@ import {
   generateWeeklyPlan,
   generateWeeklySchedule,
   getExerciseProgressionPrescription,
+  getWeeklyRecoverySpacing,
   getExerciseRotationDecision,
   getPeriodizationPlan,
   getTrainingAdaptation,
@@ -793,6 +794,7 @@ for (const daysPerWeek of [2, 3, 4, 5, 6]) {
     fail(`${daysPerWeek}d: weekly schedule must contain 7 calendar days`);
   }
   const scheduledTrainingDays = schedule.filter((day) => !day.isRest);
+  const recoverySpacing = getWeeklyRecoverySpacing(schedule);
   if (scheduledTrainingDays.length !== daysPerWeek) {
     fail(
       `${daysPerWeek}d: expected ${daysPerWeek} scheduled training days, got ${scheduledTrainingDays.length}`,
@@ -806,6 +808,24 @@ for (const daysPerWeek of [2, 3, 4, 5, 6]) {
 
   if (plan.length !== daysPerWeek) {
     fail(`${daysPerWeek}d: expected ${daysPerWeek} workouts, got ${plan.length}`);
+  }
+
+  for (const item of recoverySpacing) {
+    if (item.exposureDays < 2) {
+      fail(
+        `${daysPerWeek}d: ${item.muscle} has only ${item.exposureDays} targeted exposure day(s) for recovery audit`,
+      );
+      continue;
+    }
+    if (
+      item.status !== "optimal" ||
+      item.minGapDays === null ||
+      item.minGapDays < 2
+    ) {
+      fail(
+        `${daysPerWeek}d: ${item.muscle} recovery spacing is too tight: ${item.dayLabels.join(">")} minGap=${item.minGapDays}`,
+      );
+    }
   }
 
   plan.forEach((workout, index) => {
@@ -867,7 +887,9 @@ for (const daysPerWeek of [2, 3, 4, 5, 6]) {
         .map((item) => `${item.muscle}=${item.days}x`)
         .join(", ") +
       " | volume " +
-      volume.map((item) => `${item.muscle}=${item.effectiveSets}/${item.min}-${item.max}`).join(", "),
+      volume.map((item) => `${item.muscle}=${item.effectiveSets}/${item.min}-${item.max}`).join(", ") +
+      " | recovery " +
+      recoverySpacing.map((item) => `${item.muscle}=${item.minGapDays}d`).join(", "),
   );
 }
 
