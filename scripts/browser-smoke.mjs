@@ -543,6 +543,13 @@ async function main() {
       throw new Error("Dashboard did not expose the active workout recovery card.");
     }
 
+    const navResumeAction = await evaluate(
+      `Boolean(document.querySelector('nav[aria-label="التنقل الرئيسي"] a[aria-label="استئناف الجلسة"]'))`,
+    );
+    if (!navResumeAction) {
+      throw new Error("Bottom navigation did not route its center action to the active session.");
+    }
+
     await clickText("استئناف الجلسة", true);
     const recoveredWorkoutBody = await waitForText("جلسة مستعادة", 15000);
     if (!recoveredWorkoutBody.includes("الجلسة متوقفة مؤقتًا للأمان")) {
@@ -788,7 +795,7 @@ async function main() {
     }
 
     console.log(
-      "Browser smoke PASS: mobile onboarding, readiness, injury-safe workout, dashboard session resume, active-session recovery, hydration-safe cloud session, safe backup controls, PWA install UX, real-data routes, service worker and offline cached navigation all verified in headless Chrome.",
+      "Browser smoke PASS: mobile onboarding, readiness, injury-safe workout, dashboard and bottom-nav session resume, active-session recovery, hydration-safe cloud session, safe backup controls, PWA install UX, real-data routes, service worker and offline cached navigation all verified in headless Chrome.",
     );
 
     cdp.close();
