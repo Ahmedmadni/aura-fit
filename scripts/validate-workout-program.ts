@@ -1,8 +1,10 @@
 import {
+  createManualExerciseSwap,
   generateMonthlyProgram,
   generateWeeklyPlan,
   generateWeeklySchedule,
   getExerciseProgressionPrescription,
+  getManualExerciseSwapOptions,
   getWeeklyRecoverySpacing,
   getWeeklyMovementBalance,
   getExerciseRotationDecision,
@@ -691,6 +693,119 @@ if (!rotationMainBase) {
   }
 }
 
+const manualSwapPlan = generateWeeklyPlan(strongProfile, strongHistory);
+let manualSwapCase:
+  | {
+      workout: (typeof manualSwapPlan)[number];
+      item: (typeof manualSwapPlan)[number]["exercises"][number];
+      replacementId: string;
+    }
+  | undefined;
+
+for (const workout of manualSwapPlan) {
+  const usedIds = new Set(workout.exercises.map((item) => item.exercise.id));
+  for (const item of workout.exercises) {
+    if (
+      item.phase !== "main" &&
+      item.phase !== "accessory" &&
+      item.phase !== "core"
+    ) {
+      continue;
+    }
+    const options = getManualExerciseSwapOptions(
+      item.exercise,
+      strongProfile,
+      usedIds,
+      4,
+    );
+    const replacement = options[0];
+    if (!replacement) continue;
+
+    if (options.some((option) => usedIds.has(option.id))) {
+      fail("manual swap options must not repeat an exercise already in the session");
+    }
+    if (
+      replacement.movementFamily !== item.exercise.movementFamily ||
+      replacement.primary[0] !== item.exercise.primary[0] ||
+      replacement.trainingRole !== item.exercise.trainingRole ||
+      replacement.exerciseType !== item.exercise.exerciseType
+    ) {
+      fail(
+        `manual swap changed movement contract: ${item.exercise.id} -> ${replacement.id}`,
+      );
+    }
+    if (
+      replacement.equipment.some(
+        (equipment) => !strongProfile.equipment.includes(equipment),
+      ) ||
+      !isSafeFor(replacement, strongProfile.injuries)
+    ) {
+      fail(
+        `manual swap leaked unavailable/unsafe replacement: ${replacement.id}`,
+      );
+    }
+
+    manualSwapCase = {
+      workout,
+      item,
+      replacementId: replacement.id,
+    };
+    break;
+  }
+  if (manualSwapCase) break;
+}
+
+if (!manualSwapCase) {
+  fail("expected at least one strict manual exercise swap option");
+} else {
+  const replacement = getExercise(manualSwapCase.replacementId);
+  if (!replacement) {
+    fail("manual swap replacement disappeared from exercise database");
+  } else {
+    const swapped = createManualExerciseSwap(
+      manualSwapCase.item,
+      replacement,
+      strongProfile,
+      strongHistory,
+      manualSwapCase.workout.adaptation,
+      manualSwapCase.workout.periodization,
+      manualSwapCase.workout.isDeload,
+    );
+    if (
+      !swapped ||
+      swapped.exercise.id !== replacement.id ||
+      swapped.rotatedFromId !== manualSwapCase.item.exercise.id ||
+      swapped.rotationReason !== "manual" ||
+      swapped.sets !== manualSwapCase.item.sets
+    ) {
+      fail(
+        "manual swap must preserve volume and record manual rotation provenance",
+      );
+    }
+
+    const incompatible = EXERCISES.find(
+      (candidate) =>
+        candidate.id !== manualSwapCase?.item.exercise.id &&
+        candidate.movementFamily !==
+          manualSwapCase?.item.exercise.movementFamily,
+    );
+    if (
+      incompatible &&
+      createManualExerciseSwap(
+        manualSwapCase.item,
+        incompatible,
+        strongProfile,
+        strongHistory,
+        manualSwapCase.workout.adaptation,
+        manualSwapCase.workout.periodization,
+        manualSwapCase.workout.isDeload,
+      )
+    ) {
+      fail("manual swap helper accepted an incompatible movement pattern");
+    }
+  }
+}
+
 const progressPlan = generateWeeklyPlan(strongProfile, strongHistory);
 if (!progressPlan.every((workout) => workout.adaptation.mode === "progress")) {
   fail("progress history was not propagated to every generated workout");
@@ -714,7 +829,7 @@ if (recoveryStrengthSets >= progressStrengthSets) {
 }
 
 console.log(
-  `adaptive checks: progress readiness=${progressAdaptation.readinessScore}, recovery readiness=${recoveryAdaptation.readinessScore}, daily=${dailyProgressAdaptation.readinessScore}->${dailyRecoveryAdaptation.readinessScore}, staleSource=${staleAdaptation.readinessSource}, strength sets ${progressStrengthSets}->${recoveryStrengthSets}, load 70->${loadPrescription.suggestedLoadKg}kg, e1RM=${e1rm}kg, plateau=${plateauAnalysis?.plateau}, trend=${risingAnalysis?.trend}, cycle=${cyclePhases.join(">")}, cycleSets=${phaseStrengthSets.join(">")}, recoveryPhase=${recoveryPeriodization.phase}, plateauTrigger=${plateauPeriodization.trigger}, accessoryRotation=${rotationAccessoryBase?.id ?? "none"}, mainRotation=${rotationMainBase?.id ?? "none"}`,
+  `adaptive checks: progress readiness=${progressAdaptation.readinessScore}, recovery readiness=${recoveryAdaptation.readinessScore}, daily=${dailyProgressAdaptation.readinessScore}->${dailyRecoveryAdaptation.readinessScore}, staleSource=${staleAdaptation.readinessSource}, strength sets ${progressStrengthSets}->${recoveryStrengthSets}, load 70->${loadPrescription.suggestedLoadKg}kg, e1RM=${e1rm}kg, plateau=${plateauAnalysis?.plateau}, trend=${risingAnalysis?.trend}, cycle=${cyclePhases.join(">")}, cycleSets=${phaseStrengthSets.join(">")}, recoveryPhase=${recoveryPeriodization.phase}, plateauTrigger=${plateauPeriodization.trigger}, accessoryRotation=${rotationAccessoryBase?.id ?? "none"}, mainRotation=${rotationMainBase?.id ?? "none"}, manualSwap=${manualSwapCase?.item.exercise.id ?? "none"}->${manualSwapCase?.replacementId ?? "none"}`,
 );
 
 const injuryScenarios: Injury[][] = [

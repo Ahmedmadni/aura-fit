@@ -62,7 +62,7 @@ export type ProgressionAction =
   | "hold"
   | "reduce";
 
-export type RotationReason = "mesocycle" | "plateau";
+export type RotationReason = "mesocycle" | "plateau" | "manual";
 
 export interface ExerciseRotationDecision {
   exercise: Exercise;
@@ -1087,6 +1087,62 @@ function strictRotationPool(
   });
 }
 
+function isManualSwapCompatible(
+  base: Exercise,
+  candidate: Exercise,
+  profile: UserProfile,
+) {
+  return (
+    candidate.id !== base.id &&
+    isEligible(candidate, profile) &&
+    candidate.category === base.category &&
+    candidate.movementFamily === base.movementFamily &&
+    candidate.primary[0] === base.primary[0] &&
+    candidate.trainingRole === base.trainingRole &&
+    candidate.exerciseType === base.exerciseType
+  );
+}
+
+export function getManualExerciseSwapOptions(
+  base: Exercise,
+  profile: UserProfile,
+  usedExerciseIds: Set<string> = new Set(),
+  limit = 4,
+): Exercise[] {
+  const maxOptions = Math.max(1, Math.min(8, Math.floor(limit)));
+
+  return EXERCISES.filter(
+    (candidate) =>
+      !usedExerciseIds.has(candidate.id) &&
+      isManualSwapCompatible(base, candidate, profile),
+  )
+    .map((candidate) => {
+      const exactEquipment =
+        candidate.equipment.length === base.equipment.length &&
+        candidate.equipment.every((item) => base.equipment.includes(item));
+      const sharesEquipment = candidate.equipment.some((item) =>
+        base.equipment.includes(item),
+      );
+
+      let score = 0;
+      if (base.alternatives.includes(candidate.id)) score += 6;
+      if (exactEquipment) score += 5;
+      else if (sharesEquipment) score += 2;
+      if (candidate.level === base.level) score += 2;
+      score += goalBonus(candidate, profile.goals);
+      if (candidate.media.preferred === "gif") score += 0.25;
+
+      return { candidate, score };
+    })
+    .sort(
+      (a, b) =>
+        b.score - a.score ||
+        a.candidate.id.localeCompare(b.candidate.id),
+    )
+    .slice(0, maxOptions)
+    .map((item) => item.candidate);
+}
+
 export function getExerciseRotationDecision(
   base: Exercise,
   profile: UserProfile,
@@ -1369,6 +1425,46 @@ function planned(
         : periodization.targetRir,
     rotatedFromId: rotation?.rotatedFrom?.id,
     rotationReason: rotation?.reason,
+  };
+}
+
+export function createManualExerciseSwap(
+  current: PlannedExercise,
+  replacement: Exercise,
+  profile: UserProfile,
+  history: CompletedWorkout[],
+  adaptation: TrainingAdaptation,
+  periodization: PeriodizationPlan,
+  isDeload: boolean,
+): PlannedExercise | undefined {
+  if (
+    current.phase !== "main" &&
+    current.phase !== "accessory" &&
+    current.phase !== "core"
+  ) {
+    return undefined;
+  }
+  if (!isManualSwapCompatible(current.exercise, replacement, profile)) {
+    return undefined;
+  }
+
+  const swapped = planned(
+    replacement,
+    current.phase,
+    profile,
+    isDeload,
+    adaptation,
+    periodization,
+    history,
+    {
+      rotatedFrom: current.exercise,
+      reason: "manual",
+    },
+  );
+
+  return {
+    ...swapped,
+    sets: current.sets,
   };
 }
 

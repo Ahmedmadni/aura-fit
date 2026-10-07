@@ -74,7 +74,7 @@ export interface CompletedWorkout {
     progressionAction?: "build-reps" | "increase-load" | "hold" | "reduce";
     /** Exercise rotation context; absent for stable exercises/legacy entries. */
     rotatedFromId?: string;
-    rotationReason?: "mesocycle" | "plateau";
+    rotationReason?: "mesocycle" | "plateau" | "manual";
   }[];
   durationSec: number;
   activeSec: number;

@@ -1,6 +1,14 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { BookOpen, Volume2, VolumeX, ChevronRight, ChevronLeft, Check } from "lucide-react";
+import {
+  BookOpen,
+  Volume2,
+  VolumeX,
+  ChevronRight,
+  ChevronLeft,
+  Check,
+  RefreshCcw,
+} from "lucide-react";
 import { AnimatePresence, motion, PanInfo } from "framer-motion";
 import { PageShell } from "@/components/page-shell";
 import { AthleteVideo } from "@/components/athlete-video";
@@ -16,10 +24,17 @@ import {
 import {
   PERIODIZATION_PHASE_LABEL_AR,
   PHASE_LABEL_AR,
+  createManualExerciseSwap,
   generateWorkout,
+  getManualExerciseSwapOptions,
   type PlannedExercise,
 } from "@/lib/workout-engine";
-import { getExercise, INJURY_LABEL_AR } from "@/lib/exercise-db";
+import {
+  EQUIPMENT_LABEL_AR,
+  MOVEMENT_FAMILY_LABEL_AR,
+  getExercise,
+  INJURY_LABEL_AR,
+} from "@/lib/exercise-db";
 import {
   loadHistory,
   loadProfile,
@@ -58,7 +73,8 @@ function WorkoutPlayer() {
       }),
     [day, hydrated],
   );
-  const plan = workout.exercises;
+  const generatedPlan = workout.exercises;
+  const [plan, setPlan] = useState<PlannedExercise[]>(generatedPlan);
 
   const [index, setIndex] = useState(0);
   const [setIdx, setSetIdx] = useState(1); // 1-based current set
@@ -67,6 +83,7 @@ function WorkoutPlayer() {
   const [running, setRunning] = useState(true);
   const [muted, setMuted] = useState(false);
   const [showRefs, setShowRefs] = useState(false);
+  const [showSwapOptions, setShowSwapOptions] = useState(false);
   const [completed, setCompleted] = useState<Set<string>>(new Set());
   const [setReps, setSetReps] = useState<Record<string, number[]>>({});
   const [setLoadsKg, setSetLoadsKg] = useState<Record<string, number[]>>({});
@@ -82,6 +99,31 @@ function WorkoutPlayer() {
   const next = plan[index + 1];
   const total = plan.length;
 
+  const swapOptions = useMemo(() => {
+    if (
+      !hydrated ||
+      !current ||
+      (current.phase !== "main" &&
+        current.phase !== "accessory" &&
+        current.phase !== "core")
+    ) {
+      return [];
+    }
+
+    return getManualExerciseSwapOptions(
+      current.exercise,
+      loadProfile(),
+      new Set(plan.map((item) => item.exercise.id)),
+      4,
+    );
+  }, [current, hydrated, plan]);
+
+  const canSwapCurrent =
+    phase === "work" &&
+    setIdx === 1 &&
+    !completed.has(current.exercise.id) &&
+    swapOptions.length > 0;
+
   const totalDuration = useMemo(
     () =>
       plan.reduce(
@@ -94,23 +136,27 @@ function WorkoutPlayer() {
 
   useEffect(() => {
     if (!hydrated) return;
+    setPlan(generatedPlan);
     setIndex(0);
     setSetIdx(1);
     setPhase("work");
-    setRemaining(plan[0]?.workSeconds ?? 45);
+    setRemaining(generatedPlan[0]?.workSeconds ?? 45);
     setRunning(true);
+    setShowSwapOptions(false);
     setCompleted(new Set());
     setSetReps({});
     setSetLoadsKg({});
     setSetRir({});
-    setCurrentReps(suggestedReps(plan[0]?.reps));
+    setCurrentReps(suggestedReps(generatedPlan[0]?.reps));
     setCurrentLoadKg(
-      plan[0]?.suggestedLoadKg ?? plan[0]?.lastLoadKg ?? 0,
+      generatedPlan[0]?.suggestedLoadKg ??
+        generatedPlan[0]?.lastLoadKg ??
+        0,
     );
     setCurrentRir(null);
     setElapsed(0);
     startedAt.current = Date.now();
-  }, [hydrated, plan]);
+  }, [hydrated, generatedPlan]);
 
   function saveCurrentSet() {
     setSetReps((all) => {
@@ -146,6 +192,57 @@ function WorkoutPlayer() {
     setCurrentReps(suggestedReps(upcoming?.reps));
     setCurrentLoadKg(upcoming?.suggestedLoadKg ?? upcoming?.lastLoadKg ?? 0);
     setCurrentRir(null);
+    setShowSwapOptions(false);
+  }
+
+  function applyManualSwap(replacementId: string) {
+    const replacement = getExercise(replacementId);
+    if (!replacement || !current) return;
+
+    const swapped = createManualExerciseSwap(
+      current,
+      replacement,
+      loadProfile(),
+      loadHistory(),
+      workout.adaptation,
+      workout.periodization,
+      workout.isDeload,
+    );
+    if (!swapped) return;
+
+    const previousId = current.exercise.id;
+    setPlan((items) =>
+      items.map((item, itemIndex) => (itemIndex === index ? swapped : item)),
+    );
+    setCompleted((items) => {
+      const nextItems = new Set(items);
+      nextItems.delete(previousId);
+      return nextItems;
+    });
+    setSetReps((all) => {
+      const nextValues = { ...all };
+      delete nextValues[previousId];
+      return nextValues;
+    });
+    setSetLoadsKg((all) => {
+      const nextValues = { ...all };
+      delete nextValues[previousId];
+      return nextValues;
+    });
+    setSetRir((all) => {
+      const nextValues = { ...all };
+      delete nextValues[previousId];
+      return nextValues;
+    });
+    setCurrentReps(suggestedReps(swapped.reps));
+    setCurrentLoadKg(swapped.suggestedLoadKg ?? swapped.lastLoadKg ?? 0);
+    setCurrentRir(null);
+    setSetIdx(1);
+    setPhase("work");
+    setRemaining(swapped.workSeconds);
+    setShowSwapOptions(false);
+    setRunning(true);
+    sfxGo();
   }
 
   const progress =
@@ -480,7 +577,9 @@ function WorkoutPlayer() {
             <p className="text-[10px] font-mono uppercase tracking-widest text-amber-400">
               {current.rotationReason === "plateau"
                 ? "تدوير بسبب Plateau"
-                : "تدوير Mesocycle"}
+                : current.rotationReason === "manual"
+                  ? "استبدال يدوي آمن"
+                  : "تدوير Mesocycle"}
             </p>
             <p className="mt-1 text-xs font-bold">
               {getExercise(current.rotatedFromId)?.name ?? current.rotatedFromId}
@@ -488,8 +587,9 @@ function WorkoutPlayer() {
               {current.exercise.name}
             </p>
             <p className="mt-1 text-[9px] leading-relaxed text-muted-foreground">
-              تم الحفاظ على نفس نمط الحركة والعضلة الأساسية ونوع المعدات المتاحة؛
-              سيظل البديل ثابتًا خلال الدورة الحالية لقياس التقدم بشكل عادل.
+              {current.rotationReason === "manual"
+                ? "تم الحفاظ على نمط الحركة والعضلة الأساسية ودور التمرين ونوع القياس، مع التحقق من معداتك وفلترة الإصابات."
+                : "تم الحفاظ على نفس نمط الحركة والعضلة الأساسية ونوع المعدات المتاحة؛ سيظل البديل ثابتًا خلال الدورة الحالية لقياس التقدم بشكل عادل."}
             </p>
           </div>
         )}
@@ -844,6 +944,68 @@ function WorkoutPlayer() {
               <p className="mt-1 text-xs leading-relaxed text-foreground/80">
                 {current.progressionNote}
               </p>
+            </div>
+          )}
+
+          {canSwapCurrent && (
+            <div className="mt-4 rounded-2xl border border-border bg-background/50 p-3">
+              <button
+                type="button"
+                onClick={() => {
+                  const opening = !showSwapOptions;
+                  setShowSwapOptions(opening);
+                  if (opening) setRunning(false);
+                }}
+                className="flex min-h-11 w-full items-center justify-between gap-3 text-right"
+              >
+                <span>
+                  <span className="flex items-center gap-2 text-xs font-black">
+                    <RefreshCcw className="size-3.5 text-primary" />
+                    استبدال ببديل مكافئ
+                  </span>
+                  <span className="mt-1 block text-[9px] leading-relaxed text-muted-foreground">
+                    متاح قبل إنهاء المجموعة الأولى فقط، مع الحفاظ على نمط الحركة وفلترة المعدات والإصابات.
+                  </span>
+                </span>
+                <span className="text-xs text-primary">
+                  {showSwapOptions ? "−" : "+"}
+                </span>
+              </button>
+
+              {showSwapOptions && (
+                <div className="mt-3 space-y-2 border-t border-border pt-3">
+                  {swapOptions.map((option) => (
+                    <button
+                      key={option.id}
+                      type="button"
+                      onClick={() => applyManualSwap(option.id)}
+                      className="w-full rounded-xl border border-border bg-surface/60 p-3 text-right transition-colors hover:border-primary/40 hover:bg-primary/5"
+                    >
+                      <span className="block text-xs font-black">
+                        {option.name}
+                      </span>
+                      <span className="mt-1 block text-[9px] text-muted-foreground">
+                        {MOVEMENT_FAMILY_LABEL_AR[option.movementFamily]}
+                        {" · "}
+                        {option.equipment
+                          .map((item) => EQUIPMENT_LABEL_AR[item])
+                          .join(" · ")}
+                      </span>
+                    </button>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowSwapOptions(false);
+                      setRunning(true);
+                      sfxGo();
+                    }}
+                    className="min-h-10 w-full rounded-xl border border-dashed border-border text-[10px] font-bold text-muted-foreground"
+                  >
+                    إلغاء ومتابعة التمرين الحالي
+                  </button>
+                </div>
+              )}
             </div>
           )}
 
