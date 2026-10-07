@@ -118,7 +118,6 @@ function plannedExercise(value: unknown): PlannedExercise | null {
     phase !== "accessory" &&
     phase !== "core" &&
     phase !== "cardio" &&
-    phase !== "mobility" &&
     phase !== "cooldown"
   ) {
     return null;
