@@ -62,6 +62,8 @@ export interface CompletedWorkout {
     sets: number;
     reps: string;
     completed: boolean;
+    /** Explicitly skipped by the user during an active workout. */
+    skipped?: boolean;
     /** Actual repetitions completed in each set. Absent on legacy/timed entries. */
     setReps?: number[];
     /** External load used for each set in kilograms. */
@@ -446,7 +448,9 @@ export function exerciseStrengthPoints(
   const points: ExerciseStrengthPoint[] = [];
 
   for (const workout of history) {
-    const exercise = workout.exercises.find((item) => item.id === exerciseId);
+    const exercise = workout.exercises.find(
+      (item) => item.id === exerciseId && item.completed,
+    );
     if (!exercise) continue;
 
     const loads = exercise.setLoadsKg ?? [];
@@ -593,7 +597,10 @@ export function exerciseStrengthAnalyses(
   const ids = new Set<string>();
   for (const workout of history) {
     for (const exercise of workout.exercises) {
-      if ((exercise.setLoadsKg ?? []).some((load) => load > 0)) {
+      if (
+        exercise.completed &&
+        (exercise.setLoadsKg ?? []).some((load) => load > 0)
+      ) {
         ids.add(exercise.id);
       }
     }
@@ -630,6 +637,7 @@ export function dailyExerciseBests(
   for (const workout of history) {
     const isSelectedDay = workout.date.slice(0, 10) === dateKey;
     for (const exercise of workout.exercises) {
+      if (!exercise.completed) continue;
       const validSets = (exercise.setReps ?? []).filter(
         (value) => Number.isFinite(value) && value >= 0,
       );

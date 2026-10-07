@@ -268,6 +268,59 @@ if (!strengthSummary || strengthSummary.bestEstimated1RmKg <= 70) {
   fail("strength summary should calculate an estimated 1RM above working load");
 }
 
+const skippedOnlyHistory = [
+  historyEntry(
+    "skipped-only",
+    99,
+    "bench-press",
+    [12, 12, 12],
+    120,
+    0,
+  ),
+];
+skippedOnlyHistory[0].exercises[0].completed = false;
+skippedOnlyHistory[0].exercises[0].skipped = true;
+
+if (analyzeExerciseStrength(skippedOnlyHistory, "bench-press") !== null) {
+  fail("skipped-only exercise must not create strength analytics or PR data");
+}
+
+const oneCompletedOneSkipped = [
+  historyEntry(
+    "completed-before-skip",
+    92,
+    "bench-press",
+    [12, 12, 12],
+    70,
+    2,
+  ),
+  historyEntry(
+    "skipped-latest",
+    99,
+    "bench-press",
+    [12, 12, 12],
+    120,
+    0,
+  ),
+];
+oneCompletedOneSkipped[1].exercises[0].completed = false;
+oneCompletedOneSkipped[1].exercises[0].skipped = true;
+
+const skippedProgression = getExerciseProgressionPrescription(
+  "bench-press",
+  "8-12",
+  oneCompletedOneSkipped,
+  "progress",
+);
+if (skippedProgression.action === "increase-load") {
+  fail("one completed + one skipped top-range attempt must not trigger load progression");
+}
+if (skippedProgression.lastLoadKg !== 70) {
+  fail(
+    `skipped 120kg attempt must not replace last completed load: got ${skippedProgression.lastLoadKg}`,
+  );
+}
+
 const poorProfile: UserProfile = {
   ...strongProfile,
   sleepQuality: 2,

@@ -85,6 +85,7 @@ function WorkoutPlayer() {
   const [showRefs, setShowRefs] = useState(false);
   const [showSwapOptions, setShowSwapOptions] = useState(false);
   const [completed, setCompleted] = useState<Set<string>>(new Set());
+  const [skipped, setSkipped] = useState<Set<string>>(new Set());
   const [setReps, setSetReps] = useState<Record<string, number[]>>({});
   const [setLoadsKg, setSetLoadsKg] = useState<Record<string, number[]>>({});
   const [setRir, setSetRir] = useState<Record<string, number[]>>({});
@@ -144,6 +145,7 @@ function WorkoutPlayer() {
     setRunning(true);
     setShowSwapOptions(false);
     setCompleted(new Set());
+    setSkipped(new Set());
     setSetReps({});
     setSetLoadsKg({});
     setSetRir({});
@@ -195,6 +197,26 @@ function WorkoutPlayer() {
     setShowSwapOptions(false);
   }
 
+  function skipCurrentExercise() {
+    if (!next) return;
+
+    const currentId = current.exercise.id;
+    setCompleted((items) => {
+      const nextItems = new Set(items);
+      nextItems.delete(currentId);
+      return nextItems;
+    });
+    setSkipped((items) => new Set(items).add(currentId));
+    setIndex(index + 1);
+    prepareExercise(index + 1);
+    setSetIdx(1);
+    setPhase("work");
+    setRemaining(next.workSeconds);
+    setShowSwapOptions(false);
+    sfxGo();
+  }
+
+
   function applyManualSwap(replacementId: string) {
     const replacement = getExercise(replacementId);
     if (!replacement || !current) return;
@@ -215,6 +237,11 @@ function WorkoutPlayer() {
       items.map((item, itemIndex) => (itemIndex === index ? swapped : item)),
     );
     setCompleted((items) => {
+      const nextItems = new Set(items);
+      nextItems.delete(previousId);
+      return nextItems;
+    });
+    setSkipped((items) => {
       const nextItems = new Set(items);
       nextItems.delete(previousId);
       return nextItems;
@@ -276,7 +303,12 @@ function WorkoutPlayer() {
             return current.restSeconds;
           }
           // move to next exercise
-          setCompleted((s) => new Set(s).add(current.exercise.id));
+          setCompleted((items) => new Set(items).add(current.exercise.id));
+          setSkipped((items) => {
+            const nextItems = new Set(items);
+            nextItems.delete(current.exercise.id);
+            return nextItems;
+          });
           if (index + 1 < total) {
             setIndex((i) => i + 1);
             prepareExercise(index + 1);
@@ -325,6 +357,7 @@ function WorkoutPlayer() {
         sets: p.sets,
         reps: p.reps,
         completed: completed.has(p.exercise.id),
+        skipped: skipped.has(p.exercise.id),
         setReps: setReps[p.exercise.id],
         setLoadsKg: p.trackLoad ? setLoadsKg[p.exercise.id] : undefined,
         setRir: setRir[p.exercise.id],
@@ -367,15 +400,8 @@ function WorkoutPlayer() {
       setRemaining(plan[index - 1].workSeconds);
       sfxGo();
     } else if (info.offset.x < -80 && next) {
-      // swipe left in RTL = next
-      setCompleted((s) => new Set(s).add(current.exercise.id));
-      saveCurrentSet();
-      setIndex(index + 1);
-      prepareExercise(index + 1);
-      setSetIdx(1);
-      setPhase("work");
-      setRemaining(next.workSeconds);
-      sfxGo();
+      // swipe left in RTL = intentionally skip current exercise
+      skipCurrentExercise();
     }
   }
 
@@ -405,6 +431,7 @@ function WorkoutPlayer() {
           <h1 className="text-5xl font-black leading-none mb-2">أحسنت</h1>
           <p className="text-muted-foreground">
             أتممت {completed.size} من {total} تمارين
+            {skipped.size ? ` · تخطيت ${skipped.size}` : ""}
           </p>
 
           <div className="mt-10 grid grid-cols-3 gap-3">
@@ -1040,16 +1067,7 @@ function WorkoutPlayer() {
               <p className="font-bold text-sm">{next.exercise.name}</p>
             </div>
             <button
-              onClick={() => {
-                saveCurrentSet();
-                setCompleted((s) => new Set(s).add(current.exercise.id));
-                setIndex(index + 1);
-                prepareExercise(index + 1);
-                setSetIdx(1);
-                setPhase("work");
-                setRemaining(next.workSeconds);
-                sfxGo();
-              }}
+              onClick={skipCurrentExercise}
               className="text-xs font-mono text-primary"
               type="button"
             >
