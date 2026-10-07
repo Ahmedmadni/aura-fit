@@ -353,6 +353,7 @@ export function exerciseStrengthSummaries(
 
   for (const workout of history) {
     for (const exercise of workout.exercises) {
+      if (!exercise.completed) continue;
       const loads = exercise.setLoadsKg ?? [];
       const reps = exercise.setReps ?? [];
       const rirs =
