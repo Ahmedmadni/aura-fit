@@ -522,8 +522,9 @@ async function main() {
       throw new Error("Workout ignored the daily readiness check-in.");
     }
 
-    // Active workout recovery: force the pagehide flush, reload the same workout,
-    // and verify the recovered session is paused instead of silently restarting.
+    // Active workout recovery: force the pagehide flush, return to the
+    // dashboard, resume through the visible CTA, and verify the recovered
+    // session is paused instead of silently restarting.
     await timeout(200);
     await evaluate('window.dispatchEvent(new Event("pagehide"))');
     const activeDraft = await evaluate(
@@ -533,10 +534,17 @@ async function main() {
       throw new Error("Active workout did not persist a recovery draft on pagehide.");
     }
 
-    const recoveredWorkoutBody = await navigate(
-      "/workout?day=0",
-      "جلسة مستعادة",
+    await navigate("/", "Browser E2E");
+    await waitForText("استئناف الجلسة", 15000);
+    const dashboardHasDraftMarker = await evaluate(
+      `Boolean(document.querySelector('[data-active-workout-draft="true"]'))`,
     );
+    if (!dashboardHasDraftMarker) {
+      throw new Error("Dashboard did not expose the active workout recovery card.");
+    }
+
+    await clickText("استئناف الجلسة", true);
+    const recoveredWorkoutBody = await waitForText("جلسة مستعادة", 15000);
     if (!recoveredWorkoutBody.includes("الجلسة متوقفة مؤقتًا للأمان")) {
       throw new Error("Recovered workout did not explain the paused safety state.");
     }
@@ -780,7 +788,7 @@ async function main() {
     }
 
     console.log(
-      "Browser smoke PASS: mobile onboarding, readiness, injury-safe workout, active-session recovery, hydration-safe cloud session, safe backup controls, PWA install UX, real-data routes, service worker and offline cached navigation all verified in headless Chrome.",
+      "Browser smoke PASS: mobile onboarding, readiness, injury-safe workout, dashboard session resume, active-session recovery, hydration-safe cloud session, safe backup controls, PWA install UX, real-data routes, service worker and offline cached navigation all verified in headless Chrome.",
     );
 
     cdp.close();

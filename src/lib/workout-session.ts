@@ -282,10 +282,7 @@ export function parseWorkoutSessionDraft(
   };
 }
 
-export function loadWorkoutSessionDraft(match: {
-  workoutId: string;
-  day: number | null;
-}): WorkoutSessionDraftV1 | null {
+export function loadRecoverableWorkoutSessionDraft(): WorkoutSessionDraftV1 | null {
   if (typeof window === "undefined") return null;
 
   const raw = localStorage.getItem(WORKOUT_SESSION_KEY);
@@ -297,14 +294,23 @@ export function loadWorkoutSessionDraft(match: {
       localStorage.removeItem(WORKOUT_SESSION_KEY);
       return null;
     }
-    if (draft.workoutId !== match.workoutId || draft.day !== match.day) {
-      return null;
-    }
     return draft;
   } catch {
     localStorage.removeItem(WORKOUT_SESSION_KEY);
     return null;
   }
+}
+
+export function loadWorkoutSessionDraft(match: {
+  workoutId: string;
+  day: number | null;
+}): WorkoutSessionDraftV1 | null {
+  const draft = loadRecoverableWorkoutSessionDraft();
+  if (!draft) return null;
+  if (draft.workoutId !== match.workoutId || draft.day !== match.day) {
+    return null;
+  }
+  return draft;
 }
 
 export function saveWorkoutSessionDraft(state: WorkoutSessionDraftState) {

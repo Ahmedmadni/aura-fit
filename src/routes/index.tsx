@@ -10,6 +10,7 @@ import {
   LayoutGrid,
   Moon,
   Play,
+  RotateCcw,
   Sparkles,
   TrendingUp,
   Zap,
@@ -78,6 +79,17 @@ type DashboardPlanner = {
   };
 };
 
+type DashboardSessionDraft = {
+  day: number | null;
+  savedAt: string;
+  index: number;
+  setIdx: number;
+  total: number;
+  currentExerciseName: string;
+};
+
+
+
 function Dashboard() {
   const [profile, setProfile] = useState<UserProfile>(DEFAULT_PROFILE);
   const [history, setHistory] = useState<CompletedWorkout[]>([]);
@@ -85,6 +97,8 @@ function Dashboard() {
     useState<DailyReadinessCheckIn>();
   const [hydrated, setHydrated] = useState(false);
   const [planner, setPlanner] = useState<DashboardPlanner>();
+  const [activeSession, setActiveSession] =
+    useState<DashboardSessionDraft>();
   const [now] = useState(() => new Date());
 
   useEffect(() => {
@@ -93,6 +107,44 @@ function Dashboard() {
     setReadinessCheckIn(loadTodayReadiness());
     setHydrated(true);
   }, []);
+
+  useEffect(() => {
+    if (!hydrated) return;
+
+    let cancelled = false;
+    void import("@/lib/workout-session")
+      .then(({ loadRecoverableWorkoutSessionDraft }) => {
+        if (cancelled) return;
+        const draft = loadRecoverableWorkoutSessionDraft();
+        if (!draft) {
+          setActiveSession(undefined);
+          return;
+        }
+
+        const current = draft.plan[draft.index];
+        if (!current) {
+          setActiveSession(undefined);
+          return;
+        }
+
+        setActiveSession({
+          day: draft.day,
+          savedAt: draft.savedAt,
+          index: draft.index,
+          setIdx: draft.setIdx,
+          total: draft.plan.length,
+          currentExerciseName: current.exercise.name,
+        });
+      })
+      .catch((error) => {
+        console.error("Dashboard workout recovery failed to load.", error);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [hydrated]);
+
 
   useEffect(() => {
     if (!hydrated) return;
@@ -273,6 +325,40 @@ function Dashboard() {
           ))}
         </div>
       </section>
+
+      {activeSession && (
+        <section
+          className="px-6 mb-6 animate-enter [animation-delay:175ms]"
+          data-active-workout-draft="true"
+        >
+          <div className="rounded-3xl border border-cyan/30 bg-cyan/10 p-4">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="type-eyebrow text-cyan">جلسة محفوظة</p>
+                <h2 className="type-card-title mt-1">استأنف من حيث توقفت</h2>
+              </div>
+              <RotateCcw className="size-5 shrink-0 text-cyan" />
+            </div>
+
+            <p className="type-small mt-3 text-muted-foreground">
+              {activeSession.currentExerciseName}
+              {" · "}
+              تمرين {activeSession.index + 1}/{activeSession.total}
+              {" · "}
+              مجموعة {activeSession.setIdx}
+            </p>
+
+            <Link
+              to="/workout"
+              search={{ day: activeSession.day ?? undefined }}
+              className="mt-4 flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-cyan px-4 font-black text-background transition-transform active:scale-[0.98]"
+            >
+              <Play className="size-4 fill-current" />
+              استئناف الجلسة
+            </Link>
+          </div>
+        </section>
+      )}
 
       <section className="relative px-6 mb-8 animate-enter [animation-delay:200ms]">
         <div className="relative overflow-hidden rounded-3xl aspect-[4/5] bg-card border border-border">
