@@ -37,6 +37,11 @@ import {
   type DailyReadinessCheckIn,
   type UserProfile,
 } from "@/lib/user-profile";
+import {
+  WORKOUT_SESSION_META_EVENT,
+  loadWorkoutSessionMeta,
+  type WorkoutSessionMetaV1,
+} from "@/lib/workout-session-meta";
 
 export const Route = createFileRoute("/")({
   component: Dashboard,
@@ -79,16 +84,6 @@ type DashboardPlanner = {
   };
 };
 
-type DashboardSessionDraft = {
-  day: number | null;
-  savedAt: string;
-  index: number;
-  setIdx: number;
-  total: number;
-  currentExerciseName: string;
-};
-
-
 
 function Dashboard() {
   const [profile, setProfile] = useState<UserProfile>(DEFAULT_PROFILE);
@@ -98,7 +93,7 @@ function Dashboard() {
   const [hydrated, setHydrated] = useState(false);
   const [planner, setPlanner] = useState<DashboardPlanner>();
   const [activeSession, setActiveSession] =
-    useState<DashboardSessionDraft>();
+    useState<WorkoutSessionMetaV1>();
   const [now] = useState(() => new Date());
 
   useEffect(() => {
@@ -111,37 +106,20 @@ function Dashboard() {
   useEffect(() => {
     if (!hydrated) return;
 
-    let cancelled = false;
-    void import("@/lib/workout-session")
-      .then(({ loadRecoverableWorkoutSessionDraft }) => {
-        if (cancelled) return;
-        const draft = loadRecoverableWorkoutSessionDraft();
-        if (!draft) {
-          setActiveSession(undefined);
-          return;
-        }
+    const refreshActiveSession = () => {
+      setActiveSession(loadWorkoutSessionMeta() ?? undefined);
+    };
 
-        const current = draft.plan[draft.index];
-        if (!current) {
-          setActiveSession(undefined);
-          return;
-        }
-
-        setActiveSession({
-          day: draft.day,
-          savedAt: draft.savedAt,
-          index: draft.index,
-          setIdx: draft.setIdx,
-          total: draft.plan.length,
-          currentExerciseName: current.exercise.name,
-        });
-      })
-      .catch((error) => {
-        console.error("Dashboard workout recovery failed to load.", error);
-      });
-
+    refreshActiveSession();
+    window.addEventListener(
+      WORKOUT_SESSION_META_EVENT,
+      refreshActiveSession,
+    );
     return () => {
-      cancelled = true;
+      window.removeEventListener(
+        WORKOUT_SESSION_META_EVENT,
+        refreshActiveSession,
+      );
     };
   }, [hydrated]);
 
