@@ -336,6 +336,7 @@ function recentAverageRir(history: CompletedWorkout[], workoutLimit = 3) {
   const values: number[] = [];
   for (const workout of history.slice(0, workoutLimit)) {
     for (const exercise of workout.exercises) {
+      if (!exercise.completed) continue;
       const rirs =
         exercise.setRir ??
         (exercise.setRpe ?? []).map((rpe) =>
@@ -554,7 +555,9 @@ function exerciseAttempts(
 ) {
   const attempts: CompletedWorkout["exercises"][number][] = [];
   for (const workout of history) {
-    const exercise = workout.exercises.find((item) => item.id === exerciseId);
+    const exercise = workout.exercises.find(
+      (item) => item.id === exerciseId && item.completed,
+    );
     if (!exercise) continue;
     attempts.push(exercise);
     if (attempts.length >= limit) break;
