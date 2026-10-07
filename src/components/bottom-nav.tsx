@@ -1,10 +1,37 @@
 import { Link, useLocation } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
 import { Home, Dumbbell, Play, Apple, User } from "lucide-react";
+import {
+  WORKOUT_SESSION_META_EVENT,
+  loadWorkoutSessionMeta,
+  type WorkoutSessionMetaV1,
+} from "@/lib/workout-session-meta";
 
 type NavPath = "/" | "/exercises" | "/workout" | "/nutrition" | "/profile";
 
 export function BottomNav() {
   const { pathname } = useLocation();
+  const [activeSession, setActiveSession] =
+    useState<WorkoutSessionMetaV1 | null>(null);
+
+  useEffect(() => {
+    const refreshActiveSession = () => {
+      setActiveSession(loadWorkoutSessionMeta());
+    };
+
+    refreshActiveSession();
+    window.addEventListener(
+      WORKOUT_SESSION_META_EVENT,
+      refreshActiveSession,
+    );
+    return () => {
+      window.removeEventListener(
+        WORKOUT_SESSION_META_EVENT,
+        refreshActiveSession,
+      );
+    };
+  }, []);
+
   const items: {
     icon: React.ComponentType<{ className?: string; "aria-hidden"?: boolean | "true" | "false" }>;
     label: string;
@@ -29,12 +56,26 @@ export function BottomNav() {
         <div className="flex-1 flex justify-center">
           <Link
             to="/workout"
-            search={{ day: undefined }}
-            className="size-12 bg-primary rounded-2xl flex items-center justify-center -translate-y-5 shadow-[0_10px_30px_rgba(204,255,0,0.4)] active:scale-95 transition-transform text-primary-foreground"
-            aria-label="ابدأ جلسة"
+            search={{ day: activeSession?.day ?? undefined }}
+            className={
+              "relative size-12 bg-primary rounded-2xl flex items-center justify-center -translate-y-5 shadow-[0_10px_30px_rgba(204,255,0,0.4)] active:scale-95 transition-transform text-primary-foreground " +
+              (activeSession && !pathname.startsWith("/workout")
+                ? "ring-2 ring-cyan/60"
+                : "")
+            }
+            aria-label={activeSession ? "استئناف الجلسة" : "ابدأ جلسة"}
             aria-current={pathname.startsWith("/workout") ? "page" : undefined}
           >
             <Play className="size-5 fill-current" strokeWidth={3} aria-hidden="true" />
+            {activeSession && !pathname.startsWith("/workout") && (
+              <>
+                <span
+                  className="absolute -right-1 -top-1 size-3 rounded-full border-2 border-background bg-cyan"
+                  aria-hidden="true"
+                />
+                <span className="sr-only">جلسة محفوظة</span>
+              </>
+            )}
           </Link>
         </div>
         <NavLink item={items[2]} active={pathname.startsWith("/nutrition")} />
