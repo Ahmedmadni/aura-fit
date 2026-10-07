@@ -44,9 +44,11 @@ import {
 import { checkNewAchievements } from "@/lib/achievements";
 import {
   clearWorkoutSessionDraft,
+  loadRecoverableWorkoutSessionDraft,
   loadWorkoutSessionDraft,
   saveWorkoutSessionDraft,
   type WorkoutSessionDraftState,
+  type WorkoutSessionDraftV1,
 } from "@/lib/workout-session";
 
 export const Route = createFileRoute("/workout")({
@@ -65,6 +67,12 @@ function WorkoutPlayer() {
   const [hydrated, setHydrated] = useState(false);
   const [sessionReady, setSessionReady] = useState(false);
   const [restoredDraft, setRestoredDraft] = useState(false);
+  const [sessionConflict, setSessionConflict] =
+    useState<WorkoutSessionDraftV1>();
+  const [sessionIdentity, setSessionIdentity] = useState<{
+    workoutId: string;
+    day: number | null;
+  }>();
 
   useEffect(() => {
     setHydrated(true);
@@ -88,7 +96,7 @@ function WorkoutPlayer() {
   const [setIdx, setSetIdx] = useState(1); // 1-based current set
   const [phase, setPhase] = useState<"work" | "rest" | "done">("work");
   const [remaining, setRemaining] = useState(plan[0]?.workSeconds ?? 45);
-  const [running, setRunning] = useState(true);
+  const [running, setRunning] = useState(false);
   const [muted, setMuted] = useState(false);
   const [showRefs, setShowRefs] = useState(false);
   const [showSwapOptions, setShowSwapOptions] = useState(false);
