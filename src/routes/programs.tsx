@@ -20,6 +20,7 @@ import {
   generateWeeklyPlan,
   generateWeeklySchedule,
   getWeeklyMuscleCoverage,
+  getWeeklyRecoverySpacing,
   getWeeklyVolumeStatus,
 } from "@/lib/workout-engine";
 import {
@@ -101,6 +102,10 @@ function Programs() {
     [profile, history, readinessCheckIn],
   );
   const coverage = useMemo(() => getWeeklyMuscleCoverage(weekly), [weekly]);
+  const recoverySpacing = useMemo(
+    () => getWeeklyRecoverySpacing(schedule),
+    [schedule],
+  );
   const volume = useMemo(
     () => getWeeklyVolumeStatus(weekly, profile),
     [weekly, profile],
@@ -112,6 +117,9 @@ function Programs() {
   );
   const coveredTwice = majorCoverage.filter((item) => item.days >= 2).length;
   const volumeOnTarget = volume.filter((item) => item.status === "target").length;
+  const recoveryOnTarget = recoverySpacing.filter(
+    (item) => item.status === "optimal",
+  ).length;
   const periodization = weekly[0]?.periodization;
   const rotations = weekly
     .flatMap((workout) => workout.exercises)
@@ -136,10 +144,14 @@ function Programs() {
             <CalendarDays className="size-6 shrink-0 text-primary" />
           </div>
 
-          <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-5">
+          <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3">
             <SummaryStat label="جلسات" value={String(weekly.length)} />
             <SummaryStat label="تغطية 2×" value={coveredTwice + "/" + majorCoverage.length} />
             <SummaryStat label="حجم مناسب" value={volumeOnTarget + "/" + volume.length} />
+            <SummaryStat
+              label="استشفاء ≥48س"
+              value={recoveryOnTarget + "/" + recoverySpacing.length}
+            />
             <SummaryStat label="تدوير" value={String(rotations.length)} />
             <SummaryStat
               label="متوسط الجلسة"
@@ -367,6 +379,89 @@ function Programs() {
               </article>
             );
           })}
+        </div>
+      </section>
+
+      <section className="px-6 mb-8 animate-enter [animation-delay:140ms]">
+        <div className="mb-4 flex items-center justify-between gap-4">
+          <div>
+            <p className="type-eyebrow text-muted-foreground">الاستشفاء بين الجلسات</p>
+            <h3 className="type-section-title">فاصل العضلات الرئيسية</h3>
+          </div>
+          <Clock className="size-5 text-primary" />
+        </div>
+
+        <div className="rounded-2xl border border-border bg-surface/70 p-4">
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+            {recoverySpacing.map((item) => {
+              const optimal = item.status === "optimal";
+              const tight = item.status === "tight";
+              const gapHours =
+                item.minGapDays === null ? null : item.minGapDays * 24;
+              return (
+                <div
+                  key={item.muscle}
+                  className={
+                    "rounded-xl border p-3 " +
+                    (tight
+                      ? "border-amber-400/30 bg-amber-400/5"
+                      : "border-border bg-background/60")
+                  }
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-xs font-bold">
+                        {MUSCLE_LABEL_AR[item.muscle]}
+                      </p>
+                      <p className="mt-1 text-[9px] text-muted-foreground">
+                        {item.dayLabels.length
+                          ? item.dayLabels.join(" · ")
+                          : "لا توجد جلسة مستهدفة"}
+                      </p>
+                    </div>
+                    <span
+                      className={
+                        "rounded-full border px-2 py-1 text-[9px] font-bold " +
+                        (optimal
+                          ? "border-primary/30 bg-primary/10 text-primary"
+                          : tight
+                            ? "border-amber-400/30 bg-amber-400/10 text-amber-400"
+                            : "border-border text-muted-foreground")
+                      }
+                    >
+                      {optimal
+                        ? "متوازن"
+                        : tight
+                          ? "متقارب"
+                          : item.status === "single"
+                            ? "تعرض واحد"
+                            : "غير مغطى"}
+                    </span>
+                  </div>
+                  <p className="mt-2 font-mono text-sm font-black">
+                    {gapHours === null
+                      ? "—"
+                      : item.status === "single"
+                        ? "7 أيام"
+                        : gapHours + " س"}
+                  </p>
+                  <p className="text-[9px] text-muted-foreground">
+                    {item.status === "single"
+                      ? "تعرض أسبوعي واحد؛ لا توجد جلستان للمقارنة."
+                      : gapHours === null
+                        ? "لا يمكن حساب فاصل الاستشفاء."
+                        : "أقصر فاصل بين جلستين مستهدفتين لهذه العضلة."}
+                  </p>
+                </div>
+              );
+            })}
+          </div>
+
+          <p className="type-caption mt-4 text-muted-foreground">
+            نحسب أقصر فاصل بين الجلسات التي تستهدف العضلة مباشرة، بما في ذلك
+            الانتقال من نهاية الأسبوع إلى بدايته. الهدف في الجداول المتكررة هو
+            ترك يوم كامل على الأقل بين تعرضين رئيسيين (≈ 48 ساعة أو أكثر).
+          </p>
         </div>
       </section>
 
