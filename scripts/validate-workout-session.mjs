@@ -51,6 +51,10 @@ for (const required of [
   "activeSec: completedActiveSec",
   "calories: completedCalories",
   'StatCard label="السعرات" value={`~${completedCalories}`}',
+  "const runningBeforeSwap = useRef(true);",
+  "runningBeforeSwap.current = running;",
+  "setRunning(restoreRunning);",
+  'drag={showSwapOptions ? false : "x"}',
 ]) {
   if (!workout.includes(required)) {
     fail("workout history/session marker missing: " + required);
@@ -64,6 +68,17 @@ for (const banned of [
   if (workout.includes(banned)) {
     fail("completion summary/history drift pattern returned: " + banned);
   }
+}
+
+const applySwapMatch = workout.match(
+  /function applyManualSwap\(replacementId: string\) \{([\s\S]*?)\n  \}\n\n/,
+);
+if (!applySwapMatch) fail("applyManualSwap helper is missing");
+if (applySwapMatch[1].includes("setRunning(true)")) {
+  fail("manual swap must restore the pre-swap timer state, not force resume");
+}
+if (!applySwapMatch[1].includes("runningBeforeSwap.current")) {
+  fail("manual swap does not read the pre-swap timer state");
 }
 
 if (!profile.includes("skipped?: boolean;")) {

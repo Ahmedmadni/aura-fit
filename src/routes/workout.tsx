@@ -95,6 +95,7 @@ function WorkoutPlayer() {
   );
   const [currentRir, setCurrentRir] = useState<number | null>(null);
   const startedAt = useRef(Date.now());
+  const runningBeforeSwap = useRef(true);
 
   const current: PlannedExercise = plan[index];
   const next = plan[index + 1];
@@ -191,6 +192,7 @@ function WorkoutPlayer() {
     setCurrentRir(null);
     setElapsed(0);
     setFinishedDurationSec(null);
+    runningBeforeSwap.current = true;
     startedAt.current = Date.now();
   }, [hydrated, generatedPlan]);
 
@@ -231,9 +233,28 @@ function WorkoutPlayer() {
     setShowSwapOptions(false);
   }
 
+  function toggleSwapOptions() {
+    const opening = !showSwapOptions;
+    if (opening) {
+      runningBeforeSwap.current = running;
+      setShowSwapOptions(true);
+      setRunning(false);
+      return;
+    }
+
+    const restoreRunning = runningBeforeSwap.current;
+    setShowSwapOptions(false);
+    setRunning(restoreRunning);
+    if (restoreRunning) sfxGo();
+  }
+
+
   function skipCurrentExercise() {
     if (!next) return;
 
+    const restoreRunning = showSwapOptions
+      ? runningBeforeSwap.current
+      : running;
     const currentId = current.exercise.id;
     setCompleted((items) => {
       const nextItems = new Set(items);
@@ -247,7 +268,8 @@ function WorkoutPlayer() {
     setPhase("work");
     setRemaining(next.workSeconds);
     setShowSwapOptions(false);
-    sfxGo();
+    setRunning(restoreRunning);
+    if (restoreRunning) sfxGo();
   }
 
 
@@ -266,6 +288,7 @@ function WorkoutPlayer() {
     );
     if (!swapped) return;
 
+    const restoreRunning = runningBeforeSwap.current;
     const previousId = current.exercise.id;
     setPlan((items) =>
       items.map((item, itemIndex) => (itemIndex === index ? swapped : item)),
@@ -302,8 +325,8 @@ function WorkoutPlayer() {
     setPhase("work");
     setRemaining(swapped.workSeconds);
     setShowSwapOptions(false);
-    setRunning(true);
-    sfxGo();
+    setRunning(restoreRunning);
+    if (restoreRunning) sfxGo();
   }
 
   const progress =
@@ -673,7 +696,7 @@ function WorkoutPlayer() {
 
         {/* Athlete + swipe */}
         <motion.div
-          drag="x"
+          drag={showSwapOptions ? false : "x"}
           dragConstraints={{ left: 0, right: 0 }}
           onDragEnd={handleSwipe}
           className="relative mx-auto mb-4 rounded-3xl border border-border bg-surface/40 overflow-hidden cursor-grab active:cursor-grabbing"
@@ -1004,11 +1027,7 @@ function WorkoutPlayer() {
             <div className="mt-4 rounded-2xl border border-border bg-background/50 p-3">
               <button
                 type="button"
-                onClick={() => {
-                  const opening = !showSwapOptions;
-                  setShowSwapOptions(opening);
-                  if (opening) setRunning(false);
-                }}
+                onClick={toggleSwapOptions}
                 className="flex min-h-11 w-full items-center justify-between gap-3 text-right"
               >
                 <span>
@@ -1048,11 +1067,7 @@ function WorkoutPlayer() {
                   ))}
                   <button
                     type="button"
-                    onClick={() => {
-                      setShowSwapOptions(false);
-                      setRunning(true);
-                      sfxGo();
-                    }}
+                    onClick={toggleSwapOptions}
                     className="min-h-10 w-full rounded-xl border border-dashed border-border text-[10px] font-bold text-muted-foreground"
                   >
                     إلغاء ومتابعة التمرين الحالي
