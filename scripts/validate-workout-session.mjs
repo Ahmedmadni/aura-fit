@@ -45,9 +45,24 @@ for (const required of [
   "skipped: skipped.has(p.exercise.id)",
   "completed: completed.has(p.exercise.id)",
   "setSkipped((items) => {",
+  "const completedActiveSec = useMemo(",
+  "const completedCalories = useMemo(",
+  "durationSec: finishedDurationSec",
+  "activeSec: completedActiveSec",
+  "calories: completedCalories",
+  'StatCard label="السعرات" value={`~${completedCalories}`}',
 ]) {
   if (!workout.includes(required)) {
     fail("workout history/session marker missing: " + required);
+  }
+}
+
+for (const banned of [
+  'value={`~${minutes * 8}`}',
+  "const durationSec = Math.round((Date.now() - startedAt.current) / 1000);",
+]) {
+  if (workout.includes(banned)) {
+    fail("completion summary/history drift pattern returned: " + banned);
   }
 }
 
