@@ -1,6 +1,7 @@
 import { getExercise } from "./exercise-db";
 import type { PlannedExercise } from "./workout-engine";
 import {
+  WORKOUT_SESSION_DRAFT_KEY,
   WORKOUT_SESSION_MAX_AGE_MS,
   clearWorkoutSessionMeta,
   saveWorkoutSessionMeta,
@@ -8,7 +9,6 @@ import {
 
 export { WORKOUT_SESSION_MAX_AGE_MS } from "./workout-session-meta";
 
-const WORKOUT_SESSION_KEY = "aura.workout-session.v1";
 const WORKOUT_SESSION_VERSION = 1 as const;
 
 export type RecoverableWorkoutPhase = "work" | "rest";
@@ -291,7 +291,7 @@ export function parseWorkoutSessionDraft(
 export function loadRecoverableWorkoutSessionDraft(): WorkoutSessionDraftV1 | null {
   if (typeof window === "undefined") return null;
 
-  const raw = localStorage.getItem(WORKOUT_SESSION_KEY);
+  const raw = localStorage.getItem(WORKOUT_SESSION_DRAFT_KEY);
   if (!raw) return null;
 
   try {
@@ -328,7 +328,7 @@ export function saveWorkoutSessionDraft(state: WorkoutSessionDraftState) {
     version: WORKOUT_SESSION_VERSION,
     savedAt,
   };
-  localStorage.setItem(WORKOUT_SESSION_KEY, JSON.stringify(draft));
+  localStorage.setItem(WORKOUT_SESSION_DRAFT_KEY, JSON.stringify(draft));
 
   const current = state.plan[state.index];
   if (current) {
@@ -348,6 +348,6 @@ export function saveWorkoutSessionDraft(state: WorkoutSessionDraftState) {
 
 export function clearWorkoutSessionDraft() {
   if (typeof window === "undefined") return;
-  localStorage.removeItem(WORKOUT_SESSION_KEY);
+  localStorage.removeItem(WORKOUT_SESSION_DRAFT_KEY);
   clearWorkoutSessionMeta();
 }
