@@ -277,10 +277,12 @@ function WorkoutPlayer() {
       return;
     }
 
-    restoreDraftSession(sessionConflict, {
-      workoutId: workout.id,
-      day: requestedDay,
-    });
+    restoreDraftSession(sessionConflict);
+  }
+
+  function returnHomePreservingSavedSession() {
+    setSessionConflict(undefined);
+    navigate({ to: "/" });
   }
 
   function replaceConflictingSession() {
@@ -739,7 +741,7 @@ function WorkoutPlayer() {
               <Button
                 type="button"
                 variant="ghost"
-                onClick={() => navigate({ to: "/" })}
+                onClick={returnHomePreservingSavedSession}
               >
                 العودة للرئيسية
               </Button>
