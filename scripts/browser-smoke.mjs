@@ -457,6 +457,22 @@ async function main() {
     await waitForText("الخطوة ٨ من ٨");
     await clickText("3", true);
     await clickText("45 د", true);
+    await waitForExpression(
+      `(() => {
+        const buttons = [...document.querySelectorAll("button")];
+        const day = buttons.find(
+          (button) => (button.textContent || "").trim() === "3",
+        );
+        const minutes = buttons.find(
+          (button) => (button.textContent || "").trim() === "45 د",
+        );
+        return (
+          day?.className.includes("bg-primary") &&
+          minutes?.className.includes("bg-primary")
+        );
+      })()`,
+      "onboarding schedule selections to settle",
+    );
     await clickText("أنشئ خطتي الأسبوعية");
 
     await waitForExpression(
