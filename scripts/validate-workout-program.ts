@@ -1074,8 +1074,10 @@ for (const daysPerWeek of [2, 3, 4, 5, 6]) {
       })
       .map(({ workoutIndex, planned }) => {
         const contribution = planned.exercise.primary.includes(muscle)
-          ? 1
-          : 0.5;
+          ? "primary"
+          : planned.phase === "core" || muscle === "core"
+            ? "secondary-stabilizer"
+            : "secondary";
         return (
           "d" +
           (workoutIndex + 1) +
@@ -1085,7 +1087,7 @@ for (const daysPerWeek of [2, 3, 4, 5, 6]) {
           planned.phase +
           ":" +
           planned.sets +
-          "x" +
+          "sets:" +
           contribution
         );
       })
