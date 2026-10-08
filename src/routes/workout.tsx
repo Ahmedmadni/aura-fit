@@ -44,9 +44,10 @@ import {
 import { checkNewAchievements } from "@/lib/achievements";
 import {
   clearWorkoutSessionDraft,
-  loadWorkoutSessionDraft,
+  loadRecoverableWorkoutSessionDraft,
   saveWorkoutSessionDraft,
   type WorkoutSessionDraftState,
+  type WorkoutSessionDraftV1,
 } from "@/lib/workout-session";
 
 export const Route = createFileRoute("/workout")({
@@ -65,6 +66,12 @@ function WorkoutPlayer() {
   const [hydrated, setHydrated] = useState(false);
   const [sessionReady, setSessionReady] = useState(false);
   const [restoredDraft, setRestoredDraft] = useState(false);
+  const [sessionConflict, setSessionConflict] =
+    useState<WorkoutSessionDraftV1>();
+  const [sessionIdentity, setSessionIdentity] = useState<{
+    workoutId: string;
+    day: number | null;
+  }>();
 
   useEffect(() => {
     setHydrated(true);
@@ -88,7 +95,7 @@ function WorkoutPlayer() {
   const [setIdx, setSetIdx] = useState(1); // 1-based current set
   const [phase, setPhase] = useState<"work" | "rest" | "done">("work");
   const [remaining, setRemaining] = useState(plan[0]?.workSeconds ?? 45);
-  const [running, setRunning] = useState(true);
+  const [running, setRunning] = useState(false);
   const [muted, setMuted] = useState(false);
   const [showRefs, setShowRefs] = useState(false);
   const [showSwapOptions, setShowSwapOptions] = useState(false);
@@ -180,43 +187,53 @@ function WorkoutPlayer() {
     [completed, plan],
   );
 
-  useEffect(() => {
-    if (!hydrated) return;
+  function restoreDraftSession(
+    draft: WorkoutSessionDraftV1,
+    identity = {
+      workoutId: draft.workoutId,
+      day: draft.day,
+    },
+  ) {
+    setSessionConflict(undefined);
+    setSessionIdentity(identity);
+    setPlan(draft.plan);
+    setIndex(draft.index);
+    setSetIdx(draft.setIdx);
+    setPhase(draft.phase);
+    setRemaining(draft.remaining);
+    setRunning(false);
+    setMuted(draft.muted);
+    setShowRefs(false);
+    setShowSwapOptions(false);
+    setShowExitConfirm(false);
+    setCompleted(new Set(draft.completed));
+    setSkipped(new Set(draft.skipped));
+    setSetReps(draft.setReps);
+    setSetLoadsKg(draft.setLoadsKg);
+    setSetRir(draft.setRir);
+    setCurrentReps(draft.currentReps);
+    setCurrentLoadKg(draft.currentLoadKg);
+    setCurrentRir(draft.currentRir);
+    setElapsed(draft.elapsed);
+    setFinishedDurationSec(null);
+    runningBeforeSwap.current = false;
+    runningBeforeExit.current = false;
+    startedAt.current = Date.now() - draft.elapsed * 1000;
+    setRestoredDraft(true);
+    setSessionReady(true);
+  }
 
-    const draft = loadWorkoutSessionDraft({
+  function initializeFreshSession(clearExistingDraft = false) {
+    if (clearExistingDraft) {
+      draftSnapshot.current = null;
+      clearWorkoutSessionDraft();
+    }
+
+    setSessionConflict(undefined);
+    setSessionIdentity({
       workoutId: workout.id,
       day: day ?? null,
     });
-
-    setShowSwapOptions(false);
-    setShowExitConfirm(false);
-    setFinishedDurationSec(null);
-
-    if (draft) {
-      setPlan(draft.plan);
-      setIndex(draft.index);
-      setSetIdx(draft.setIdx);
-      setPhase(draft.phase);
-      setRemaining(draft.remaining);
-      setRunning(false);
-      setMuted(draft.muted);
-      setCompleted(new Set(draft.completed));
-      setSkipped(new Set(draft.skipped));
-      setSetReps(draft.setReps);
-      setSetLoadsKg(draft.setLoadsKg);
-      setSetRir(draft.setRir);
-      setCurrentReps(draft.currentReps);
-      setCurrentLoadKg(draft.currentLoadKg);
-      setCurrentRir(draft.currentRir);
-      setElapsed(draft.elapsed);
-      runningBeforeSwap.current = false;
-      runningBeforeExit.current = false;
-      startedAt.current = Date.now() - draft.elapsed * 1000;
-      setRestoredDraft(true);
-      setSessionReady(true);
-      return;
-    }
-
     setPlan(generatedPlan);
     setIndex(0);
     setSetIdx(1);
@@ -224,6 +241,9 @@ function WorkoutPlayer() {
     setRemaining(generatedPlan[0]?.workSeconds ?? 45);
     setRunning(true);
     setMuted(false);
+    setShowRefs(false);
+    setShowSwapOptions(false);
+    setShowExitConfirm(false);
     setCompleted(new Set());
     setSkipped(new Set());
     setSetReps({});
@@ -237,22 +257,81 @@ function WorkoutPlayer() {
     );
     setCurrentRir(null);
     setElapsed(0);
+    setFinishedDurationSec(null);
     runningBeforeSwap.current = true;
     runningBeforeExit.current = true;
     startedAt.current = Date.now();
     setRestoredDraft(false);
     setSessionReady(true);
+  }
+
+  function resumeConflictingSession() {
+    if (!sessionConflict) return;
+
+    const requestedDay = day ?? null;
+    if (sessionConflict.day !== requestedDay) {
+      navigate({
+        to: "/workout",
+        search: { day: sessionConflict.day ?? undefined },
+      });
+      return;
+    }
+
+    restoreDraftSession(sessionConflict);
+  }
+
+  function returnHomePreservingSavedSession() {
+    setSessionConflict(undefined);
+    navigate({ to: "/" });
+  }
+
+  function replaceConflictingSession() {
+    initializeFreshSession(true);
+    primeAudio();
+    sfxGo();
+  }
+
+  useEffect(() => {
+    if (!hydrated) return;
+
+    setSessionReady(false);
+    setSessionIdentity(undefined);
+    draftSnapshot.current = null;
+    setShowSwapOptions(false);
+    setShowExitConfirm(false);
+    setFinishedDurationSec(null);
+
+    const requestedDay = day ?? null;
+    const recoverable = loadRecoverableWorkoutSessionDraft();
+    if (recoverable) {
+      const matchesCurrent =
+        recoverable.workoutId === workout.id &&
+        recoverable.day === requestedDay;
+
+      if (matchesCurrent) {
+        restoreDraftSession(recoverable);
+        return;
+      }
+
+      setRunning(false);
+      setRestoredDraft(false);
+      setSessionConflict(recoverable);
+      return;
+    }
+
+    initializeFreshSession(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [day, generatedPlan, hydrated, workout.id]);
 
   useEffect(() => {
-    if (!hydrated || !sessionReady || phase === "done") {
+    if (!hydrated || !sessionReady || !sessionIdentity || phase === "done") {
       draftSnapshot.current = null;
       return;
     }
 
     draftSnapshot.current = {
-      workoutId: workout.id,
-      day: day ?? null,
+      workoutId: sessionIdentity.workoutId,
+      day: sessionIdentity.day,
       plan,
       index,
       setIdx,
@@ -288,7 +367,7 @@ function WorkoutPlayer() {
     setReps,
     setRir,
     skipped,
-    workout.id,
+    sessionIdentity,
   ]);
 
   useEffect(() => {
@@ -486,7 +565,6 @@ function WorkoutPlayer() {
 
   useEffect(() => {
     primeAudio();
-    sfxGo();
   }, []);
 
   useEffect(() => {
@@ -549,7 +627,7 @@ function WorkoutPlayer() {
     draftSnapshot.current = null;
     clearWorkoutSessionDraft();
     recordWorkout({
-      id: workout.id + "-" + Date.now(),
+      id: (sessionIdentity?.workoutId ?? workout.id) + "-" + Date.now(),
       date: new Date().toISOString(),
       exercises: plan.map((p) => ({
         id: p.exercise.id,
@@ -613,6 +691,61 @@ function WorkoutPlayer() {
               AURA FIT
             </p>
             <p className="mt-2 text-sm font-bold">جارٍ تجهيز جلستك من بيانات الجهاز…</p>
+          </div>
+        </div>
+      </PageShell>
+    );
+  }
+
+  if (sessionConflict) {
+    const savedCurrent = sessionConflict.plan[sessionConflict.index];
+    const sameRequestedDay = sessionConflict.day === (day ?? null);
+
+    return (
+      <PageShell>
+        <div className="grid min-h-[75vh] place-items-center p-6">
+          <div className="w-full rounded-3xl border border-amber-400/30 bg-amber-400/5 p-5">
+            <p className="type-eyebrow text-amber-400">جلسة غير مكتملة</p>
+            <h1 className="type-page-title mt-2">لديك جلسة محفوظة بالفعل</h1>
+            <p className="type-small mt-3 leading-relaxed text-muted-foreground">
+              لن نكتب فوق تقدمك المحفوظ تلقائيًا. اختر استئناف الجلسة السابقة
+              أو ابدأ الجلسة الجديدة بعد حذفها صراحة.
+            </p>
+
+            <div className="mt-4 rounded-2xl border border-border bg-background/60 p-3">
+              <p className="text-xs font-black">
+                {savedCurrent?.exercise.name ?? "جلسة محفوظة"}
+              </p>
+              <p className="mt-1 text-[10px] text-muted-foreground">
+                تمرين {sessionConflict.index + 1}/{sessionConflict.plan.length}
+                {" · "}
+                مجموعة {sessionConflict.setIdx}
+                {sameRequestedDay && sessionConflict.workoutId !== workout.id
+                  ? " · تغيرت الخطة الحالية منذ الحفظ"
+                  : ""}
+              </p>
+            </div>
+
+            <div className="mt-5 grid gap-2">
+              <Button type="button" onClick={resumeConflictingSession}>
+                استئناف الجلسة المحفوظة
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={replaceConflictingSession}
+                className="border-red-400/30 text-red-300 hover:bg-red-400/10"
+              >
+                بدء الجديدة وحذف المحفوظة
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={returnHomePreservingSavedSession}
+              >
+                العودة للرئيسية
+              </Button>
+            </div>
           </div>
         </div>
       </PageShell>

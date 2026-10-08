@@ -61,12 +61,17 @@ for (const required of [
   "function confirmExitWithoutSaving() {",
   'role="dialog"',
   'aria-labelledby="workout-exit-title"',
-  "loadWorkoutSessionDraft({",
   "saveWorkoutSessionDraft(draftSnapshot.current)",
   "clearWorkoutSessionDraft();",
   "setRestoredDraft(true)",
   "window.setInterval(flushDraft, 5000)",
   'window.addEventListener("pagehide", flushDraft)',
+  "loadRecoverableWorkoutSessionDraft()",
+  "setSessionConflict(recoverable)",
+  "function resumeConflictingSession() {",
+  "function replaceConflictingSession() {",
+  "initializeFreshSession(true)",
+  "لديك جلسة محفوظة بالفعل",
 ]) {
   if (!workout.includes(required)) {
     fail("workout history/session marker missing: " + required);
@@ -105,6 +110,17 @@ if (!workout.includes("onClick={requestExit}")) {
 }
 if (workout.includes('onClick={() => navigate({ to: "/" })}')) {
   fail("unguarded direct workout exit returned");
+}
+
+const conflictRestoreMatch = workout.match(
+  /function initializeFreshSession\(clearExistingDraft = false\) \{([\s\S]*?)\n  \}\n\n/,
+);
+if (!conflictRestoreMatch) fail("initializeFreshSession helper is missing");
+if (!conflictRestoreMatch[1].includes("clearWorkoutSessionDraft()")) {
+  fail("starting a replacement session does not explicitly clear the saved draft");
+}
+if (!workout.includes("workoutId: sessionIdentity.workoutId")) {
+  fail("active-session persistence is still coupled to the current route workout ID");
 }
 
 if (!profile.includes("skipped?: boolean;")) {

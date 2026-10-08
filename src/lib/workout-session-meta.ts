@@ -1,5 +1,6 @@
 export const WORKOUT_SESSION_META_EVENT = "aura:workout-session-meta";
 export const WORKOUT_SESSION_MAX_AGE_MS = 18 * 60 * 60 * 1000;
+export const WORKOUT_SESSION_DRAFT_KEY = "aura.workout-session.v1";
 
 const WORKOUT_SESSION_META_KEY = "aura.workout-session-meta.v1";
 const WORKOUT_SESSION_META_VERSION = 1 as const;
@@ -104,6 +105,12 @@ export function loadWorkoutSessionMeta(): WorkoutSessionMetaV1 | null {
 
   const raw = localStorage.getItem(WORKOUT_SESSION_META_KEY);
   if (!raw) return null;
+
+  if (!localStorage.getItem(WORKOUT_SESSION_DRAFT_KEY)) {
+    localStorage.removeItem(WORKOUT_SESSION_META_KEY);
+    emit(null);
+    return null;
+  }
 
   try {
     const meta = parseWorkoutSessionMeta(JSON.parse(raw));

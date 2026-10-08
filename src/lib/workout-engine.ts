@@ -1724,6 +1724,21 @@ function generateForBlueprint(
   };
 }
 
+function secondarySetWeight(
+  item: PlannedExercise,
+  muscle: Muscle,
+) {
+  if (!item.exercise.secondary.includes(muscle)) return 0;
+
+  // Bracing/stabilization is meaningful work, but it should not count like
+  // half a direct hypertrophy set. Core is frequently listed as a secondary
+  // stabilizer on compound lifts, while secondary muscles on direct core
+  // drills are also mostly stabilizers.
+  if (muscle === "core" || item.phase === "core") return 0.25;
+
+  return 0.5;
+}
+
 function effectiveSetsForMuscle(
   workouts: GeneratedWorkout[],
   muscle: Muscle,
@@ -1740,8 +1755,8 @@ function effectiveSetsForMuscle(
       }
       if (item.exercise.primary.includes(muscle)) {
         effective += item.sets;
-      } else if (item.exercise.secondary.includes(muscle)) {
-        effective += item.sets * 0.5;
+      } else {
+        effective += item.sets * secondarySetWeight(item, muscle);
       }
     });
   });
@@ -1857,9 +1872,7 @@ function tuneWeeklyVolume(
             item,
             contribution: item.exercise.primary.includes(target.muscle)
               ? 1
-              : item.exercise.secondary.includes(target.muscle)
-                ? 0.5
-                : 0,
+              : secondarySetWeight(item, target.muscle),
           })),
         )
         .filter(
@@ -1893,7 +1906,9 @@ function tuneWeeklyVolume(
             const muscleTarget = targetByMuscle.get(muscle);
             if (!muscleTarget) return true;
             const current = effectiveSetsForMuscle(cloned, muscle);
-            const decrement = item.exercise.primary.includes(muscle) ? 1 : 0.5;
+            const decrement = item.exercise.primary.includes(muscle)
+              ? 1
+              : secondarySetWeight(item, muscle);
             return current - decrement >= muscleTarget.min;
           });
 
@@ -2188,9 +2203,8 @@ export function getWeeklyVolumeStatus(
         directSets: 0,
         indirectSets: 0,
       };
-    const effectiveSets = Math.round(
-      (current.directSets + current.indirectSets * 0.5) * 10,
-    ) / 10;
+    const effectiveSets =
+      Math.round(effectiveSetsForMuscle(workouts, target.muscle) * 10) / 10;
     const status =
       effectiveSets < target.min
         ? "low"

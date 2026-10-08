@@ -1051,6 +1051,48 @@ for (const daysPerWeek of [2, 3, 4, 5, 6]) {
     }
   });
 
+  const describeVolumeContributors = (muscle: Muscle) =>
+    plan
+      .flatMap((workout, workoutIndex) =>
+        workout.exercises.map((planned) => ({
+          workoutIndex,
+          planned,
+        })),
+      )
+      .filter(({ planned }) => {
+        if (
+          planned.phase === "warmup" ||
+          planned.phase === "cooldown" ||
+          planned.phase === "cardio"
+        ) {
+          return false;
+        }
+        return (
+          planned.exercise.primary.includes(muscle) ||
+          planned.exercise.secondary.includes(muscle)
+        );
+      })
+      .map(({ workoutIndex, planned }) => {
+        const contribution = planned.exercise.primary.includes(muscle)
+          ? "primary"
+          : planned.phase === "core" || muscle === "core"
+            ? "secondary-stabilizer"
+            : "secondary";
+        return (
+          "d" +
+          (workoutIndex + 1) +
+          ":" +
+          planned.exercise.id +
+          ":" +
+          planned.phase +
+          ":" +
+          planned.sets +
+          "sets:" +
+          contribution
+        );
+      })
+      .join(",");
+
   const volume = getWeeklyVolumeStatus(plan, profile);
   for (const item of volume) {
     if (item.status === "low") {
@@ -1060,7 +1102,7 @@ for (const daysPerWeek of [2, 3, 4, 5, 6]) {
     }
     if (item.status === "high") {
       fail(
-        `${daysPerWeek}d: ${item.muscle} effective volume ${item.effectiveSets} exceeds maximum ${item.max}`,
+        `${daysPerWeek}d: ${item.muscle} effective volume ${item.effectiveSets} exceeds maximum ${item.max}; contributors=${describeVolumeContributors(item.muscle)}`,
       );
     }
   }
