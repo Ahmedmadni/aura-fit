@@ -1,5 +1,6 @@
 import { getExercise } from "./exercise-db";
 import type { PlannedExercise } from "./workout-engine";
+import type { UserProfile } from "./user-profile";
 import {
   WORKOUT_SESSION_DRAFT_KEY,
   WORKOUT_SESSION_MAX_AGE_MS,
@@ -17,6 +18,7 @@ export interface WorkoutSessionDraftV1 {
   version: typeof WORKOUT_SESSION_VERSION;
   workoutId: string;
   day: number | null;
+  safetySignature?: string;
   savedAt: string;
   plan: PlannedExercise[];
   index: number;
@@ -39,6 +41,18 @@ export type WorkoutSessionDraftState = Omit<
   WorkoutSessionDraftV1,
   "version" | "savedAt"
 >;
+
+export function getWorkoutSessionSafetySignature(
+  profile: Pick<UserProfile, "level" | "equipment" | "injuries">,
+) {
+  const equipment = [...new Set(profile.equipment)].sort();
+  const injuries = [...new Set(profile.injuries)].sort();
+  return [
+    "level=" + profile.level,
+    "equipment=" + equipment.join(","),
+    "injuries=" + injuries.join(","),
+  ].join("|");
+}
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -208,6 +222,16 @@ export function parseWorkoutSessionDraft(
       : integer(value.day, 0, 6);
   if (value.day !== null && day === null) return null;
 
+  const safetySignature =
+    value.safetySignature === undefined
+      ? undefined
+      : typeof value.safetySignature === "string" &&
+          value.safetySignature.length > 0 &&
+          value.safetySignature.length <= 500
+        ? value.safetySignature
+        : null;
+  if (safetySignature === null) return null;
+
   if (typeof value.savedAt !== "string") return null;
   const savedAtMs = Date.parse(value.savedAt);
   if (!Number.isFinite(savedAtMs)) return null;
@@ -269,6 +293,7 @@ export function parseWorkoutSessionDraft(
     version: WORKOUT_SESSION_VERSION,
     workoutId: value.workoutId,
     day,
+    safetySignature,
     savedAt: value.savedAt,
     plan,
     index,
@@ -336,6 +361,7 @@ export function saveWorkoutSessionDraft(state: WorkoutSessionDraftState) {
       {
         workoutId: state.workoutId,
         day: state.day,
+        safetySignature: state.safetySignature,
         index: state.index,
         setIdx: state.setIdx,
         total: state.plan.length,
