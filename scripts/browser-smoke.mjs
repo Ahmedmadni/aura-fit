@@ -600,10 +600,47 @@ async function main() {
     }
 
     // Leave the active workout first so its pagehide handler performs its final
-    // legitimate flush. Only then simulate an orphaned lightweight metadata
-    // record by removing the full draft while no workout page can rewrite it.
+    // legitimate flush. Then mutate only safety-relevant profile data and verify
+    // that the saved workout cannot be resumed under the changed safety profile.
     await navigate("/", "Browser E2E");
     await waitForText("استئناف الجلسة", 15000);
+    const originalProfileJson = String(
+      await evaluate('localStorage.getItem("kp.profile") || ""'),
+    );
+    await evaluate(`(() => {
+      const profile = JSON.parse(localStorage.getItem("kp.profile") || "{}");
+      profile.injuries = [...new Set([...(profile.injuries || []), "shoulder"])];
+      localStorage.setItem("kp.profile", JSON.stringify(profile));
+      return true;
+    })()`);
+
+    const safetyConflictBody = await navigate(
+      "/workout?day=0",
+      "تغيرت بيانات الأمان",
+    );
+    if (!safetyConflictBody.includes("لن نستأنف الخطة القديمة تلقائيًا")) {
+      throw new Error("Safety-profile conflict did not explain why resume was blocked.");
+    }
+    const unsafeResumeVisible = await evaluate(
+      `(() => {
+        const buttons = [...document.querySelectorAll("button")];
+        return buttons.some(
+          (button) =>
+            (button.textContent || "").trim() === "استئناف الجلسة المحفوظة",
+        );
+      })()`,
+    );
+    if (unsafeResumeVisible) {
+      throw new Error("Safety-profile conflict still allowed the old workout to resume.");
+    }
+
+    await clickText("العودة للرئيسية", true);
+    await evaluate(
+      `localStorage.setItem("kp.profile", ${JSON.stringify(originalProfileJson)})`,
+    );
+
+    // Finally simulate orphaned lightweight metadata while no workout page can
+    // rewrite the full draft, then verify navigation metadata self-cleans.
     await evaluate('localStorage.removeItem("aura.workout-session.v1")');
     await navigate("/profile", "ملف التدريب");
 
