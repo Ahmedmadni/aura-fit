@@ -63,7 +63,7 @@ export function BottomNav() {
                 ? "ring-2 ring-cyan/60"
                 : "")
             }
-            aria-label={activeSession ? "استئناف الجلسة" : "ابدأ جلسة"}
+            aria-label={activeSession ? "فتح الجلسة المحفوظة" : "ابدأ جلسة"}
             aria-current={pathname.startsWith("/workout") ? "page" : undefined}
           >
             <Play className="size-5 fill-current" strokeWidth={3} aria-hidden="true" />
