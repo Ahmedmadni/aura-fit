@@ -44,6 +44,7 @@ import {
 import { checkNewAchievements } from "@/lib/achievements";
 import {
   clearWorkoutSessionDraft,
+  getWorkoutSessionSafetySignature,
   loadRecoverableWorkoutSessionDraft,
   saveWorkoutSessionDraft,
   type WorkoutSessionDraftState,
@@ -79,14 +80,19 @@ function WorkoutPlayer() {
 
   // localStorage is unavailable during SSR. Rebuild once after hydration so
   // direct navigation always uses the real local profile/history/readiness.
+  const profile = useMemo(() => loadProfile(), [hydrated]);
+  const sessionSafetySignature = useMemo(
+    () => getWorkoutSessionSafetySignature(profile),
+    [profile],
+  );
   const workout = useMemo(
     () =>
-      generateWorkout(loadProfile(), {
+      generateWorkout(profile, {
         day,
         history: loadHistory(),
         readiness: loadTodayReadiness(),
       }),
-    [day, hydrated],
+    [day, hydrated, profile],
   );
   const generatedPlan = workout.exercises;
   const [plan, setPlan] = useState<PlannedExercise[]>(generatedPlan);
@@ -132,11 +138,11 @@ function WorkoutPlayer() {
 
     return getManualExerciseSwapOptions(
       current.exercise,
-      loadProfile(),
+      profile,
       new Set(plan.map((item) => item.exercise.id)),
       4,
     );
-  }, [current, hydrated, plan]);
+  }, [current, hydrated, plan, profile]);
 
   const canSwapCurrent =
     phase === "work" &&
@@ -267,6 +273,7 @@ function WorkoutPlayer() {
 
   function resumeConflictingSession() {
     if (!sessionConflict) return;
+    if (sessionConflict.safetySignature !== sessionSafetySignature) return;
 
     const requestedDay = day ?? null;
     if (sessionConflict.day !== requestedDay) {
@@ -306,7 +313,8 @@ function WorkoutPlayer() {
     if (recoverable) {
       const matchesCurrent =
         recoverable.workoutId === workout.id &&
-        recoverable.day === requestedDay;
+        recoverable.day === requestedDay &&
+        recoverable.safetySignature === sessionSafetySignature;
 
       if (matchesCurrent) {
         restoreDraftSession(recoverable);
@@ -332,6 +340,7 @@ function WorkoutPlayer() {
     draftSnapshot.current = {
       workoutId: sessionIdentity.workoutId,
       day: sessionIdentity.day,
+      safetySignature: sessionSafetySignature,
       plan,
       index,
       setIdx,
@@ -510,7 +519,7 @@ function WorkoutPlayer() {
     const swapped = createManualExerciseSwap(
       current,
       replacement,
-      loadProfile(),
+      profile,
       loadHistory(),
       workout.adaptation,
       workout.periodization,
@@ -700,6 +709,8 @@ function WorkoutPlayer() {
   if (sessionConflict) {
     const savedCurrent = sessionConflict.plan[sessionConflict.index];
     const sameRequestedDay = sessionConflict.day === (day ?? null);
+    const safetyChanged =
+      sessionConflict.safetySignature !== sessionSafetySignature;
 
     return (
       <PageShell>
@@ -708,8 +719,9 @@ function WorkoutPlayer() {
             <p className="type-eyebrow text-amber-400">جلسة غير مكتملة</p>
             <h1 className="type-page-title mt-2">لديك جلسة محفوظة بالفعل</h1>
             <p className="type-small mt-3 leading-relaxed text-muted-foreground">
-              لن نكتب فوق تقدمك المحفوظ تلقائيًا. اختر استئناف الجلسة السابقة
-              أو ابدأ الجلسة الجديدة بعد حذفها صراحة.
+              {safetyChanged
+                ? "تغيرت بيانات الأمان منذ حفظ الجلسة (المستوى أو المعدات أو الإصابات)، لذلك لن نستأنف الخطة القديمة تلقائيًا."
+                : "لن نكتب فوق تقدمك المحفوظ تلقائيًا. اختر استئناف الجلسة السابقة أو ابدأ الجلسة الجديدة بعد حذفها صراحة."}
             </p>
 
             <div className="mt-4 rounded-2xl border border-border bg-background/60 p-3">
@@ -720,16 +732,20 @@ function WorkoutPlayer() {
                 تمرين {sessionConflict.index + 1}/{sessionConflict.plan.length}
                 {" · "}
                 مجموعة {sessionConflict.setIdx}
-                {sameRequestedDay && sessionConflict.workoutId !== workout.id
-                  ? " · تغيرت الخطة الحالية منذ الحفظ"
-                  : ""}
+                {safetyChanged
+                  ? " · تغيرت بيانات الأمان"
+                  : sameRequestedDay && sessionConflict.workoutId !== workout.id
+                    ? " · تغيرت الخطة الحالية منذ الحفظ"
+                    : ""}
               </p>
             </div>
 
             <div className="mt-5 grid gap-2">
-              <Button type="button" onClick={resumeConflictingSession}>
-                استئناف الجلسة المحفوظة
-              </Button>
+              {!safetyChanged && (
+                <Button type="button" onClick={resumeConflictingSession}>
+                  استئناف الجلسة المحفوظة
+                </Button>
+              )}
               <Button
                 type="button"
                 variant="outline"
