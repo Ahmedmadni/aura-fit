@@ -9,6 +9,7 @@ export interface WorkoutSessionMetaV1 {
   version: typeof WORKOUT_SESSION_META_VERSION;
   workoutId: string;
   day: number | null;
+  safetySignature?: string;
   savedAt: string;
   index: number;
   setIdx: number;
@@ -59,6 +60,16 @@ export function parseWorkoutSessionMeta(
       : integer(value.day, 0, 6);
   if (value.day !== null && day === null) return null;
 
+  const safetySignature =
+    value.safetySignature === undefined
+      ? undefined
+      : typeof value.safetySignature === "string" &&
+          value.safetySignature.length > 0 &&
+          value.safetySignature.length <= 500
+        ? value.safetySignature
+        : null;
+  if (safetySignature === null) return null;
+
   if (typeof value.savedAt !== "string") return null;
   const savedAtMs = Date.parse(value.savedAt);
   if (!Number.isFinite(savedAtMs)) return null;
@@ -83,6 +94,7 @@ export function parseWorkoutSessionMeta(
     version: WORKOUT_SESSION_META_VERSION,
     workoutId: value.workoutId,
     day,
+    safetySignature,
     savedAt: value.savedAt,
     index,
     setIdx,
