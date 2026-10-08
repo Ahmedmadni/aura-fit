@@ -2,6 +2,7 @@ import { DEFAULT_PROFILE } from "../src/lib/user-profile";
 import { generateWorkout } from "../src/lib/workout-engine";
 import {
   WORKOUT_SESSION_MAX_AGE_MS,
+  getWorkoutSessionSafetySignature,
   parseWorkoutSessionDraft,
 } from "../src/lib/workout-session";
 import { parseWorkoutSessionMeta } from "../src/lib/workout-session-meta";
@@ -18,10 +19,49 @@ const workout = generateWorkout(DEFAULT_PROFILE, {
 });
 if (!workout.exercises.length) fail("generated workout has no exercises");
 
+const safetySignature = getWorkoutSessionSafetySignature(DEFAULT_PROFILE);
+const reorderedSafetySignature = getWorkoutSessionSafetySignature({
+  ...DEFAULT_PROFILE,
+  equipment: [...DEFAULT_PROFILE.equipment].reverse(),
+  injuries: [...DEFAULT_PROFILE.injuries].reverse(),
+});
+if (safetySignature !== reorderedSafetySignature) {
+  fail("workout safety signature changes when equipment/injury ordering changes");
+}
+
+const injuryChangedSignature = getWorkoutSessionSafetySignature({
+  ...DEFAULT_PROFILE,
+  injuries: DEFAULT_PROFILE.injuries.includes("shoulder")
+    ? DEFAULT_PROFILE.injuries.filter((item) => item !== "shoulder")
+    : [...DEFAULT_PROFILE.injuries, "shoulder"],
+});
+if (injuryChangedSignature === safetySignature) {
+  fail("workout safety signature ignored injury changes");
+}
+
+const equipmentChangedSignature = getWorkoutSessionSafetySignature({
+  ...DEFAULT_PROFILE,
+  equipment: DEFAULT_PROFILE.equipment.includes("dumbbells")
+    ? DEFAULT_PROFILE.equipment.filter((item) => item !== "dumbbells")
+    : [...DEFAULT_PROFILE.equipment, "dumbbells"],
+});
+if (equipmentChangedSignature === safetySignature) {
+  fail("workout safety signature ignored equipment changes");
+}
+
+const levelChangedSignature = getWorkoutSessionSafetySignature({
+  ...DEFAULT_PROFILE,
+  level: DEFAULT_PROFILE.level === "advanced" ? "beginner" : "advanced",
+});
+if (levelChangedSignature === safetySignature) {
+  fail("workout safety signature ignored level changes");
+}
+
 const base = {
   version: 1,
   workoutId: workout.id,
   day: 0,
+  safetySignature,
   savedAt: new Date(now - 60_000).toISOString(),
   plan: workout.exercises,
   index: 0,
@@ -42,7 +82,11 @@ const base = {
 
 const parsed = parseWorkoutSessionDraft(base, now);
 if (!parsed) fail("valid active session draft was rejected");
-if (parsed.workoutId !== workout.id || parsed.elapsed !== 125) {
+if (
+  parsed.workoutId !== workout.id ||
+  parsed.elapsed !== 125 ||
+  parsed.safetySignature !== safetySignature
+) {
   fail("valid draft fields were not preserved");
 }
 
@@ -52,6 +96,14 @@ const refreshed = parseWorkoutSessionDraft(stalePlan, now);
 if (!refreshed) fail("draft with stale exercise metadata was rejected");
 if (refreshed.plan[0].exercise.name === "STALE EXERCISE NAME") {
   fail("recovery did not refresh exercise metadata from the live database");
+}
+
+const invalidSafetySignature = {
+  ...base,
+  safetySignature: "",
+};
+if (parseWorkoutSessionDraft(invalidSafetySignature, now) !== null) {
+  fail("draft with invalid empty safety signature was accepted");
 }
 
 const expired = {
@@ -93,6 +145,7 @@ const metaBase = {
   version: 1,
   workoutId: workout.id,
   day: 0,
+  safetySignature,
   savedAt: new Date(now - 60_000).toISOString(),
   index: 0,
   setIdx: 1,
@@ -104,7 +157,8 @@ const parsedMeta = parseWorkoutSessionMeta(metaBase, now);
 if (
   !parsedMeta ||
   parsedMeta.workoutId !== workout.id ||
-  parsedMeta.currentExerciseName !== workout.exercises[0].exercise.name
+  parsedMeta.currentExerciseName !== workout.exercises[0].exercise.name ||
+  parsedMeta.safetySignature !== safetySignature
 ) {
   fail("valid lightweight workout-session metadata was rejected");
 }
@@ -126,5 +180,5 @@ if (parseWorkoutSessionMeta(invalidMetaIndex, now) !== null) {
 }
 
 console.log(
-  "Workout recovery PASS: full drafts and lightweight navigation metadata validate expiry, bounds and current exercise state.",
+  "Workout recovery PASS: full drafts and lightweight navigation metadata validate expiry, bounds, current exercise state and deterministic safety signatures.",
 );

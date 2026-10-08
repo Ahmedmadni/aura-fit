@@ -70,6 +70,11 @@ for (const required of [
   "setSessionConflict(recoverable)",
   "function resumeConflictingSession() {",
   "function replaceConflictingSession() {",
+  "getWorkoutSessionSafetySignature(profile)",
+  "recoverable.safetySignature === sessionSafetySignature",
+  "safetySignature: sessionSafetySignature",
+  "sessionConflict.safetySignature !== sessionSafetySignature",
+  "تغيرت بيانات الأمان",
   "initializeFreshSession(true)",
   "لديك جلسة محفوظة بالفعل",
 ]) {
@@ -110,6 +115,18 @@ if (!workout.includes("onClick={requestExit}")) {
 }
 if (workout.includes('onClick={() => navigate({ to: "/" })}')) {
   fail("unguarded direct workout exit returned");
+}
+
+const resumeConflictMatch = workout.match(
+  /function resumeConflictingSession\(\) \{([\s\S]*?)\n  \}\n\n/,
+);
+if (!resumeConflictMatch) fail("resumeConflictingSession helper is missing");
+if (
+  !resumeConflictMatch[1].includes(
+    "sessionConflict.safetySignature !== sessionSafetySignature",
+  )
+) {
+  fail("saved workout can still resume after safety-profile changes");
 }
 
 const conflictRestoreMatch = workout.match(
