@@ -582,7 +582,14 @@ async function main() {
     if (!recoveredPaused) {
       throw new Error("Recovered workout resumed its timer instead of staying paused.");
     }
+
+    // Leave the active workout first so its pagehide handler performs its final
+    // legitimate flush. Only then simulate an orphaned lightweight metadata
+    // record by removing the full draft while no workout page can rewrite it.
+    await navigate("/", "Browser E2E");
+    await waitForText("استئناف الجلسة", 15000);
     await evaluate('localStorage.removeItem("aura.workout-session.v1")');
+    await navigate("/profile", "ملف التدريب");
 
     // Seed only a completed strength entry so progress analytics can be tested.
     const history = [
