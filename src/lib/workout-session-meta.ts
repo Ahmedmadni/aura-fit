@@ -22,6 +22,20 @@ export type WorkoutSessionMetaState = Omit<
   "version" | "savedAt"
 >;
 
+export function getWorkoutSessionSafetySignature(profile: {
+  level: string;
+  equipment: readonly string[];
+  injuries: readonly string[];
+}) {
+  const equipment = [...new Set(profile.equipment)].sort();
+  const injuries = [...new Set(profile.injuries)].sort();
+  return [
+    "level=" + profile.level,
+    "equipment=" + equipment.join(","),
+    "injuries=" + injuries.join(","),
+  ].join("|");
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
