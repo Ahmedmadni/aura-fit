@@ -599,6 +599,32 @@ async function main() {
       throw new Error("Recovered workout resumed its timer instead of staying paused.");
     }
 
+    // Save and exit using the in-app confirmation (not the automatic pagehide
+    // fallback), then ensure the snapshot remains recoverable and stays paused.
+    await clickAria("إغلاق الجلسة");
+    const exitDialog = await waitForText("حفظ الجلسة والخروج");
+    if (!exitDialog.includes("خروج بدون حفظ") || !exitDialog.includes("متابعة الجلسة")) {
+      throw new Error("The workout exit dialog is missing its safe choices.");
+    }
+    await clickText("حفظ الجلسة والخروج", true);
+    await waitForText("استئناف الجلسة", 15000);
+    const explicitlySavedDraft = await evaluate(
+      'JSON.parse(localStorage.getItem("aura.workout-session.v1") || "null")',
+    );
+    if (
+      !explicitlySavedDraft ||
+      explicitlySavedDraft.workoutId !== activeDraft.workoutId ||
+      explicitlySavedDraft.day !== activeDraft.day ||
+      explicitlySavedDraft.phase !== activeDraft.phase
+    ) {
+      throw new Error("Explicit save-and-exit failed to preserve the active workout.");
+    }
+    await clickText("استئناف الجلسة", true);
+    const reopenedSavedSession = await waitForText("جلسة مستعادة", 15000);
+    if (!reopenedSavedSession.includes("الجلسة متوقفة مؤقتًا للأمان")) {
+      throw new Error("An explicitly saved workout did not reopen in a paused state.");
+    }
+
     // Leave the active workout first so its pagehide handler performs its final
     // legitimate flush. Then mutate only safety-relevant profile data and verify
     // that the saved workout cannot be resumed under the changed safety profile.
@@ -892,7 +918,7 @@ async function main() {
     }
 
     console.log(
-      "Browser smoke PASS: mobile onboarding, readiness, injury-safe workout, active-session conflict guard, dashboard and bottom-nav resume, recovery cleanup, hydration-safe cloud session, safe backup controls, PWA install UX, real-data routes, service worker and offline cached navigation all verified in headless Chrome.",
+      "Browser smoke PASS: mobile onboarding, readiness, injury-safe workout, active-session conflict guard, dashboard and bottom-nav resume, explicit save-and-exit, recovery cleanup, hydration-safe cloud session, safe backup controls, PWA install UX, real-data routes, service worker and offline cached navigation all verified in headless Chrome.",
     );
 
     cdp.close();

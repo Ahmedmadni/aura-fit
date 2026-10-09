@@ -59,6 +59,9 @@ for (const required of [
   "function requestExit() {",
   "function cancelExit() {",
   "function confirmExitWithoutSaving() {",
+  "function confirmSaveAndExit() {",
+  "حفظ الجلسة والخروج",
+  "تعذّر حفظ الجلسة",
   'role="dialog"',
   'aria-labelledby="workout-exit-title"',
   "saveWorkoutSessionDraft(draftSnapshot.current)",
@@ -112,6 +115,30 @@ if (!exitMatch[1].includes("runningBeforeExit.current")) {
 }
 if (!workout.includes("onClick={requestExit}")) {
   fail("workout close button bypasses the exit guard");
+}
+
+const saveExitMatch = workout.match(
+  /function confirmSaveAndExit\(\) \{([\s\S]*?)\n  \}\n\n/,
+);
+if (
+  !saveExitMatch ||
+  !saveExitMatch[1].includes("saveWorkoutSessionDraft(snapshot)") ||
+  !saveExitMatch[1].includes("exitCommitted.current = true") ||
+  !saveExitMatch[1].includes("navigate({ to: \"/\" })") ||
+  !saveExitMatch[1].includes("return;")
+) {
+  fail("save-and-exit must persist synchronously and keep the user on failure");
+}
+const discardMatch = workout.match(
+  /function confirmExitWithoutSaving\(\) \{([\s\S]*?)\n  \}\n\n/,
+);
+if (
+  !discardMatch ||
+  !discardMatch[1].includes("exitCommitted.current = true") ||
+  !discardMatch[1].includes("clearWorkoutSessionDraft()") ||
+  !workout.includes("if (exitCommitted.current || !hydrated")
+) {
+  fail("exit cleanup could resurrect a discarded or saved draft");
 }
 if (workout.includes('onClick={() => navigate({ to: "/" })}')) {
   fail("unguarded direct workout exit returned");
