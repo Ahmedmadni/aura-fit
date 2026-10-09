@@ -51,5 +51,24 @@ jobs:
             exit 1
           fi
 
-          bun run browser:smoke
-          bun run device:smoke
+          # External runner/browser startup failures can be transient. Re-run
+          # each complete smoke suite once with a fresh isolated Chrome profile;
+          # deterministic test failures still fail the workflow.
+          for suite in browser device; do
+            PASSED=0
+            for attempt in 1 2; do
+              echo "Running ${suite}:smoke — attempt ${attempt}/2"
+              if bun run "${suite}:smoke"; then
+                PASSED=1
+                break
+              fi
+              if [ "$attempt" -eq 1 ]; then
+                echo "::warning::${suite}:smoke failed once; retrying with fresh Chrome."
+                sleep 3
+              fi
+            done
+            if [ "$PASSED" -ne 1 ]; then
+              echo "::error::${suite}:smoke failed on both attempts."
+              exit 1
+            fi
+          done
