@@ -106,6 +106,7 @@ function WorkoutPlayer() {
   const [showRefs, setShowRefs] = useState(false);
   const [showSwapOptions, setShowSwapOptions] = useState(false);
   const [showExitConfirm, setShowExitConfirm] = useState(false);
+  const [saveExitError, setSaveExitError] = useState<string | null>(null);
   const [completed, setCompleted] = useState<Set<string>>(new Set());
   const [skipped, setSkipped] = useState<Set<string>>(new Set());
   const [setReps, setSetReps] = useState<Record<string, number[]>>({});
@@ -120,6 +121,7 @@ function WorkoutPlayer() {
   const runningBeforeSwap = useRef(true);
   const runningBeforeExit = useRef(true);
   const draftSnapshot = useRef<WorkoutSessionDraftState | null>(null);
+  const exitCommitted = useRef(false);
 
   const current: PlannedExercise = plan[index];
   const next = plan[index + 1];
@@ -200,6 +202,8 @@ function WorkoutPlayer() {
       day: draft.day,
     },
   ) {
+    exitCommitted.current = false;
+    setSaveExitError(null);
     setSessionConflict(undefined);
     setSessionIdentity(identity);
     setPlan(draft.plan);
@@ -230,6 +234,8 @@ function WorkoutPlayer() {
   }
 
   function initializeFreshSession(clearExistingDraft = false) {
+    exitCommitted.current = false;
+    setSaveExitError(null);
     if (clearExistingDraft) {
       draftSnapshot.current = null;
       clearWorkoutSessionDraft();
@@ -332,7 +338,7 @@ function WorkoutPlayer() {
   }, [day, generatedPlan, hydrated, workout.id]);
 
   useEffect(() => {
-    if (!hydrated || !sessionReady || !sessionIdentity || phase === "done") {
+    if (exitCommitted.current || !hydrated || !sessionReady || !sessionIdentity || phase === "done") {
       draftSnapshot.current = null;
       return;
     }
@@ -463,6 +469,7 @@ function WorkoutPlayer() {
   }
 
   function requestExit() {
+    setSaveExitError(null);
     const restoreRunning = showSwapOptions
       ? runningBeforeSwap.current
       : running;
@@ -473,13 +480,40 @@ function WorkoutPlayer() {
   }
 
   function cancelExit() {
+    setSaveExitError(null);
     const restoreRunning = runningBeforeExit.current;
     setShowExitConfirm(false);
     setRunning(restoreRunning);
     if (restoreRunning) sfxGo();
   }
 
+  function confirmSaveAndExit() {
+    const snapshot = draftSnapshot.current;
+    if (!sessionReady || !sessionIdentity || !snapshot) {
+      setSaveExitError("لم تجهز بيانات الجلسة للحفظ بعد. حاول مرة أخرى.");
+      return;
+    }
+
+    try {
+      // Commit synchronously before navigating; an interval/pagehide alone
+      // cannot guarantee that the last rep, load or timer state was saved.
+      saveWorkoutSessionDraft(snapshot);
+    } catch {
+      setSaveExitError(
+        "تعذّر حفظ الجلسة على هذا الجهاز. تحقق من مساحة التخزين ثم حاول مجددًا.",
+      );
+      return;
+    }
+
+    exitCommitted.current = true;
+    draftSnapshot.current = null;
+    setShowExitConfirm(false);
+    navigate({ to: "/" });
+  }
+
   function confirmExitWithoutSaving() {
+    // Prevent the unmount cleanup from recreating a draft after deletion.
+    exitCommitted.current = true;
     draftSnapshot.current = null;
     clearWorkoutSessionDraft();
     setShowExitConfirm(false);
@@ -827,12 +861,20 @@ function WorkoutPlayer() {
               الخروج من الجلسة؟
             </h2>
             <p className="type-small mt-3 leading-relaxed text-muted-foreground">
-              التقدم الحالي لا يُضاف إلى سجل التدريب إلا عند إكمال الجلسة.
-              الخروج الآن سيغلق الجلسة بدون حفظ نتائجها الحالية.
+              يمكنك حفظ تقدمك مؤقتًا على هذا الجهاز والعودة من التمرين والمجموعة الحالية،
+              أو الخروج مع حذف الجلسة. لا تُضاف النتائج إلى سجل التدريب إلا بعد الإكمال.
             </p>
+            {saveExitError && (
+              <p role="alert" className="mt-3 rounded-xl border border-red-400/30 bg-red-400/10 p-3 text-xs text-red-300">
+                {saveExitError}
+              </p>
+            )}
 
             <div className="mt-5 grid gap-2">
-              <Button type="button" onClick={cancelExit}>
+              <Button type="button" onClick={confirmSaveAndExit}>
+                حفظ الجلسة والخروج
+              </Button>
+              <Button type="button" variant="outline" onClick={cancelExit}>
                 متابعة الجلسة
               </Button>
               <Button
