@@ -745,7 +745,7 @@ async function main() {
 
     // Frame-only exercises must describe their still frames accurately.
     // In the motion tab, a user can pause and step through each pose.
-    await navigate("/exercise/hindu-push-up", "Hindu Push-up");
+    await navigate("/exercise/plank", "Plank");
     await clickText("الحركة", true);
     await waitForText("ثلاثة إطارات توضيحية أصلية");
     await clickAria("إيقاف عرض الإطارات التلقائي");
