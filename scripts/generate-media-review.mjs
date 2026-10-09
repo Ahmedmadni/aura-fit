@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { Script } from "node:vm";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const read = (p) => JSON.parse(fs.readFileSync(path.join(root, p), "utf8"));
@@ -233,7 +234,6 @@ const html = [
   'button.setAttribute("aria-label","تشغيل معاينة المرشح غير المعتمد");}',
   '});}',
   '}',
-  'const placeholder=0;',
   'const search=document.getElementById("search"),filter=document.getElementById("filter");',
   'function refresh(){const text=search.value.trim().toLowerCase(),mode=filter.value;',
   'let shown=0;for(const item of items){const match=(!text||item.dataset.search.includes(text))&&',
@@ -262,8 +262,11 @@ assert(html.includes("مرشح غير معتمد") && html.includes("data-candid
   html.includes("data-preview-control") && html.includes("export-csv") &&
   html.includes("data-decision") && html.includes("data-notes"),
   "audit page must expose human-review controls and mark all candidates as unapproved");
-assert((html.match(/data-preview-control/g) ?? []).length === candidates.length,
+assert((html.match(/data-preview-control data-src=/g) ?? []).length === candidates.length,
   "GIF previews must be present only for reviewed candidates, not unrelated exercises");
+const embeddedScript = html.split("<script>")[1]?.split("</script>")[0];
+assert(embeddedScript, "generated review page is missing JavaScript interactions");
+new Script(embeddedScript, { filename: "aura-fit-media-review-inline.js" });
 if (!process.argv.includes("--check")) {
   const out = path.join(root, "media-review-output");
   fs.mkdirSync(out, { recursive: true });
