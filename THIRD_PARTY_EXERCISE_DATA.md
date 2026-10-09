@@ -17,10 +17,15 @@ Aura Fit keeps the 302-exercise Workout Guide catalog as the canonical applicati
 - Indexed source exercises: 1324
 - Aura Fit exercises evaluated: 302
 - Exact approved matches: 79
-- High-confidence approved matches: 92
-- Review required: 77
-- No safe match: 54
-- Preferred GIFs enabled in the app: 171
+- High-confidence approved matches: 112
+- Review required: 71
+- No safe match: 40
+- Preferred GIFs enabled in the app: 191
+- Frame-only fallbacks: 111 (review + no-safe-match)
+
+These counts are taken from `src/data/exercise-media-match-report.json`
+generated on 2026-10-04. Treat that JSON report as the source of truth
+when the approved mapping changes; older milestone reports are historical.
 
 Only `exact` and `high` entries in `src/data/exercise-media-map.json` receive an active GIF/poster. A `review` entry never loads its candidate media automatically.
 
