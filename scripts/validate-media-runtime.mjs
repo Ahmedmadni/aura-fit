@@ -14,8 +14,13 @@ const source = fs.readFileSync(mediaPlayerPath, "utf8");
 
 for (const required of [
   "const usingFallback = !preferredGif || preferredFailed;",
-  "if (!running || !usingFallback || !frames?.length) return;",
+  "if (!autoAdvanceFrames || !usingFallback || !frames?.length) return;",
   "const nextFrame = frames[(frameIndex + 1) % frames.length];",
+  "const autoAdvanceFrames = running && !(allowFrameReview && frameReviewPaused);",
+  "data-fallback-frame-index={allowFrameReview ? frameIndex + 1 : undefined}",
+  'aria-label="الإطار السابق"',
+  'aria-label="الإطار التالي"',
+  "setFrameReviewPaused(true);",
 ]) {
   if (!source.includes(required)) {
     fail("missing fallback-only runtime optimization: " + required);
@@ -32,10 +37,10 @@ for (const banned of [
 }
 
 const intervalBlock = source.match(/useEffect\(\(\) => \{[\s\S]*?window\.setInterval[\s\S]*?\}, \[[^\]]+\]\);/);
-if (!intervalBlock || !intervalBlock[0].includes("usingFallback")) {
+if (!intervalBlock || !intervalBlock[0].includes("usingFallback") || !intervalBlock[0].includes("autoAdvanceFrames")) {
   fail("fallback frame interval must be disabled while a verified GIF is active");
 }
 
 console.log(
-  "Media runtime PASS: verified GIF playback avoids hidden fallback timers and fallback mode preloads only the next frame.",
+  "Media runtime PASS: approved GIF playback avoids hidden fallback timers; frame-only media supports explicit pause/step review without preloading all frames.",
 );
