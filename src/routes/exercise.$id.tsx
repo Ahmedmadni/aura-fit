@@ -99,7 +99,7 @@ function ExerciseDetail() {
         </Link>
 
         <span className="max-w-[250px] truncate text-[10px] font-medium tracking-wide text-muted-foreground">
-          {exercise.media.gif ? "فيديو مطابق" : "حركة مطابقة"} · {exercise.latin}
+          {exercise.media.gif ? "فيديو مطابق" : "إطارات توضيحية"} · {exercise.latin}
         </span>
 
         <div className="size-10 rounded-full bg-primary/10 border border-primary/20 grid place-items-center text-primary">
@@ -375,9 +375,21 @@ function ExerciseDetail() {
                   ) : (
                     <>
                       <p className="type-small mb-4 text-muted-foreground">
-                        {exercise.media.matchConfidence === "review"
-                          ? "توجد مطابقة مرشحة تحتاج مراجعة فنية؛ لن يتم تشغيلها تلقائيًا، لذلك يعرض التطبيق إطارات Workout Guide الآمنة كـ fallback."
-                          : "لا توجد مطابقة GIF مؤكدة لهذا التمرين حاليًا، لذلك يعرض التطبيق إطارات Workout Guide الأصلية كـ fallback."}
+                        {exercise.media.matchConfidence === "review" && exercise.media.candidateSourceExerciseId
+                          ? "توجد مطابقة مرشحة تحتاج مراجعة فنية؛ لن يتم تشغيلها تلقائيًا، لذلك يعرض التطبيق إطارات Workout Guide الأصلية."
+                          : "لا توجد مطابقة GIF معتمدة لهذا التمرين حاليًا، لذلك يعرض التطبيق ثلاثة إطارات توضيحية أصلية من Workout Guide. هذه الإطارات ليست فيديو للحركة."}
+                      </p>
+
+                      <AthleteVideo
+                        exerciseId={exercise.id}
+                        pose={exercise.pose}
+                        running
+                        tempo={exercise.tempo}
+                        fluid
+                        allowFrameReview
+                      />
+                      <p className="type-small mb-4 mt-3 text-muted-foreground">
+                        أوقف العرض ثم انتقل بين الوضعيات باستخدام «السابق» و«التالي» لمراجعة تفاصيل التمرين.
                       </p>
 
                       <div className="grid grid-cols-3 gap-2" dir="ltr">

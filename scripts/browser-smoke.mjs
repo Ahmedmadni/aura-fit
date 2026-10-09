@@ -743,6 +743,40 @@ async function main() {
       throw new Error("Orphaned active-session metadata was not cleared automatically.");
     }
 
+    // Frame-only exercises must describe their still frames accurately.
+    // In the motion tab, a user can pause and step through each pose.
+    await navigate("/exercise/plank", "Plank");
+    await clickText("الحركة", true);
+    await waitForText("ثلاثة إطارات توضيحية أصلية");
+    await clickAria("إيقاف عرض الإطارات التلقائي");
+    const firstReviewFrame = Number(await evaluate(
+      'Number(document.querySelector("[data-fallback-frame-index]")?.getAttribute("data-fallback-frame-index"))',
+    ));
+    if (![1, 2, 3].includes(firstReviewFrame)) {
+      throw new Error("Manual fallback review did not expose a valid frame.");
+    }
+    await clickAria("الإطار التالي");
+    const nextReviewFrame = Number(await evaluate(
+      'Number(document.querySelector("[data-fallback-frame-index]")?.getAttribute("data-fallback-frame-index"))',
+    ));
+    if (nextReviewFrame !== firstReviewFrame % 3 + 1) {
+      throw new Error("Next control did not advance exactly one fallback frame.");
+    }
+    await clickAria("الإطار السابق");
+    const previousReviewFrame = Number(await evaluate(
+      'Number(document.querySelector("[data-fallback-frame-index]")?.getAttribute("data-fallback-frame-index"))',
+    ));
+    if (previousReviewFrame !== firstReviewFrame) {
+      throw new Error("Previous control did not restore the prior frame.");
+    }
+    await clickAria("تشغيل عرض الإطارات التلقائي");
+    const resumedFrameControls = Boolean(await evaluate(
+      'Boolean(document.querySelector("[aria-label=\\"إيقاف عرض الإطارات التلقائي\\"]"))',
+    ));
+    if (!resumedFrameControls) {
+      throw new Error("Fallback frame review could not resume automatic playback.");
+    }
+
     const routes = [
       ["/programs", "التوزيع الحالي"],
       ["/workout?day=0", "فلترة الإصابة فعّالة"],
@@ -922,7 +956,7 @@ async function main() {
     }
 
     console.log(
-      "Browser smoke PASS: mobile onboarding, readiness, injury-safe workout, active-session conflict guard, dashboard and bottom-nav resume, explicit save-and-exit, recovery cleanup, hydration-safe cloud session, safe backup controls, PWA install UX, real-data routes, service worker and offline cached navigation all verified in headless Chrome.",
+      "Browser smoke PASS: mobile onboarding, readiness, injury-safe workout, active-session conflict guard, dashboard and bottom-nav resume, explicit save-and-exit, guided manual fallback frame review, recovery cleanup, hydration-safe cloud session, safe backup controls, PWA install UX, real-data routes, service worker and offline cached navigation all verified in headless Chrome.",
     );
 
     cdp.close();
