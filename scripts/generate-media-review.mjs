@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { Script } from "node:vm";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const read = (p) => JSON.parse(fs.readFileSync(path.join(root, p), "utf8"));
@@ -17,6 +18,10 @@ const safe = (value) =>
   String(value ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;")
     .replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
 const csv = (value) => '"' + String(value ?? "").replaceAll('"', '""') + '"';
+// Never place source-controlled text directly inside a script tag.
+const jsLiteral = (value) => JSON.stringify(value)
+  .replaceAll("<", "\\u003c").replaceAll("\u2028", "\\u2028")
+  .replaceAll("\u2029", "\\u2029");
 const framesBase = "https://raw.githubusercontent.com/bryllim/workout-guide/" +
   "aac599224bb9780305239607ef98540b7e0ce389/packages/workout-guide/";
 const mediaBase = media._meta.rawBase;
@@ -42,6 +47,17 @@ const rows = manifest.flatMap((exercise) => {
     candidateId,
     candidateName: entry.candidateSourceName ?? "",
     candidatePoster: candidateId ? posters[candidateId] : "",
+    // Posters and motion GIFs use the same unique source ID + asset hash
+    // in the pinned dataset. Preview is opt-in and is never enabled in-app.
+    candidateGif: candidateId ? posters[candidateId]
+      .replace(/^images\//, "videos/").replace(/\.jpg$/, ".gif") : "",
+    candidateCaution: candidateId === "3217"
+      ? "نسخة modified: افحص مدى الحركة ومسار الكتفين والحوض."
+      : candidateId === "3156"
+        ? "مرشح بذراع واحدة وقبضة ضيقة: تحقق من المعدات وطريقة السحب."
+        : candidateId === "1417"
+          ? "نسخة رجل واحدة ومسار قطري: تحقق من اختلاف الحركة المستهدفة."
+          : "",
     frames: exercise.frames.map((frame) => framesBase + frame.path),
   }];
 });
@@ -68,8 +84,15 @@ for (const row of candidates) {
     /^images\/[0-9]{4}-[A-Za-z0-9]+\.jpg$/.test(row.candidatePoster),
     "missing pinned poster path for " + row.slug);
   assert(!activeIds.has(row.candidateId), "candidate already approved for another exercise");
+  assert(/^videos\/[0-9]{4}-[A-Za-z0-9]+\.gif$/.test(row.candidateGif),
+    "invalid pinned candidate GIF path for " + row.slug);
+  assert(row.candidateGif.replace(/^videos\//, "images/").replace(/\.gif$/, ".jpg") === row.candidatePoster,
+    "candidate GIF and poster have different source hashes: " + row.slug);
+  assert(row.candidateCaution.length > 0,
+    "candidate needs a specific review warning: " + row.slug);
 }
 const candidateUrl = (row) => row.candidatePoster ? mediaBase + row.candidatePoster : "";
+const candidateGifUrl = (row) => row.candidateGif ? mediaBase + row.candidateGif : "";
 const columns = [
   "حالة المراجعة", "معرف التمرين", "الاسم العربي", "الاسم الإنجليزي", "المعدات",
   "العضلة الأساسية", "معرف المرشح", "اسم المرشح", "صورة المرشح (غير معتمدة)",
@@ -83,6 +106,7 @@ const csvRows = rows.map((row) => [
 const csvText = "\uFEFF" + [columns, ...csvRows].map((values) =>
   values.map(csv).join(",")).join("\r\n") + "\r\n";
 
+const reviewKey = "aura-fit-media-review-v2-" + report.sourceCommit;
 const entries = rows.map((row) => {
   const hasCandidate = Boolean(row.candidateId);
   const status = row.status === "none" ? "لا توجد مطابقة آمنة" :
@@ -91,12 +115,19 @@ const entries = rows.map((row) => {
     '<div class="candidate"><div class="warn">مرشح غير معتمد — لا يُستخدم في التطبيق</div>' +
     '<img loading="lazy" alt="' + safe(row.candidateName) + '" src="' +
     safe(candidateUrl(row)) + '">' +
-    '<p>' + safe(row.candidateName) + ' · ID ' + safe(row.candidateId) + '</p></div>' :
+    '<p>' + safe(row.candidateName) + ' · ID ' + safe(row.candidateId) + '</p>' +
+    '<p class="warn">' + safe(row.candidateCaution) + '</p>' +
+    '<button type="button" class="preview-btn" data-preview-control data-src="' +
+      safe(candidateGifUrl(row)) + '" aria-label="تشغيل معاينة المرشح غير المعتمد">▶ عرض الحركة المرشحة (غير معتمدة)</button>' +
+    '<img class="gif-preview" data-preview-img hidden alt="معاينة حركة غير معتمدة للمرشح ' +
+      safe(row.candidateName) + '">' +
+    '<p class="muted small">يُحمّل GIF عند النقر فقط؛ الصورة المتحركة للمقارنة وليست دليل اعتماد.</p></div>' :
     '<p class="muted">لم تُعثر مطابقة مرشحة صالحة بعد مراجعة المصدر الحالي.</p>';
   const frameLinks = row.frames.map((url, i) =>
     '<a target="_blank" rel="noopener noreferrer" href="' + safe(url) +
     '">الإطار ' + (i + 1) + '</a>').join(" · ");
-  return '<article class="exercise" data-status="' + safe(row.status) +
+  return '<article class="exercise" data-slug="' + safe(row.slug) +
+    '" data-status="' + safe(row.status) +
     '" data-candidate="' + (hasCandidate ? "yes" : "no") +
     '" data-search="' + safe([row.arabic, row.english, row.slug,
       row.equipment, row.muscle].join(" ").toLowerCase()) + '">' +
@@ -109,6 +140,20 @@ const entries = rows.map((row) => {
     '" src="' + safe(row.frames[0]) + '"><p class="links">' +
     frameLinks + '</p></div>' + review + '</div>' +
     '<p class="muted small">المراجعة تتطلب تطابق نمط الحركة والمعدات والعضلة المستهدفة والوضعيات.</p>' +
+    '<div class="review-form">' +
+      '<label>قرار المراجعة (لا يغيّر التطبيق)' +
+        '<select data-decision aria-label="قرار مراجعة ' + safe(row.arabic) + '">' +
+          '<option value="">لم تُراجع</option>' +
+          '<option value="needs-evidence">تحتاج أدلة إضافية</option>' +
+          '<option value="rejected">استبعاد المرشح</option>' +
+          '<option value="recommended">مرشح مقترح فقط (غير معتمد)</option>' +
+          '<option value="new-source">البحث عن مصدر مختلف</option>' +
+        '</select></label>' +
+      '<label>الدليل / سبب القرار' +
+        '<textarea rows="3" maxlength="1200" data-notes aria-label="ملاحظات مراجعة ' +
+          safe(row.arabic) + '" placeholder="صف الفرق أو دليل المطابقة قبل اتخاذ القرار"></textarea>' +
+      '</label><p class="muted small">تُحفظ الملاحظات محليًا إذا سمح المتصفح؛ صدّر CSV للاحتفاظ بها.</p>' +
+    '</div>' +
     '<p class="code">' + safe(row.slug) + '</p></article>';
 }).join("\n");
 
@@ -131,6 +176,11 @@ const html = [
   '.comparison{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin:18px 0;align-items:start}',
   '.comparison img{width:100%;max-height:260px;aspect-ratio:1;object-fit:contain;background:#101923;border-radius:12px}',
   '.candidate{border:1px dashed #d2a75a;border-radius:13px;padding:8px}',
+  '.gif-preview{margin-top:12px}.preview-btn,.export-btn{border:1px solid #a6d54f;background:#26391f;color:#ecffcf;border-radius:10px;padding:10px 12px;cursor:pointer;font:inherit;font-size:12px;min-height:40px}',
+  '.review-form{display:grid;gap:10px;border-top:1px solid #354451;padding-top:14px;margin-top:10px}',
+  '.review-form label{display:grid;gap:6px;font-size:13px;color:#d7e5ed}',
+  '.review-form textarea{resize:vertical;background:#101923;border:1px solid #43505b;border-radius:10px;color:white;font:inherit;padding:10px;width:100%;box-sizing:border-box}',
+  '.review-form select{max-width:none;width:100%}',
   '.warn{color:#f0c372;font-size:12px;font-weight:bold;margin-bottom:8px}',
   '.links a{color:#cafa82}.code{font:12px monospace;direction:ltr;text-align:left;color:#859eb3}',
   '[hidden]{display:none!important}@media(max-width:700px){.grid{grid-template-columns:1fr}.filters{flex-wrap:wrap}.filters input{min-width:100%}}',
@@ -148,24 +198,75 @@ const html = [
   '<select id="filter" aria-label="تصفية قائمة المراجعة">',
   '<option value="all">جميع التمارين</option><option value="candidate">مرشح محدد</option>',
   '<option value="review">قيد المراجعة بلا مرشح</option><option value="none">دون مطابقة آمنة</option>',
-  '</select></div><p id="visible-count" class="muted" aria-live="polite"></p>',
+  '<option value="pending">لم يُحدد لها قرار بعد</option>',
+  '</select><button type="button" class="export-btn" id="export-csv">تصدير قرارات المراجعة CSV</button></div>',
+  '<p id="visible-count" class="muted" aria-live="polite"></p>',
   '<div class="grid">' + entries + '</div>',
   '<script>',
   'const items=[...document.querySelectorAll(".exercise")];',
+  'const exportColumns=' + jsLiteral(columns) + ';',
+  'const exportRows=' + jsLiteral(csvRows) + ';',
+  'const storageKey=' + jsLiteral(reviewKey) + ';',
+  'let decisions={};',
+  'try{const stored=JSON.parse(localStorage.getItem(storageKey)||"{}");',
+  'if(stored&&typeof stored==="object"&&!Array.isArray(stored))decisions=stored;}catch{}',
+  'function saveDecision(item){',
+  'const slug=item.dataset.slug,decision=item.querySelector("[data-decision]").value,',
+  'notes=item.querySelector("[data-notes]").value.slice(0,1200);',
+  'decisions[slug]={decision,notes};',
+  'try{localStorage.setItem(storageKey,JSON.stringify(decisions));}catch{}',
+  'refresh();}',
+  'for(const item of items){',
+  'const saved=decisions[item.dataset.slug]||{};',
+  'const selector=item.querySelector("[data-decision]");',
+  'if([...selector.options].some(x=>x.value===saved.decision))selector.value=saved.decision;',
+  'item.querySelector("[data-notes]").value=String(saved.notes||"").slice(0,1200);',
+  'selector.addEventListener("change",()=>saveDecision(item));',
+  'item.querySelector("[data-notes]").addEventListener("input",()=>saveDecision(item));',
+  'const button=item.querySelector("[data-preview-control]");',
+  'if(button){button.addEventListener("click",()=>{',
+  'const img=item.querySelector("[data-preview-img]");',
+  'if(img.hidden){img.src=button.dataset.src;img.hidden=false;',
+  'button.textContent="⏹ إيقاف معاينة المرشح";',
+  'button.setAttribute("aria-label","إيقاف معاينة المرشح غير المعتمد");}',
+  'else{img.hidden=true;img.removeAttribute("src");',
+  'button.textContent="▶ عرض الحركة المرشحة (غير معتمدة)";',
+  'button.setAttribute("aria-label","تشغيل معاينة المرشح غير المعتمد");}',
+  '});}',
+  '}',
   'const search=document.getElementById("search"),filter=document.getElementById("filter");',
   'function refresh(){const text=search.value.trim().toLowerCase(),mode=filter.value;',
   'let shown=0;for(const item of items){const match=(!text||item.dataset.search.includes(text))&&',
   '(mode==="all"||(mode==="candidate"&&item.dataset.candidate==="yes")||',
   '(mode==="review"&&item.dataset.status==="review"&&item.dataset.candidate==="no")||',
-  '(mode==="none"&&item.dataset.status==="none"));',
+  '(mode==="none"&&item.dataset.status==="none")||',
+  '(mode==="pending"&&!(decisions[item.dataset.slug]||{}).decision));',
   'item.hidden=!match;if(match)shown++;}',
   'document.getElementById("visible-count").textContent="المعروض: "+shown+" من "+items.length;}',
-  'search.addEventListener("input",refresh);filter.addEventListener("change",refresh);refresh();',
+  'search.addEventListener("input",refresh);filter.addEventListener("change",refresh);',
+  'document.getElementById("export-csv").addEventListener("click",()=>{',
+  'const quote=v=>String.fromCharCode(34)+String(v??"").replaceAll(String.fromCharCode(34),String.fromCharCode(34)+String.fromCharCode(34))+String.fromCharCode(34);',
+  'const data=[exportColumns,...exportRows.map(row=>{',
+  'const saved=decisions[row[1]]||{};',
+  'return [...row.slice(0,-2),saved.decision||"",saved.notes||""];',
+  '})].map(row=>row.map(quote).join(",")).join("\\r\\n")+"\\r\\n";',
+  'const blob=new Blob(["\\uFEFF",data],{type:"text/csv;charset=utf-8"});',
+  'const href=URL.createObjectURL(blob),a=document.createElement("a");',
+  'a.href=href;a.download="aura-fit-reviewed-media.csv";document.body.appendChild(a);',
+  'a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(href),1000);',
+  '});refresh();',
   '</script></main></body></html>',
 ].join("\n");
 
-assert(html.includes("مرشح غير معتمد") && html.includes("data-candidate"),
-  "audit page must clearly mark candidates as unapproved");
+assert(html.includes("مرشح غير معتمد") && html.includes("data-candidate") &&
+  html.includes("data-preview-control") && html.includes("export-csv") &&
+  html.includes("data-decision") && html.includes("data-notes"),
+  "audit page must expose human-review controls and mark all candidates as unapproved");
+assert((html.match(/data-preview-control data-src=/g) ?? []).length === candidates.length,
+  "GIF previews must be present only for reviewed candidates, not unrelated exercises");
+const embeddedScript = html.split("<script>")[1]?.split("</script>")[0];
+assert(embeddedScript, "generated review page is missing JavaScript interactions");
+new Script(embeddedScript, { filename: "aura-fit-media-review-inline.js" });
 if (!process.argv.includes("--check")) {
   const out = path.join(root, "media-review-output");
   fs.mkdirSync(out, { recursive: true });
