@@ -1,6 +1,5 @@
 import { getExercise } from "./exercise-db";
 import type { PlannedExercise } from "./workout-engine";
-import type { UserProfile } from "./user-profile";
 import {
   WORKOUT_SESSION_DRAFT_KEY,
   WORKOUT_SESSION_MAX_AGE_MS,
@@ -8,7 +7,10 @@ import {
   saveWorkoutSessionMeta,
 } from "./workout-session-meta";
 
-export { WORKOUT_SESSION_MAX_AGE_MS } from "./workout-session-meta";
+export {
+  WORKOUT_SESSION_MAX_AGE_MS,
+  getWorkoutSessionSafetySignature,
+} from "./workout-session-meta";
 
 const WORKOUT_SESSION_VERSION = 1 as const;
 
@@ -42,17 +44,6 @@ export type WorkoutSessionDraftState = Omit<
   "version" | "savedAt"
 >;
 
-export function getWorkoutSessionSafetySignature(
-  profile: Pick<UserProfile, "level" | "equipment" | "injuries">,
-) {
-  const equipment = [...new Set(profile.equipment)].sort();
-  const injuries = [...new Set(profile.injuries)].sort();
-  return [
-    "level=" + profile.level,
-    "equipment=" + equipment.join(","),
-    "injuries=" + injuries.join(","),
-  ].join("|");
-}
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);

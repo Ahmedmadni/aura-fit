@@ -39,6 +39,7 @@ import {
 } from "@/lib/user-profile";
 import {
   WORKOUT_SESSION_META_EVENT,
+  getWorkoutSessionSafetySignature,
   loadWorkoutSessionMeta,
   type WorkoutSessionMetaV1,
 } from "@/lib/workout-session-meta";
@@ -95,6 +96,11 @@ function Dashboard() {
   const [activeSession, setActiveSession] =
     useState<WorkoutSessionMetaV1>();
   const [now] = useState(() => new Date());
+  const activeSessionNeedsSafetyReview = Boolean(
+    activeSession &&
+      activeSession.safetySignature !==
+        getWorkoutSessionSafetySignature(profile),
+  );
 
   useEffect(() => {
     setProfile(loadProfile());
@@ -309,13 +315,42 @@ function Dashboard() {
           className="px-6 mb-6 animate-enter [animation-delay:175ms]"
           data-active-workout-draft="true"
         >
-          <div className="rounded-3xl border border-cyan/30 bg-cyan/10 p-4">
+          <div
+            className={
+              "rounded-3xl border p-4 " +
+              (activeSessionNeedsSafetyReview
+                ? "border-amber-400/30 bg-amber-400/5"
+                : "border-cyan/30 bg-cyan/10")
+            }
+          >
             <div className="flex items-start justify-between gap-3">
               <div>
-                <p className="type-eyebrow text-cyan">جلسة محفوظة</p>
-                <h2 className="type-card-title mt-1">استأنف من حيث توقفت</h2>
+                <p
+                  className={
+                    "type-eyebrow " +
+                    (activeSessionNeedsSafetyReview
+                      ? "text-amber-400"
+                      : "text-cyan")
+                  }
+                >
+                  {activeSessionNeedsSafetyReview
+                    ? "جلسة تحتاج مراجعة"
+                    : "جلسة محفوظة"}
+                </p>
+                <h2 className="type-card-title mt-1">
+                  {activeSessionNeedsSafetyReview
+                    ? "تغيرت بيانات الأمان"
+                    : "استأنف من حيث توقفت"}
+                </h2>
               </div>
-              <RotateCcw className="size-5 shrink-0 text-cyan" />
+              <RotateCcw
+                className={
+                  "size-5 shrink-0 " +
+                  (activeSessionNeedsSafetyReview
+                    ? "text-amber-400"
+                    : "text-cyan")
+                }
+              />
             </div>
 
             <p className="type-small mt-3 text-muted-foreground">
@@ -329,10 +364,17 @@ function Dashboard() {
             <Link
               to="/workout"
               search={{ day: activeSession.day ?? undefined }}
-              className="mt-4 flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-cyan px-4 font-black text-background transition-transform active:scale-[0.98]"
+              className={
+                "mt-4 flex min-h-11 w-full items-center justify-center gap-2 rounded-xl px-4 font-black text-background transition-transform active:scale-[0.98] " +
+                (activeSessionNeedsSafetyReview
+                  ? "bg-amber-400"
+                  : "bg-cyan")
+              }
             >
               <Play className="size-4 fill-current" />
-              استئناف الجلسة
+              {activeSessionNeedsSafetyReview
+                ? "مراجعة الجلسة"
+                : "استئناف الجلسة"}
             </Link>
           </div>
         </section>

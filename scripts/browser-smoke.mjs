@@ -578,10 +578,10 @@ async function main() {
     }
 
     const navResumeAction = await evaluate(
-      `Boolean(document.querySelector('nav[aria-label="التنقل الرئيسي"] a[aria-label="استئناف الجلسة"]'))`,
+      `Boolean(document.querySelector('nav[aria-label="التنقل الرئيسي"] a[aria-label="فتح الجلسة المحفوظة"]'))`,
     );
     if (!navResumeAction) {
-      throw new Error("Bottom navigation did not route its center action to the active session.");
+      throw new Error("Bottom navigation did not expose the saved-session center action.");
     }
 
     await clickText("استئناف الجلسة", true);
@@ -613,6 +613,15 @@ async function main() {
       localStorage.setItem("kp.profile", JSON.stringify(profile));
       return true;
     })()`);
+
+    await navigate("/profile", "ملف التدريب");
+    const safetyDashboard = await navigate("/", "Browser E2E");
+    if (
+      !safetyDashboard.includes("جلسة تحتاج مراجعة") ||
+      !safetyDashboard.includes("مراجعة الجلسة")
+    ) {
+      throw new Error("Dashboard still presented a safety-mismatched session as a normal resume.");
+    }
 
     const safetyConflictBody = await navigate(
       "/workout?day=0",
