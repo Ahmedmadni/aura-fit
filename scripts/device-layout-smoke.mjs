@@ -105,7 +105,7 @@ async function waitForJson(
   url,
   chrome,
   getChromeStderr,
-  timeoutMs = 30000,
+  timeoutMs = 45000,
 ) {
   const started = Date.now();
   let lastError;
@@ -190,6 +190,10 @@ async function main() {
   validateSafeAreaSources();
   const chromePath = findChrome();
   const profileDir = fs.mkdtempSync(path.join(os.tmpdir(), "aura-device-qa-"));
+  // GitHub runners may expose an invalid session bus address. Chrome does not
+  // need a user D-Bus session for headless CDP tests.
+  const chromeEnv = { ...process.env };
+  delete chromeEnv.DBUS_SESSION_BUS_ADDRESS;
   const chrome = spawn(
     chromePath,
     [
@@ -207,7 +211,7 @@ async function main() {
       "--user-data-dir=" + profileDir,
       "about:blank",
     ],
-    { stdio: ["ignore", "pipe", "pipe"] },
+    { stdio: ["ignore", "pipe", "pipe"], env: chromeEnv },
   );
 
   let chromeStderr = "";
