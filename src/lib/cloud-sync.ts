@@ -12,6 +12,8 @@ import {
   type CloudSession,
 } from "./cloud-auth";
 import {
+  MAX_LOCAL_READINESS,
+  MAX_LOCAL_WORKOUTS,
   loadHistory,
   loadProfile,
   loadProfileUpdatedAt,
@@ -145,7 +147,7 @@ function mergeHistory(
       (a, b) =>
         new Date(b.date).getTime() - new Date(a.date).getTime(),
     )
-    .slice(0, 200);
+    .slice(0, MAX_LOCAL_WORKOUTS);
 }
 
 function mergeReadiness(
@@ -170,7 +172,7 @@ function mergeReadiness(
         new Date(b.recordedAt).getTime() -
         new Date(a.recordedAt).getTime(),
     )
-    .slice(0, 90);
+    .slice(0, MAX_LOCAL_READINESS);
 }
 
 /**
@@ -341,26 +343,114 @@ function applyWorkoutRows(session: CloudSession, rows: WorkoutRow[]) {
   return merged;
 }
 
+/** Page history in blocks of 100: do not rely on a single API response
+ * containing the whole local working set. A deterministic tie-breaker keeps
+ * workout pagination stable when several sessions share the same date.
+ */
+async function readPagedCloudRows<T>(
+  session: CloudSession,
+  table: string,
+  select: string,
+  order: string,
+  maximum: number,
+): Promise<T[]> {
+  const id = encodeURIComponent(session.user.id);
+  const rows: T[] = [];
+  const pageSize = 100;
+  for (let offset = 0; offset < maximum; offset += pageSize) {
+    assertCurrentCloudUser(session);
+    const count = Math.min(pageSize, maximum - offset);
+    const page = await cloudRequest<T[]>(
+      table + "?select=" + select + "&user_id=eq." + id +
+        "&order=" + order + "&limit=" + count + "&offset=" + offset,
+      session,
+    );
+    if (!Array.isArray(page) || page.length > count) {
+      throw new Error("Supabase returned an invalid history page.");
+    }
+    rows.push(...page);
+    if (page.length < count) break;
+  }
+  return rows;
+}
+
 async function readFullCloudRows(session: CloudSession) {
-  const userId = encodeURIComponent(session.user.id);
+  const id = encodeURIComponent(session.user.id);
   const [profiles, readiness, workouts] = await Promise.all([
     cloudRequest<ProfileRow[]>(
       "aura_profiles?select=user_id,data,client_updated_at,updated_at&user_id=eq." +
-        userId + "&limit=1",
+        id + "&limit=1",
       session,
     ),
-    cloudRequest<ReadinessRow[]>(
-      "aura_readiness?select=user_id,date_key,data,recorded_at,updated_at&user_id=eq." +
-        userId + "&order=date_key.desc&limit=90",
-      session,
+    readPagedCloudRows<ReadinessRow>(
+      session, "aura_readiness",
+      "user_id,date_key,data,recorded_at,updated_at",
+      "date_key.desc", MAX_LOCAL_READINESS,
     ),
-    cloudRequest<WorkoutRow[]>(
-      "aura_workouts?select=user_id,workout_id,workout_date,data,updated_at&user_id=eq." +
-        userId + "&order=workout_date.desc&limit=200",
-      session,
+    readPagedCloudRows<WorkoutRow>(
+      session, "aura_workouts",
+      "user_id,workout_id,workout_date,data,updated_at",
+      "workout_date.desc,workout_id.desc", MAX_LOCAL_WORKOUTS,
     ),
   ]);
   return { profiles, readiness, workouts };
+}
+
+/** The expanded local window must not generate hundreds of redundant
+ * readiness PATCH operations on every login / tab visibility change.
+ * New rows are inserted in one bulk request; existing rows are PATCHed only
+ * if the local timestamp is strictly newer than the fetched cloud version.
+ */
+async function uploadFullReadinessDeltas(
+  session: CloudSession,
+  server: ReadinessRow[],
+) {
+  assertCurrentCloudUser(session);
+  const byDate = new Map(server.map(row => [row.date_key, row]));
+  const missing: ReadinessRow[] = [];
+  const newer: ReadinessRow[] = [];
+  for (const item of loadReadinessHistory()) {
+    const cloud = byDate.get(item.dateKey);
+    if (cloud && validTime(item.recordedAt) <= validTime(cloud.recorded_at)) {
+      continue;
+    }
+    const row: ReadinessRow = {
+      user_id: session.user.id,
+      date_key: item.dateKey,
+      data: item,
+      recorded_at: item.recordedAt,
+    };
+    if (cloud) newer.push(row);
+    else missing.push(row);
+  }
+  if (missing.length) {
+    await insertOnly(session, "aura_readiness", "user_id,date_key", missing);
+  }
+  for (const row of newer) {
+    assertCurrentCloudUser(session);
+    await updateOnlyIfOlder(
+      session, "aura_readiness",
+      "user_id=eq." + encodeURIComponent(session.user.id) +
+        "&date_key=eq." + encodeURIComponent(row.date_key),
+      "recorded_at", row.recorded_at, row,
+    );
+  }
+}
+
+async function uploadFullWorkoutDeltas(session: CloudSession, server: WorkoutRow[]) {
+  assertCurrentCloudUser(session);
+  const ids = new Set(server.map(row => row.workout_id));
+  const missing = loadHistory()
+    .filter(workout => !ids.has(workout.id))
+    .map<WorkoutRow>(workout => ({
+      user_id: session.user.id,
+      workout_id: workout.id,
+      workout_date: workout.date,
+      data: workout,
+    }));
+  if (missing.length) {
+    await insertOnly(session, "aura_workouts", "user_id,workout_id", missing);
+  }
 }
 
 function applyFullCloudRows(
@@ -444,7 +534,7 @@ async function verifyLocalChange(session: CloudSession, change: LocalDataChange)
 }
 
 /**
- * A full sync may fetch only the newest 90 readiness / 200 workouts. Do not
+ * A full sync fetches only the bounded recent working set. Do not
  * acknowledge a pending item merely because other rows were read successfully.
  * This also prevents "success" if the server silently ignored a write.
  */
@@ -529,12 +619,13 @@ export async function runFullCloudSync() {
     // Phase one: download remote data, then merge with the live local store.
     // Profile/readiness timestamps and immutable cloud workout IDs win
     // according to the same rules used for incremental changes.
-    applyFullCloudRows(session, await readFullCloudRows(session));
+    const initial = await readFullCloudRows(session);
+    applyFullCloudRows(session, initial);
 
     await Promise.all([
       upsertProfile(session),
-      upsertReadiness(session),
-      upsertWorkouts(session),
+      uploadFullReadinessDeltas(session, initial.readiness),
+      uploadFullWorkoutDeltas(session, initial.workouts),
     ]);
 
     // Phase two: confirm what PostgreSQL actually saved. This handles an

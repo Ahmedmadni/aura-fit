@@ -1,5 +1,7 @@
 import {
   DEFAULT_PROFILE,
+  MAX_LOCAL_READINESS,
+  MAX_LOCAL_WORKOUTS,
   loadHistory,
   loadProfile,
   loadProfileUpdatedAt,
@@ -339,8 +341,8 @@ export function restoreLocalBackup(text: string) {
 
   return {
     profile: backup.profile,
-    readiness: Math.min(90, backup.readiness.length),
-    workouts: Math.min(200, backup.workouts.length),
+    readiness: Math.min(MAX_LOCAL_READINESS, backup.readiness.length),
+    workouts: Math.min(MAX_LOCAL_WORKOUTS, backup.workouts.length),
     exportedAt: backup.exportedAt,
   };
 }

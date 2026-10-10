@@ -205,6 +205,13 @@ if (
 ) {
   fail("server-confirmed pending changes and in-flight retry are required");
 }
+if (
+  !syncSource.includes("readPagedCloudRows<") ||
+  !syncSource.includes("uploadFullReadinessDeltas(") ||
+  !syncSource.includes("uploadFullWorkoutDeltas(")
+) {
+  fail("bounded historical pagination and efficient delta uploads are missing");
+}
 console.log(
-  "Cloud validation PASS: RLS, verified pending revisions, guarded read-back and in-flight retry are present.",
+  "Cloud validation PASS: RLS, verified pending revisions, paginated history and selective cloud updates are present.",
 );
