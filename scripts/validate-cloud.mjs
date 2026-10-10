@@ -196,6 +196,16 @@ for (const script of ["cloud-live-verify.mjs", "validate-cloud-live.mjs"]) {
     fail("live Supabase audit helper missing: " + script);
   }
 }
+const liveAuditSource = fs.readFileSync(
+  path.join(root, "scripts", "cloud-live-verify.mjs"), "utf8",
+);
+if (
+  !liveAuditSource.includes("anonymousRest(") ||
+  !liveAuditSource.includes("still contains audit data") ||
+  !liveAuditSource.includes("anonymous visitor inserted")
+) {
+  fail("live test must check anonymous RLS and prove cleanup really removed rows");
+}
 const ledgerSource = fs.readFileSync(
   path.join(root, "src", "lib", "cloud-sync-ledger.ts"), "utf8",
 );

@@ -38,7 +38,10 @@ mustReject(() => validateLiveConfig({ ...cfg, users: [cfg.users[0], cfg.users[0]
 assert(validateLiveConfig(cfg) === "https://aura-test.supabase.co",
   "valid disposable test configuration rejected");
 
-function pretendSupabase(enforceRls = true) {
+function pretendSupabase(
+  enforceRls = true, allowAnonymous = false, silentDelete = false,
+  anonymousReadDenied = false,
+) {
   const tables = {
     aura_profiles: new Map(),
     aura_readiness: new Map(),
@@ -70,12 +73,17 @@ function pretendSupabase(enforceRls = true) {
     }
     const table = url.pathname.split("/").at(-1);
     if (!(table in tables)) return respond(404, { message: "table missing" });
-    const caller = (new Headers(init.headers).get("Authorization") ?? "").replace("Bearer mock-", "");
-    if (!Object.values(ids).includes(caller)) return respond(401, { message: "unauthorized" });
+    const bearer = (new Headers(init.headers).get("Authorization") ?? "");
+    const caller = bearer.startsWith("Bearer mock-")
+      ? bearer.replace("Bearer mock-", "") : "anon";
+    if (caller === "anon" && !allowAnonymous)
+      return respond(401, { message: "unauthorized" });
+    if (caller !== "anon" && !Object.values(ids).includes(caller))
+      return respond(401, { message: "unauthorized" });
     const prefer = new Headers(init.headers).get("Prefer") ?? "";
     const records = tables[table];
     const matches = (row) => {
-      if (enforceRls && row.user_id !== caller) return false;
+      if (enforceRls && caller !== "anon" && row.user_id !== caller) return false;
       for (const [field, value] of url.searchParams) {
         if (field === "select" || field === "limit" || field === "on_conflict" ||
             field === "order") continue;
@@ -86,6 +94,9 @@ function pretendSupabase(enforceRls = true) {
       return true;
     };
     if (method === "GET") {
+      if (caller === "anon" && anonymousReadDenied) {
+        return respond(403, { message: "anonymous SELECT denied" });
+      }
       let rows = Array.from(records.values()).filter(matches);
       if (url.searchParams.has("limit")) rows = rows.slice(0, Number(url.searchParams.get("limit")));
       const fields = url.searchParams.get("select")?.split(",") ?? [];
@@ -97,7 +108,8 @@ function pretendSupabase(enforceRls = true) {
     if (method === "POST") {
       const incoming = JSON.parse(init.body);
       for (const row of Array.isArray(incoming) ? incoming : [incoming]) {
-        if (enforceRls && row.user_id !== caller) return respond(403, { message: "RLS denied" });
+        if (enforceRls && caller !== "anon" && row.user_id !== caller)
+          return respond(403, { message: "RLS denied" });
         const id = key(table, row);
         if (records.has(id)) {
           if (!prefer.includes("resolution=ignore-duplicates")) return respond(409, {});
@@ -112,7 +124,7 @@ function pretendSupabase(enforceRls = true) {
       if (!matches(row)) continue;
       affected.push(row);
       if (method === "PATCH") records.set(id, { ...row, ...JSON.parse(init.body) });
-      else if (method === "DELETE") records.delete(id);
+      else if (method === "DELETE" && !silentDelete) records.delete(id);
       else return respond(405, {});
     }
     if (prefer.includes("return=representation")) {
@@ -128,13 +140,15 @@ function pretendSupabase(enforceRls = true) {
 
 const mock = pretendSupabase();
 const results = await auditLiveCloud(cfg, mock.fetchMock, () => "ci-check");
-assert(results.length >= 7, "audit did not verify all required RLS and conflict cases");
+assert(results.length >= 8, "audit did not verify anonymous access and all RLS cases");
 assert(Object.values(mock.tables).every(table => table.size === 0),
   "temporary test rows remain after successful audit");
 assert(mock.calls.filter(call => call.path === "/auth/v1/user").length === 2,
   "auth identity verification was skipped");
 assert(mock.calls.some(call => call.method === "PATCH") &&
   mock.calls.some(call => call.method === "DELETE"), "cross-user mutation checks were skipped");
+assert(mock.calls.some(call => call.method === "GET" &&
+  call.path.startsWith("/rest/v1/")), "REST policy checks did not execute");
 
 const insecure = pretendSupabase(false);
 let failedClosed = false;
@@ -147,4 +161,37 @@ assert(failedClosed, "audit incorrectly passed against a database without RLS");
 assert(Object.values(insecure.tables).every(table => table.size === 0),
   "temporary rows were not cleaned up when an RLS violation was found");
 
-console.log("Cloud LIVE contract PASS: opt-in credentials, two identities, RLS CRUD, conditional writes, immutable workouts and guaranteed scoped cleanup.");
+const anonymousLeak = pretendSupabase(true, true);
+let leaked = false;
+try {
+  await auditLiveCloud(cfg, anonymousLeak.fetchMock, () => "ci-anon-leak");
+} catch (error) {
+  leaked = String(error).includes("unauthenticated visitor");
+}
+assert(leaked, "audit passed when anonymous visitors could SELECT account data");
+assert(Object.values(anonymousLeak.tables).every(table => table.size === 0),
+  "anonymous-access failure left disposable audit rows behind");
+
+const anonymousInsertLeak = pretendSupabase(true, true, false, true);
+let inserted = false;
+try {
+  await auditLiveCloud(cfg, anonymousInsertLeak.fetchMock, () => "ci-anon-insert");
+} catch (error) {
+  inserted = String(error).includes("anonymous visitor inserted");
+}
+assert(inserted, "audit passed when anonymous INSERT was allowed but SELECT was denied");
+assert(Object.values(anonymousInsertLeak.tables).every(table => table.size === 0),
+  "anonymous-insert regression left disposable test rows behind");
+
+const failedCleanup = pretendSupabase(true, false, true);
+let refusedFalseCleanup = false;
+try {
+  await auditLiveCloud(cfg, failedCleanup.fetchMock, () => "ci-silent-delete");
+} catch (error) {
+  refusedFalseCleanup = String(error).includes("cleanup was incomplete");
+}
+assert(refusedFalseCleanup, "audit declared cleanup success when DELETE changed zero rows");
+assert(Object.values(failedCleanup.tables).some(table => table.size > 0),
+  "mock did not reproduce the silent-DELETE scenario");
+
+console.log("Cloud LIVE contract PASS: opt-in credentials, anon-denial, account RLS, timestamp guards, immutable sessions and verified cleanup.");
