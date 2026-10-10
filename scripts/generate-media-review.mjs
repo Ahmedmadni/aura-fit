@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { Script } from "node:vm";
+import { encodeReviewCsvCell, parseReviewCsv, validateImportedReviewCsv, buildReviewCsv } from "./media-review-decisions.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const read = (p) => JSON.parse(fs.readFileSync(path.join(root, p), "utf8"));
@@ -17,7 +18,6 @@ function assert(ok, message) {
 const safe = (value) =>
   String(value ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;")
     .replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
-const csv = (value) => '"' + String(value ?? "").replaceAll('"', '""') + '"';
 // Never place source-controlled text directly inside a script tag.
 const jsLiteral = (value) => JSON.stringify(value)
   .replaceAll("<", "\\u003c").replaceAll("\u2028", "\\u2028")
@@ -97,16 +97,20 @@ const columns = [
   "حالة المراجعة", "معرف التمرين", "الاسم العربي", "الاسم الإنجليزي", "المعدات",
   "العضلة الأساسية", "معرف المرشح", "اسم المرشح", "صورة المرشح (غير معتمدة)",
   "الصورة المرجعية 1", "الصورة المرجعية 2", "الصورة المرجعية 3",
-  "قرار المدقق", "سبب القرار",
+  "قرار المدقق", "سبب القرار", "الحركة مطابقة", "المعدات مطابقة",
+  "العضلة مطابقة", "الإطارات فُحصت", "إصدار المصدر",
 ];
 const csvRows = rows.map((row) => [
   row.status, row.slug, row.arabic, row.english, row.equipment, row.muscle,
-  row.candidateId, row.candidateName, candidateUrl(row), ...row.frames, "", "",
+  row.candidateId, row.candidateName, candidateUrl(row), ...row.frames,
+  "", "", "", "", "", "", report.sourceCommit,
 ]);
-const csvText = "\uFEFF" + [columns, ...csvRows].map((values) =>
-  values.map(csv).join(",")).join("\r\n") + "\r\n";
+const csvText = buildReviewCsv(columns, csvRows, {});
+assert(Object.keys(validateImportedReviewCsv(csvText, columns, csvRows)).length === rows.length,
+  "blank review queue must round-trip through the import validator");
 
-const reviewKey = "aura-fit-media-review-v2-" + report.sourceCommit;
+const reviewKey = "aura-fit-media-review-v3-" + report.sourceCommit;
+const legacyReviewKey = "aura-fit-media-review-v2-" + report.sourceCommit;
 const entries = rows.map((row) => {
   const hasCandidate = Boolean(row.candidateId);
   const status = row.status === "none" ? "لا توجد مطابقة آمنة" :
@@ -145,14 +149,20 @@ const entries = rows.map((row) => {
         '<select data-decision aria-label="قرار مراجعة ' + safe(row.arabic) + '">' +
           '<option value="">لم تُراجع</option>' +
           '<option value="needs-evidence">تحتاج أدلة إضافية</option>' +
-          '<option value="rejected">استبعاد المرشح</option>' +
-          '<option value="recommended">مرشح مقترح فقط (غير معتمد)</option>' +
+          (hasCandidate ? '<option value="rejected">استبعاد المرشح</option>' +
+          '<option value="recommended">مرشح مقترح فقط (غير معتمد)</option>' : '') +
           '<option value="new-source">البحث عن مصدر مختلف</option>' +
         '</select></label>' +
       '<label>الدليل / سبب القرار' +
         '<textarea rows="3" maxlength="1200" data-notes aria-label="ملاحظات مراجعة ' +
           safe(row.arabic) + '" placeholder="صف الفرق أو دليل المطابقة قبل اتخاذ القرار"></textarea>' +
-      '</label><p class="muted small">تُحفظ الملاحظات محليًا إذا سمح المتصفح؛ صدّر CSV للاحتفاظ بها.</p>' +
+      '</label><fieldset class="review-checks"><legend>فحص المطابقة (إلزامي للترشيح)</legend>' +
+        '<label><input type="checkbox" data-review-check="movement"> مطابقة نمط الحركة والمدى</label>' +
+        '<label><input type="checkbox" data-review-check="equipment"> مطابقة المعدات والقبضة</label>' +
+        '<label><input type="checkbox" data-review-check="muscle"> مطابقة العضلة المستهدفة</label>' +
+        '<label><input type="checkbox" data-review-check="frames"> فحص بداية الحركة ووسطها ونهايتها</label>' +
+      '</fieldset><p class="review-error" data-review-error role="status"></p>' +
+      '<p class="muted small">الترشيح الاسترشادي يحتاج أربعة فحوص وسببًا من 20 حرفًا؛ ولا يفعّل الفيديو. صدّر CSV للاحتفاظ بالقرارات.</p>' +
     '</div>' +
     '<p class="code">' + safe(row.slug) + '</p></article>';
 }).join("\n");
@@ -181,6 +191,9 @@ const html = [
   '.review-form label{display:grid;gap:6px;font-size:13px;color:#d7e5ed}',
   '.review-form textarea{resize:vertical;background:#101923;border:1px solid #43505b;border-radius:10px;color:white;font:inherit;padding:10px;width:100%;box-sizing:border-box}',
   '.review-form select{max-width:none;width:100%}',
+  '.review-checks{border:1px solid #43505b;border-radius:10px;display:grid;gap:8px}',
+  '.review-checks label{display:flex;align-items:center;gap:8px}.review-checks input{min-width:18px;width:18px;height:18px}',
+  '.review-error{color:#ffbd8a;font-size:12px;margin:0;min-height:16px}',
   '.warn{color:#f0c372;font-size:12px;font-weight:bold;margin-bottom:8px}',
   '.links a{color:#cafa82}.code{font:12px monospace;direction:ltr;text-align:left;color:#859eb3}',
   '[hidden]{display:none!important}@media(max-width:700px){.grid{grid-template-columns:1fr}.filters{flex-wrap:wrap}.filters input{min-width:100%}}',
@@ -199,30 +212,63 @@ const html = [
   '<option value="all">جميع التمارين</option><option value="candidate">مرشح محدد</option>',
   '<option value="review">قيد المراجعة بلا مرشح</option><option value="none">دون مطابقة آمنة</option>',
   '<option value="pending">لم يُحدد لها قرار بعد</option>',
-  '</select><button type="button" class="export-btn" id="export-csv">تصدير قرارات المراجعة CSV</button></div>',
+  '</select><button type="button" class="export-btn" id="import-csv">استيراد قرارات CSV</button>',
+  '<input type="file" id="import-file" accept=".csv,text/csv" hidden aria-label="اختيار ملف مراجعة CSV">',
+  '<button type="button" class="export-btn" id="export-csv">تصدير قرارات المراجعة CSV</button></div>',
+  '<p class="muted" id="review-progress" aria-live="polite"></p>',
+  '<p class="muted" id="import-result" role="status" aria-live="polite"></p>',
   '<p id="visible-count" class="muted" aria-live="polite"></p>',
   '<div class="grid">' + entries + '</div>',
   '<script>',
+  // Embed the EXACT pure helpers used by CI; no network dependency/file://
+  // import is necessary, and imported CSV never executes formulas or HTML.
+  encodeReviewCsvCell.toString(),
+  parseReviewCsv.toString(),
+  validateImportedReviewCsv.toString(),
+  buildReviewCsv.toString(),
   'const items=[...document.querySelectorAll(".exercise")];',
   'const exportColumns=' + jsLiteral(columns) + ';',
   'const exportRows=' + jsLiteral(csvRows) + ';',
   'const storageKey=' + jsLiteral(reviewKey) + ';',
-  'let decisions={};',
-  'try{const stored=JSON.parse(localStorage.getItem(storageKey)||"{}");',
-  'if(stored&&typeof stored==="object"&&!Array.isArray(stored))decisions=stored;}catch{}',
-  'function saveDecision(item){',
-  'const slug=item.dataset.slug,decision=item.querySelector("[data-decision]").value,',
-  'notes=item.querySelector("[data-notes]").value.slice(0,1200);',
-  'decisions[slug]={decision,notes};',
+  'const legacyKey=' + jsLiteral(legacyReviewKey) + ';',
+  'let decisions=Object.create(null);',
+  'try{const modern=localStorage.getItem(storageKey);',
+  'const stored=JSON.parse(modern||localStorage.getItem(legacyKey)||"{}");',
+  'if(stored&&typeof stored==="object"&&!Array.isArray(stored)){',
+  'for(const item of items){const d=stored[item.dataset.slug];',
+  'if(d&&typeof d==="object"){',
+  'const safeDecision=d.decision==="recommended"&&',
+  '(!d.checks||!Object.values(d.checks).every(Boolean))?',
+  '"needs-evidence":d.decision;',
+  'decisions[item.dataset.slug]={...d,decision:safeDecision};}}}}catch{}',
+  'const checkNames=["movement","equipment","muscle","frames"];',
+  'const search=document.getElementById("search"),filter=document.getElementById("filter");',
+  'const importResult=document.getElementById("import-result");',
+  'function showDecision(item){const saved=decisions[item.dataset.slug]||{};',
+  'const selector=item.querySelector("[data-decision]");',
+  'selector.value=[...selector.options].some(x=>x.value===saved.decision)?saved.decision:"";',
+  'item.querySelector("[data-notes]").value=String(saved.notes||"").slice(0,1200);',
+  'for(const name of checkNames){item.querySelector("[data-review-check="+name+"]").checked=Boolean(saved.checks&&saved.checks[name]);}',
+  'item.querySelector("[data-review-error]").textContent="";}',
+  'function saveDecision(item){const slug=item.dataset.slug;',
+  'const selector=item.querySelector("[data-decision]");',
+  'const notes=item.querySelector("[data-notes]").value.slice(0,1200);',
+  'const checks=Object.fromEntries(checkNames.map(name=>',
+  '[name,item.querySelector("[data-review-check="+name+"]").checked]));',
+  'const error=item.querySelector("[data-review-error]");',
+  'if(selector.value==="recommended"&&',
+  '(checkNames.some(name=>!checks[name])||notes.trim().length<20)){',
+  'selector.value="needs-evidence";',
+  'error.textContent="لم يُقبل الترشيح: يجب إكمال الفحوص الأربعة وذكر سبب من 20 حرفًا على الأقل.";',
+  '}else{error.textContent="";}',
+  'decisions[slug]={decision:selector.value,notes,checks};',
   'try{localStorage.setItem(storageKey,JSON.stringify(decisions));}catch{}',
   'refresh();}',
   'for(const item of items){',
-  'const saved=decisions[item.dataset.slug]||{};',
-  'const selector=item.querySelector("[data-decision]");',
-  'if([...selector.options].some(x=>x.value===saved.decision))selector.value=saved.decision;',
-  'item.querySelector("[data-notes]").value=String(saved.notes||"").slice(0,1200);',
-  'selector.addEventListener("change",()=>saveDecision(item));',
+  'showDecision(item);',
+  'item.querySelector("[data-decision]").addEventListener("change",()=>saveDecision(item));',
   'item.querySelector("[data-notes]").addEventListener("input",()=>saveDecision(item));',
+  'for(const input of item.querySelectorAll("[data-review-check]")){input.addEventListener("change",()=>saveDecision(item));}',
   'const button=item.querySelector("[data-preview-control]");',
   'if(button){button.addEventListener("click",()=>{',
   'const img=item.querySelector("[data-preview-img]");',
@@ -234,33 +280,50 @@ const html = [
   'button.setAttribute("aria-label","تشغيل معاينة المرشح غير المعتمد");}',
   '});}',
   '}',
-  'const search=document.getElementById("search"),filter=document.getElementById("filter");',
-  'function refresh(){const text=search.value.trim().toLowerCase(),mode=filter.value;',
-  'let shown=0;for(const item of items){const match=(!text||item.dataset.search.includes(text))&&',
+  'function refresh(){const query=search.value.trim().toLowerCase(),mode=filter.value;',
+  'let shown=0,completed=0,recommended=0;',
+  'for(const item of items){const choice=(decisions[item.dataset.slug]||{}).decision;',
+  'if(choice)completed++;if(choice==="recommended")recommended++;',
+  'const match=(!query||item.dataset.search.includes(query))&&',
   '(mode==="all"||(mode==="candidate"&&item.dataset.candidate==="yes")||',
   '(mode==="review"&&item.dataset.status==="review"&&item.dataset.candidate==="no")||',
   '(mode==="none"&&item.dataset.status==="none")||',
-  '(mode==="pending"&&!(decisions[item.dataset.slug]||{}).decision));',
+  '(mode==="pending"&&!choice));',
   'item.hidden=!match;if(match)shown++;}',
-  'document.getElementById("visible-count").textContent="المعروض: "+shown+" من "+items.length;}',
+  'document.getElementById("visible-count").textContent="المعروض: "+shown+" من "+items.length;',
+  'document.getElementById("review-progress").textContent=',
+  '"قرارات مسجلة: "+completed+" / "+items.length+" · مرشحات موثقة (غير معتمدة): "+recommended;',
+  '}',
   'search.addEventListener("input",refresh);filter.addEventListener("change",refresh);',
+  'document.getElementById("import-csv").addEventListener("click",()=>document.getElementById("import-file").click());',
+  'document.getElementById("import-file").addEventListener("change",async event=>{',
+  'const input=event.currentTarget,file=input.files&&input.files[0];',
+  'if(!file)return;',
+  'try{if(file.size>1024*1024)throw new Error("ملف المراجعة أكبر من 1 ميجابايت.");',
+  'const imported=validateImportedReviewCsv(await file.text(),exportColumns,exportRows);',
+  'decisions=Object.assign(Object.create(null),decisions,imported);',
+  'for(const item of items)showDecision(item);',
+  'try{localStorage.setItem(storageKey,JSON.stringify(decisions));}catch{}',
+  'refresh();importResult.textContent="تم استيراد "+Object.keys(imported).length+" قرارًا/مسودة، دون تفعيل أي GIF.";',
+  '}catch(err){importResult.textContent="فشل الاستيراد: "+(err instanceof Error?err.message:"ملف غير صالح");}',
+  'finally{input.value="";}',
+  '});',
   'document.getElementById("export-csv").addEventListener("click",()=>{',
-  'const quote=v=>String.fromCharCode(34)+String(v??"").replaceAll(String.fromCharCode(34),String.fromCharCode(34)+String.fromCharCode(34))+String.fromCharCode(34);',
-  'const data=[exportColumns,...exportRows.map(row=>{',
-  'const saved=decisions[row[1]]||{};',
-  'return [...row.slice(0,-2),saved.decision||"",saved.notes||""];',
-  '})].map(row=>row.map(quote).join(",")).join("\\r\\n")+"\\r\\n";',
-  'const blob=new Blob(["\\uFEFF",data],{type:"text/csv;charset=utf-8"});',
+  'try{const text=buildReviewCsv(exportColumns,exportRows,decisions);',
+  'const blob=new Blob([text],{type:"text/csv;charset=utf-8"});',
   'const href=URL.createObjectURL(blob),a=document.createElement("a");',
   'a.href=href;a.download="aura-fit-reviewed-media.csv";document.body.appendChild(a);',
   'a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(href),1000);',
+  'importResult.textContent="تم تصدير المراجعة مع الفحوص الأربعة وإصدار المصدر.";',
+  '}catch(err){importResult.textContent="تعذر التصدير: "+(err instanceof Error?err.message:"راجع القرارات غير المكتملة");}',
   '});refresh();',
   '</script></main></body></html>',
 ].join("\n");
 
 assert(html.includes("مرشح غير معتمد") && html.includes("data-candidate") &&
   html.includes("data-preview-control") && html.includes("export-csv") &&
-  html.includes("data-decision") && html.includes("data-notes"),
+  html.includes("data-decision") && html.includes("data-notes") &&
+  html.includes("import-csv") && html.includes("data-review-check"),
   "audit page must expose human-review controls and mark all candidates as unapproved");
 assert((html.match(/data-preview-control data-src=/g) ?? []).length === candidates.length,
   "GIF previews must be present only for reviewed candidates, not unrelated exercises");
