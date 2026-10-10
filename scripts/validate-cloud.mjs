@@ -165,6 +165,16 @@ if (
   fail("local account isolation must cover workout drafts and all account data");
 }
 
+if (
+  !syncSource.includes("resolution=ignore-duplicates") ||
+  !syncSource.includes("client_updated_at") ||
+  !syncSource.includes("recorded_at") ||
+  !syncSource.includes("updateOnlyIfOlder") ||
+  !syncSource.includes("cloud,") && !syncSource.includes("...local, ...cloud")
+) {
+  fail("conditional cloud upsert and conflict protection are missing");
+}
+
 console.log(
-  "Cloud validation PASS: schema, RLS, request account guards and local account data partition are present.",
+  "Cloud validation PASS: RLS, per-account data, and conditional insert/update conflict protection are present.",
 );

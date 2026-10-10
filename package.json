@@ -21,6 +21,7 @@
     "cloud-auth:validate": "bun run scripts/validate-cloud-auth.ts",
     "cloud-isolation:validate": "bun run scripts/validate-cloud-isolation.ts",
     "cloud-local-vault:validate": "bun run scripts/validate-cloud-local-vault.ts",
+    "cloud-conflicts:validate": "bun run scripts/validate-cloud-conflicts.ts",
     "realdata:validate": "node scripts/validate-real-data-pages.mjs",
     "browser:smoke": "node scripts/browser-smoke.mjs",
     "backup:validate": "bun scripts/validate-local-backup.ts",

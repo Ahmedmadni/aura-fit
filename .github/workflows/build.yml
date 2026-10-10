@@ -27,6 +27,7 @@ jobs:
       - run: bun run cloud-auth:validate
       - run: bun run cloud-isolation:validate
       - run: bun run cloud-local-vault:validate
+      - run: bun run cloud-conflicts:validate
       - run: bun run realdata:validate
       - run: bun run backup:validate
       - run: bun run app:smoke
