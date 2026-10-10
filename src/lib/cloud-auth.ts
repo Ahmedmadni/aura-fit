@@ -1,4 +1,5 @@
 import { getCloudConfig } from "./cloud-config";
+import { activateLocalAccount, retainLocalAccountOwner } from "./cloud-local-vault";
 
 const SESSION_KEY = "kp.cloud.session";
 export const CLOUD_AUTH_CHANGED_EVENT = "aura:cloud-auth-changed";
@@ -65,8 +66,16 @@ export function loadCloudSession(): CloudSession | null {
 
 function saveCloudSession(session: CloudSession | null) {
   if (!storageAvailable()) return;
-  if (!session) localStorage.removeItem(SESSION_KEY);
-  else localStorage.setItem(SESSION_KEY, JSON.stringify(session));
+  const previous = loadCloudSession();
+  if (session) {
+    // Partition device data before advertising a different cloud account.
+    // Corrupted/unsaved target data abort the switch and keep the old session.
+    activateLocalAccount(session.user.id, previous?.user.id);
+    localStorage.setItem(SESSION_KEY, JSON.stringify(session));
+  } else {
+    if (previous) retainLocalAccountOwner(previous.user.id);
+    localStorage.removeItem(SESSION_KEY);
+  }
   emitAuthChanged();
 }
 

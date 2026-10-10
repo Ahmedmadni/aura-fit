@@ -88,16 +88,23 @@ function Profile() {
   }, []);
 
   useEffect(() => {
-    const refreshSession = () => setCloudSession(loadCloudSession());
+    const refreshSession = () => {
+      setCloudSession(loadCloudSession());
+      setProfile(loadProfile());
+      setHistory(loadHistory());
+    };
     refreshSession();
 
     const onStatus = (event: Event) => {
-      setCloudStatus(
-        (event as CustomEvent<CloudSyncStatus>).detail ?? {
-          state: "idle",
-          message: "حالة المزامنة غير متاحة",
-        },
-      );
+      const status = (event as CustomEvent<CloudSyncStatus>).detail ?? {
+        state: "idle",
+        message: "حالة المزامنة غير متاحة",
+      };
+      setCloudStatus(status);
+      if (status.state === "synced") {
+        setProfile(loadProfile());
+        setHistory(loadHistory());
+      }
     };
 
     window.addEventListener(CLOUD_AUTH_CHANGED_EVENT, refreshSession);
