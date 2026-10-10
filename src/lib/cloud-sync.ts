@@ -125,15 +125,13 @@ function mergeHistory(
   local: CompletedWorkout[],
   cloud: CompletedWorkout[],
 ) {
+  // Completed workouts have no edit-version field. Their workout date is the
+  // session date, NOT a last-edited timestamp. Treat an existing cloud ID as
+  // authoritative rather than allowing a conflicting local copy to overwrite
+  // an already saved cloud session.
   const byId = new Map<string, CompletedWorkout>();
-  for (const workout of [...cloud, ...local]) {
-    const current = byId.get(workout.id);
-    if (
-      !current ||
-      new Date(workout.date).getTime() >= new Date(current.date).getTime()
-    ) {
-      byId.set(workout.id, workout);
-    }
+  for (const workout of [...local, ...cloud]) {
+    byId.set(workout.id, workout);
   }
   return Array.from(byId.values())
     .sort(
@@ -167,25 +165,69 @@ function mergeReadiness(
     .slice(0, 90);
 }
 
+/**
+ * PostgREST atomic compare-and-swap strategy, without requiring a new SQL
+ * migration:
+ * 1) INSERT ... ON CONFLICT DO NOTHING preserves an existing cloud row.
+ * 2) PATCH WHERE stored client timestamp is strictly older. Concurrent PATCH
+ *    requests cannot regress data because the timestamp condition is checked
+ *    inside PostgreSQL at the time of the update.
+ *
+ * Device clocks must be reasonably accurate. This is timestamp-based LWW,
+ * not a multi-field CRDT or server-clock consensus algorithm.
+ */
+async function insertOnly(
+  session: CloudSession,
+  table: string,
+  conflictKeys: string,
+  payload: unknown,
+) {
+  await cloudRequest(
+    table + "?on_conflict=" + conflictKeys,
+    session,
+    {
+      method: "POST",
+      headers: apiHeaders(session, "resolution=ignore-duplicates,return=minimal"),
+      body: JSON.stringify(payload),
+    },
+  );
+}
+
+async function updateOnlyIfOlder(
+  session: CloudSession,
+  table: string,
+  selector: string,
+  versionColumn: string,
+  version: string,
+  payload: unknown,
+) {
+  await cloudRequest(
+    table + "?" + selector + "&" + versionColumn + "=lt." +
+      encodeURIComponent(version),
+    session,
+    {
+      method: "PATCH",
+      headers: apiHeaders(session, "return=minimal"),
+      body: JSON.stringify(payload),
+    },
+  );
+}
+
 async function upsertProfile(session: CloudSession) {
   assertCurrentCloudUser(session);
-  const updatedAt = loadProfileUpdatedAt() ?? new Date().toISOString();
+  // A fresh installation's DEFAULT_PROFILE is not a user edit. Never publish
+  // an artificial timestamp which could erase a real profile from device B.
+  const updatedAt = loadProfileUpdatedAt();
+  if (!updatedAt) return;
   const row: ProfileRow = {
     user_id: session.user.id,
     data: loadProfile(),
     client_updated_at: updatedAt,
   };
-  await cloudRequest(
-    "aura_profiles?on_conflict=user_id",
-    session,
-    {
-      method: "POST",
-      headers: apiHeaders(
-        session,
-        "resolution=merge-duplicates,return=minimal",
-      ),
-      body: JSON.stringify(row),
-    },
+  const selector = "user_id=eq." + encodeURIComponent(session.user.id);
+  await insertOnly(session, "aura_profiles", "user_id", row);
+  await updateOnlyIfOlder(
+    session, "aura_profiles", selector, "client_updated_at", updatedAt, row,
   );
 }
 
@@ -203,19 +245,19 @@ async function upsertReadiness(
       recorded_at: item.recordedAt,
     }));
   if (!rows.length) return;
-
-  await cloudRequest(
-    "aura_readiness?on_conflict=user_id,date_key",
-    session,
-    {
-      method: "POST",
-      headers: apiHeaders(
-        session,
-        "resolution=merge-duplicates,return=minimal",
-      ),
-      body: JSON.stringify(rows),
-    },
-  );
+  await insertOnly(session, "aura_readiness", "user_id,date_key", rows);
+  for (const row of rows) {
+    assertCurrentCloudUser(session);
+    await updateOnlyIfOlder(
+      session,
+      "aura_readiness",
+      "user_id=eq." + encodeURIComponent(session.user.id) +
+        "&date_key=eq." + encodeURIComponent(row.date_key),
+      "recorded_at",
+      row.recorded_at,
+      row,
+    );
+  }
 }
 
 async function upsertWorkouts(
@@ -232,19 +274,9 @@ async function upsertWorkouts(
       data: workout,
     }));
   if (!rows.length) return;
-
-  await cloudRequest(
-    "aura_workouts?on_conflict=user_id,workout_id",
-    session,
-    {
-      method: "POST",
-      headers: apiHeaders(
-        session,
-        "resolution=merge-duplicates,return=minimal",
-      ),
-      body: JSON.stringify(rows),
-    },
-  );
+  // Completed workouts are immutable across devices. Conflicting IDs are
+  // resolved in favor of the already-stored cloud workout on the next fetch.
+  await insertOnly(session, "aura_workouts", "user_id,workout_id", rows);
 }
 
 export async function syncLocalChange(change: LocalDataChange) {
