@@ -175,6 +175,13 @@ if (
   fail("conditional cloud upsert and conflict protection are missing");
 }
 
+if (
+  !syncSource.includes("verifyLocalChange(session, change)") ||
+  !syncSource.includes("const verified = applyFullCloudRows(") ||
+  !syncSource.includes("await readFullCloudRows(session)")
+) {
+  fail("post-write cloud verification is missing");
+}
 console.log(
-  "Cloud validation PASS: RLS, per-account data, and conditional insert/update conflict protection are present.",
+  "Cloud validation PASS: RLS, per-account data, conditional writes and post-write reconciliation are present.",
 );
