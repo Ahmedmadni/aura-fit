@@ -99,6 +99,8 @@ const P_KEY = "kp.profile";
 const P_UPDATED_KEY = "kp.profile.updated-at";
 const H_KEY = "kp.history";
 const R_KEY = "kp.readiness";
+export const MAX_LOCAL_WORKOUTS = 500;
+export const MAX_LOCAL_READINESS = 365;
 
 export const LOCAL_DATA_CHANGED_EVENT = "aura:local-data-changed";
 export type LocalDataChange =
@@ -186,7 +188,7 @@ export function replaceLocalHistory(
       (a, b) =>
         new Date(b.date).getTime() - new Date(a.date).getTime(),
     )
-    .slice(0, 200);
+    .slice(0, MAX_LOCAL_WORKOUTS);
   localStorage.setItem(H_KEY, JSON.stringify(unique));
   if (emit) {
     for (const workout of unique) {
@@ -217,7 +219,7 @@ export function loadReadinessHistory(): DailyReadinessCheckIn[] {
           typeof item.recordedAt === "string",
       )
       .map(normalizeReadinessCheckIn)
-      .slice(0, 90);
+      .slice(0, MAX_LOCAL_READINESS);
   } catch {
     return [];
   }
@@ -259,7 +261,7 @@ export function replaceLocalReadinessHistory(
         new Date(b.recordedAt).getTime() -
         new Date(a.recordedAt).getTime(),
     )
-    .slice(0, 90);
+    .slice(0, MAX_LOCAL_READINESS);
   localStorage.setItem(R_KEY, JSON.stringify(next));
   if (emit) {
     for (const item of next) {
