@@ -89,6 +89,7 @@ if (
 const sourceFiles = [
   path.join(root, "src", "lib", "cloud-config.ts"),
   path.join(root, "src", "lib", "cloud-auth.ts"),
+  path.join(root, "src", "lib", "cloud-local-vault.ts"),
   path.join(root, "src", "lib", "cloud-sync.ts"),
   path.join(root, "src", "components", "cloud-sync-bridge.tsx"),
   path.join(root, "src", "routes", "__root.tsx"),
@@ -153,6 +154,17 @@ if (!bridgeSource.includes("retryAfterCurrent = true")) {
   fail("auth change while syncing must queue a new reconciliation");
 }
 
+const vaultSource = fs.readFileSync(
+  path.join(root, "src", "lib", "cloud-local-vault.ts"), "utf8",
+);
+if (
+  !vaultSource.includes("activateLocalAccount") ||
+  !vaultSource.includes("aura.workout-session-meta.v1") ||
+  !authSource.includes("activateLocalAccount(session.user.id")
+) {
+  fail("local account isolation must cover workout drafts and all account data");
+}
+
 console.log(
-  "Cloud validation PASS: schema, RLS, browser config and cross-account sync safety checks are present.",
+  "Cloud validation PASS: schema, RLS, request account guards and local account data partition are present.",
 );
