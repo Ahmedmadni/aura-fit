@@ -1,5 +1,11 @@
 import { getCloudConfig } from "./cloud-config";
 import {
+  confirmCloudChange,
+  confirmFullCloudSync,
+  markCloudChangePending,
+  snapshotPendingCloudChanges,
+} from "./cloud-sync-ledger";
+import {
   getValidCloudSession,
   loadCloudSession,
   type CloudSession,
@@ -394,8 +400,14 @@ async function verifyLocalChange(session: CloudSession, change: LocalDataChange)
 }
 
 export async function syncLocalChange(change: LocalDataChange) {
+  // Mark the unsaved local edit BEFORE awaiting an expired session refresh or
+  // any network request. An offline failure must leave it visible as pending.
+  const userId = loadCloudSession()?.user.id;
+  if (!userId) return;
+  const revision = markCloudChangePending(userId, change);
   const session = await getValidCloudSession();
-  if (!session || loadCloudSession()?.user.id !== session.user.id) return;
+  if (!session || session.user.id !== userId ||
+      loadCloudSession()?.user.id !== userId) return;
 
   try {
     emitStatus({ state: "syncing", message: "مزامنة آخر تغيير..." });
@@ -410,6 +422,7 @@ export async function syncLocalChange(change: LocalDataChange) {
     // A newer local edit during this request is preserved by timestamp checks.
     await verifyLocalChange(session, change);
     assertCurrentCloudUser(session);
+    confirmCloudChange(userId, change, revision);
     emitStatus({
       state: "synced",
       message: "تمت مطابقة التغيير مع البيانات السحابية",
@@ -432,6 +445,9 @@ export async function runFullCloudSync() {
   }
 
   assertCurrentCloudUser(session);
+  // A local change made after this point must NOT be marked verified by
+  // the full-sync's final response. Its own network upload is still pending.
+  const pendingAtStart = snapshotPendingCloudChanges(session.user.id);
   emitStatus({ state: "syncing", message: "مزامنة البيانات..." });
 
   try {
@@ -455,6 +471,7 @@ export async function runFullCloudSync() {
     );
 
     assertCurrentCloudUser(session);
+    confirmFullCloudSync(session.user.id, pendingAtStart);
     const syncedAt = new Date().toISOString();
     emitStatus({
       state: "synced",

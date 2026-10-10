@@ -24,6 +24,7 @@
     "cloud-conflicts:validate": "bun run scripts/validate-cloud-conflicts.ts",
     "cloud-convergence:validate": "bun run scripts/validate-cloud-convergence.ts",
     "cloud-live:validate": "node scripts/validate-cloud-live.mjs",
+    "cloud-ledger:validate": "bun run scripts/validate-cloud-ledger.ts",
     "cloud-live:verify": "node scripts/cloud-live-verify.mjs",
     "realdata:validate": "node scripts/validate-real-data-pages.mjs",
     "browser:smoke": "node scripts/browser-smoke.mjs",

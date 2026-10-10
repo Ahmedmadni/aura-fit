@@ -31,6 +31,7 @@ jobs:
       - run: bun run cloud-convergence:validate
       - run: node --check scripts/cloud-live-verify.mjs
       - run: bun run cloud-live:validate
+      - run: bun run cloud-ledger:validate
       - run: bun run realdata:validate
       - run: bun run backup:validate
       - run: bun run app:smoke

@@ -187,6 +187,17 @@ for (const script of ["cloud-live-verify.mjs", "validate-cloud-live.mjs"]) {
     fail("live Supabase audit helper missing: " + script);
   }
 }
+const ledgerSource = fs.readFileSync(
+  path.join(root, "src", "lib", "cloud-sync-ledger.ts"), "utf8",
+);
+if (
+  !ledgerSource.includes("markCloudChangePending") ||
+  !ledgerSource.includes("confirmFullCloudSync") ||
+  !syncSource.includes("markCloudChangePending(userId, change)") ||
+  !syncSource.includes("confirmCloudChange(userId, change, revision)")
+) {
+  fail("per-account pending cloud sync ledger must track unverified edits");
+}
 console.log(
-  "Cloud validation PASS: RLS, per-account data, conditional writes, post-write reconciliation and opt-in live audit are present.",
+  "Cloud validation PASS: RLS, per-account pending ledger, conditional writes, read-back and live audit tools are present.",
 );
