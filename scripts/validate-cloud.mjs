@@ -208,7 +208,8 @@ if (
 if (
   !syncSource.includes("readPagedCloudRows<") ||
   !syncSource.includes("uploadFullReadinessDeltas(") ||
-  !syncSource.includes("uploadFullWorkoutDeltas(")
+  !syncSource.includes("uploadFullWorkoutDeltas(") ||
+  !syncSource.includes("verifyEvictedLocalHistory(")
 ) {
   fail("bounded historical pagination and efficient delta uploads are missing");
 }

@@ -34,6 +34,7 @@ jobs:
       - run: bun run cloud-ledger:validate
       - run: bun run cloud-pending:validate
       - run: bun run cloud-history:validate
+      - run: bun run cloud-overflow:validate
       - run: bun run realdata:validate
       - run: bun run backup:validate
       - run: bun run app:smoke
