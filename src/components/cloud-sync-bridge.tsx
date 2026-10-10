@@ -58,6 +58,9 @@ export function CloudSyncBridge() {
     const onLocal = (event: Event) => {
       const detail = (event as CustomEvent<LocalDataChange>).detail;
       if (!detail || !loadCloudSession()) return;
+      // If this change happens mid-reconciliation, repeat the full sync
+      // afterward. Its first snapshot cannot acknowledge newer revisions.
+      if (syncing) retryAfterCurrent = true;
       void syncLocalChange(detail);
     };
 
