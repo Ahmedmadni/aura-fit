@@ -198,6 +198,13 @@ if (
 ) {
   fail("per-account pending cloud sync ledger must track unverified edits");
 }
+if (
+  !syncSource.includes("verifiedPendingSnapshot(") ||
+  !syncSource.includes("CloudRecordNotVerifiedError") ||
+  !bridgeSource.includes("if (syncing) retryAfterCurrent = true")
+) {
+  fail("server-confirmed pending changes and in-flight retry are required");
+}
 console.log(
-  "Cloud validation PASS: RLS, per-account pending ledger, conditional writes, read-back and live audit tools are present.",
+  "Cloud validation PASS: RLS, verified pending revisions, guarded read-back and in-flight retry are present.",
 );

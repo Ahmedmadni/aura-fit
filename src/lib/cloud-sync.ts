@@ -3,6 +3,7 @@ import {
   confirmCloudChange,
   confirmFullCloudSync,
   markCloudChangePending,
+  pendingCloudChanges,
   snapshotPendingCloudChanges,
 } from "./cloud-sync-ledger";
 import {
@@ -373,6 +374,39 @@ function applyFullCloudRows(
   return { readiness, workouts };
 }
 
+class CloudRecordNotVerifiedError extends Error {
+  constructor() {
+    super("لم يتم التحقق من حفظ هذا التغيير على الخادم. لا يزال محفوظًا محليًا.");
+    this.name = "CloudRecordNotVerifiedError";
+  }
+}
+
+// A PostgREST 204 can mean that INSERT ... DO NOTHING or a timestamp-guarded
+// PATCH affected zero rows. Only the server's actual matching row can
+// acknowledge a pending local change.
+function serverHasAcceptedProfile(row?: ProfileRow) {
+  const timestamp = loadProfileUpdatedAt();
+  return Boolean(
+    row && timestamp && Number.isFinite(validTime(timestamp)) &&
+    validTime(row.client_updated_at) >= validTime(timestamp),
+  );
+}
+
+function serverHasAcceptedReadiness(row: ReadinessRow | undefined, dateKey: string) {
+  const local = loadReadinessHistory().find((item) => item.dateKey === dateKey);
+  return Boolean(
+    row && local && row.date_key === dateKey &&
+    Number.isFinite(validTime(local.recordedAt)) &&
+    validTime(row.recorded_at) >= validTime(local.recordedAt),
+  );
+}
+
+function serverHasAcceptedWorkout(row: WorkoutRow | undefined, workoutId: string) {
+  return Boolean(row && row.workout_id === workoutId &&
+    loadHistory().some((item) => item.id === workoutId));
+}
+
+/** Never confirm a change when the server read-back is empty or outdated. */
 async function verifyLocalChange(session: CloudSession, change: LocalDataChange) {
   const userId = encodeURIComponent(session.user.id);
   if (change.kind === "profile") {
@@ -381,6 +415,8 @@ async function verifyLocalChange(session: CloudSession, change: LocalDataChange)
         userId + "&limit=1",
       session,
     );
+    assertCurrentCloudUser(session);
+    if (!serverHasAcceptedProfile(rows[0])) throw new CloudRecordNotVerifiedError();
     applyProfileRow(session, rows[0]);
   } else if (change.kind === "readiness") {
     const rows = await cloudRequest<ReadinessRow[]>(
@@ -388,6 +424,10 @@ async function verifyLocalChange(session: CloudSession, change: LocalDataChange)
         userId + "&date_key=eq." + encodeURIComponent(change.dateKey) + "&limit=1",
       session,
     );
+    assertCurrentCloudUser(session);
+    if (!serverHasAcceptedReadiness(rows[0], change.dateKey)) {
+      throw new CloudRecordNotVerifiedError();
+    }
     applyReadinessRows(session, rows);
   } else if (change.kind === "workout") {
     const rows = await cloudRequest<WorkoutRow[]>(
@@ -395,8 +435,40 @@ async function verifyLocalChange(session: CloudSession, change: LocalDataChange)
         userId + "&workout_id=eq." + encodeURIComponent(change.id) + "&limit=1",
       session,
     );
+    assertCurrentCloudUser(session);
+    if (!serverHasAcceptedWorkout(rows[0], change.id)) {
+      throw new CloudRecordNotVerifiedError();
+    }
     applyWorkoutRows(session, rows);
   }
+}
+
+/**
+ * A full sync may fetch only the newest 90 readiness / 200 workouts. Do not
+ * acknowledge a pending item merely because other rows were read successfully.
+ * This also prevents "success" if the server silently ignored a write.
+ */
+function verifiedPendingSnapshot(
+  session: CloudSession,
+  snapshot: Record<string, number>,
+  rows: Awaited<ReturnType<typeof readFullCloudRows>>,
+) {
+  assertCurrentCloudUser(session);
+  const accepted: Record<string, number> = {};
+  const byDate = new Map(rows.readiness.map(row => [row.date_key, row]));
+  const byWorkout = new Map(rows.workouts.map(row => [row.workout_id, row]));
+  for (const [key, revision] of Object.entries(snapshot)) {
+    if (
+      (key === "profile" && serverHasAcceptedProfile(rows.profiles[0])) ||
+      (key.startsWith("readiness:") &&
+        serverHasAcceptedReadiness(byDate.get(key.slice(10)), key.slice(10))) ||
+      (key.startsWith("workout:") &&
+        serverHasAcceptedWorkout(byWorkout.get(key.slice(8)), key.slice(8)))
+    ) {
+      accepted[key] = revision;
+    }
+  }
+  return accepted;
 }
 
 export async function syncLocalChange(change: LocalDataChange) {
@@ -423,9 +495,12 @@ export async function syncLocalChange(change: LocalDataChange) {
     await verifyLocalChange(session, change);
     assertCurrentCloudUser(session);
     confirmCloudChange(userId, change, revision);
+    const remaining = pendingCloudChanges(userId);
     emitStatus({
       state: "synced",
-      message: "تمت مطابقة التغيير مع البيانات السحابية",
+      message: remaining
+        ? "تم التحقق من التغيير، ولا تزال هناك تغييرات أخرى بانتظار المزامنة."
+        : "تمت مطابقة التغيير مع البيانات السحابية",
       syncedAt: new Date().toISOString(),
     });
   } catch (error) {
@@ -465,17 +540,21 @@ export async function runFullCloudSync() {
     // Phase two: confirm what PostgreSQL actually saved. This handles an
     // intervening edit by device B or an ignored duplicate/older PATCH and
     // avoids showing a false "synced" message with an outdated local copy.
-    const verified = applyFullCloudRows(
-      session,
-      await readFullCloudRows(session),
+    const verifiedRows = await readFullCloudRows(session);
+    const confirmedRevisions = verifiedPendingSnapshot(
+      session, pendingAtStart, verifiedRows,
     );
+    const verified = applyFullCloudRows(session, verifiedRows);
 
     assertCurrentCloudUser(session);
-    confirmFullCloudSync(session.user.id, pendingAtStart);
+    confirmFullCloudSync(session.user.id, confirmedRevisions);
+    const remaining = pendingCloudChanges(session.user.id);
     const syncedAt = new Date().toISOString();
     emitStatus({
       state: "synced",
-      message: "تم التحقق من البيانات السحابية",
+      message: remaining
+        ? "اكتملت مراجعة السحابة، لكن توجد تغييرات محلية لم يُتحقق من رفعها بعد."
+        : "تم التحقق من البيانات السحابية",
       syncedAt,
     });
     return {
