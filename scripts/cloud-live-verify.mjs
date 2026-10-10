@@ -113,6 +113,30 @@ export async function auditLiveCloud(config, fetcher = fetch, uuid = randomUUID)
     return { status: r.status, ok: r.ok, data };
   }
 
+  // The publishable / anon key is deliberately not an authenticated account.
+  // Legacy anon JWT keys need an explicit bearer token; sb_publishable keys
+  // use the apikey alone, never a user access token.
+  async function anonymousRest(table, method = "GET", query = {}, body) {
+    const anonymousHeaders = {
+      apikey: config.key,
+      Accept: "application/json",
+      ...(config.key.split(".").length === 3
+        ? { Authorization: "Bearer " + config.key } : {}),
+      ...(body !== undefined ? { "Content-Type": "application/json" } : {}),
+    };
+    const r = await fetcher(origin + buildRestPath(table, query), {
+      method,
+      headers: anonymousHeaders,
+      ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
+    });
+    let data = null;
+    if (r.ok && r.status !== 204) {
+      const text = await r.text();
+      if (text) data = JSON.parse(text);
+    }
+    return { ok: r.ok, status: r.status, data };
+  }
+
   async function checkOwn(user, table, filters, label) {
     const r = await rest(user, table, "GET", {
       ...queryOwner(user.id, filters), select: "user_id,data", limit: "1",
@@ -212,6 +236,39 @@ export async function auditLiveCloud(config, fetcher = fetch, uuid = randomUUID)
     }
     results.push("Owner SELECT/INSERT on all three cloud tables");
 
+    // The Supabase anon/publishable key is public. It MUST NOT grant access
+    // to any account's workouts, readiness or profile without a JWT.
+    for (const owner of sessions) {
+      for (const [table, filters] of [
+        ["aura_profiles", {}],
+        ["aura_readiness", { date_key: "eq." + READINESS_DATE }],
+        ["aura_workouts", { workout_id: "eq." + workouts.get(owner.id) }],
+      ]) {
+        const anonymous = await anonymousRest(table, "GET", {
+          ...queryOwner(owner.id, filters), select: "user_id", limit: "1",
+        });
+        assert(!anonymous.ok ||
+          (Array.isArray(anonymous.data) && anonymous.data.length === 0),
+          table + " exposed a test account to an unauthenticated visitor");
+      }
+    }
+    // Deliberately attempt one new anonymous workout insert; if a policy is
+    // broken, remember its exact key for owner-scoped cleanup in finally.
+    const anonymousProbe = token + "-anonymous-probe";
+    const anonymousInsert = await anonymousRest("aura_workouts", "POST", {}, {
+      user_id: a.id, workout_id: anonymousProbe, workout_date: baseline,
+      data: { audit_marker: token },
+    });
+    if (anonymousInsert.ok) {
+      created.push({
+        user: a, table: "aura_workouts",
+        filter: { workout_id: "eq." + anonymousProbe },
+      });
+    }
+    assert(!anonymousInsert.ok,
+      "anonymous visitor inserted a workout into an authenticated account");
+    results.push("Anonymous SELECT and INSERT denied with publishable key");
+
     for (const [actor, owner] of [[a, b], [b, a]]) {
       for (const [table, filter] of [
         ["aura_profiles", {}],
@@ -288,7 +345,20 @@ export async function auditLiveCloud(config, fetcher = fetch, uuid = randomUUID)
         const r = await rest(row.user, row.table, "DELETE", {
           ...queryOwner(row.user.id, row.filter),
         }, undefined, "return=minimal");
-        if (!r.ok) cleanupFailures.push(row.table + " HTTP " + r.status);
+        if (!r.ok) {
+          cleanupFailures.push(row.table + " HTTP " + r.status);
+        } else {
+          // DELETE returning 204 might have changed zero rows: verify the
+          // owner's exact row was truly removed before reporting success.
+          const remaining = await rest(row.user, row.table, "GET", {
+            ...queryOwner(row.user.id, row.filter),
+            select: "user_id", limit: "1",
+          });
+          if (!remaining.ok || !Array.isArray(remaining.data) ||
+              remaining.data.length !== 0) {
+            cleanupFailures.push(row.table + " still contains audit data");
+          }
+        }
       } catch { cleanupFailures.push(row.table + " request failed"); }
     }
     if (cleanupFailures.length) {
