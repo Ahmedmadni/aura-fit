@@ -150,8 +150,17 @@ if (
 ) {
   fail("cross-account sync protection is missing");
 }
-if (!bridgeSource.includes("retryAfterCurrent = true")) {
-  fail("auth change while syncing must queue a new reconciliation");
+const schedulerSource = fs.readFileSync(
+  path.join(root, "src", "lib", "cloud-sync-scheduler.ts"),
+  "utf8",
+);
+if (
+  !bridgeSource.includes("createCloudSyncCoordinator") ||
+  !schedulerSource.includes("retryAfterCurrent = true") ||
+  !schedulerSource.includes('reason === "local"') ||
+  !schedulerSource.includes('reason === "online"')
+) {
+  fail("auth/local/reconnect changes during an active sync must queue a final reconciliation");
 }
 
 const vaultSource = fs.readFileSync(
@@ -201,7 +210,7 @@ if (
 if (
   !syncSource.includes("verifiedPendingSnapshot(") ||
   !syncSource.includes("CloudRecordNotVerifiedError") ||
-  !bridgeSource.includes("if (syncing) retryAfterCurrent = true")
+  !bridgeSource.includes('coordinator.request("local")')
 ) {
   fail("server-confirmed pending changes and in-flight retry are required");
 }
@@ -209,10 +218,12 @@ if (
   !syncSource.includes("readPagedCloudRows<") ||
   !syncSource.includes("uploadFullReadinessDeltas(") ||
   !syncSource.includes("uploadFullWorkoutDeltas(") ||
-  !syncSource.includes("verifyEvictedLocalHistory(")
+  !syncSource.includes("verifyEvictedLocalHistory(") ||
+  !schedulerSource.includes("quietPeriodMs") ||
+  !schedulerSource.includes("getPendingCount(userId)")
 ) {
   fail("bounded historical pagination and efficient delta uploads are missing");
 }
 console.log(
-  "Cloud validation PASS: RLS, verified pending revisions, paginated history and selective cloud updates are present.",
+  "Cloud validation PASS: guarded cloud history, pending retries and lifecycle reconciliation coalescing are present.",
 );
