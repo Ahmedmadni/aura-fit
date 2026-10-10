@@ -30,6 +30,11 @@ import {
 } from "@/lib/cloud-auth";
 import { isCloudConfigured } from "@/lib/cloud-config";
 import {
+  CLOUD_SYNC_LEDGER_UPDATED_EVENT,
+  loadCloudSyncLedger,
+  type CloudSyncLedger,
+} from "@/lib/cloud-sync-ledger";
+import {
   CLOUD_SYNC_STATUS_EVENT,
   runFullCloudSync,
   type CloudSyncStatus,
@@ -66,6 +71,8 @@ function Profile() {
   const [history, setHistory] = useState<CompletedWorkout[]>([]);
   const cloudConfigured = isCloudConfigured();
   const [cloudSession, setCloudSession] = useState<CloudSession | null>(null);
+  const [cloudLedger, setCloudLedger] = useState<CloudSyncLedger | null>(null);
+  const [cloudOnline, setCloudOnline] = useState(true);
   const [cloudStatus, setCloudStatus] = useState<CloudSyncStatus>({
     state: "idle",
     message: "لم تبدأ المزامنة بعد",
@@ -89,10 +96,18 @@ function Profile() {
 
   useEffect(() => {
     const refreshSession = () => {
-      setCloudSession(loadCloudSession());
+      const session = loadCloudSession();
+      setCloudSession(session);
+      setCloudLedger(session ? loadCloudSyncLedger(session.user.id) : null);
       setProfile(loadProfile());
       setHistory(loadHistory());
     };
+    const refreshLedger = () => {
+      const session = loadCloudSession();
+      setCloudLedger(session ? loadCloudSyncLedger(session.user.id) : null);
+    };
+    const refreshOnline = () => setCloudOnline(navigator.onLine);
+    refreshOnline();
     refreshSession();
 
     const onStatus = (event: Event) => {
@@ -109,9 +124,15 @@ function Profile() {
 
     window.addEventListener(CLOUD_AUTH_CHANGED_EVENT, refreshSession);
     window.addEventListener(CLOUD_SYNC_STATUS_EVENT, onStatus);
+    window.addEventListener(CLOUD_SYNC_LEDGER_UPDATED_EVENT, refreshLedger);
+    window.addEventListener("online", refreshOnline);
+    window.addEventListener("offline", refreshOnline);
     return () => {
       window.removeEventListener(CLOUD_AUTH_CHANGED_EVENT, refreshSession);
       window.removeEventListener(CLOUD_SYNC_STATUS_EVENT, onStatus);
+      window.removeEventListener(CLOUD_SYNC_LEDGER_UPDATED_EVENT, refreshLedger);
+      window.removeEventListener("online", refreshOnline);
+      window.removeEventListener("offline", refreshOnline);
     };
   }, []);
   const achievements = useMemo(
@@ -446,6 +467,34 @@ function Profile() {
                 <p className="mt-1 text-[9px] text-muted-foreground">
                   {cloudStatus.message}
                 </p>
+                <div
+                  aria-live="polite"
+                  data-testid="cloud-sync-ledger"
+                  className="mt-2 border-t border-border pt-2 text-[10px] leading-relaxed"
+                >
+                  {!cloudOnline ? (
+                    <p className="font-bold text-amber-500">
+                      لا يوجد اتصال حاليًا؛ بياناتك محفوظة على هذا الجهاز.
+                    </p>
+                  ) : null}
+                  {cloudLedger && Object.keys(cloudLedger.pending).length > 0 ? (
+                    <p className="font-bold text-amber-500">
+                      {Object.keys(cloudLedger.pending).length} تغييرات محفوظة محليًا، بانتظار تأكيد المزامنة السحابية.
+                    </p>
+                  ) : cloudLedger?.verifiedAt ? (
+                    <p className="text-primary">
+                      آخر تحقق سحابي:{" "}
+                      {new Intl.DateTimeFormat("ar-SA-u-ca-gregory", {
+                        dateStyle: "medium",
+                        timeStyle: "short",
+                      }).format(new Date(cloudLedger.verifiedAt))}
+                    </p>
+                  ) : (
+                    <p className="text-muted-foreground">
+                      لم يكتمل التحقق من النسخة السحابية بعد.
+                    </p>
+                  )}
+                </div>
               </div>
               <div className="mt-3 grid grid-cols-2 gap-2">
                 <button
