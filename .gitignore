@@ -33,3 +33,8 @@ dist-ssr
 
 # Local-only visual source audit exports
 media-review-output/
+
+# Local Supabase test credentials must never be committed
+.env
+.env.*
+!.env.example
