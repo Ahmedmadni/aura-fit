@@ -19,9 +19,16 @@ export function CloudSyncBridge() {
 
     let disposed = false;
     let syncing = false;
+    let retryAfterCurrent = false;
 
     const fullSync = async () => {
-      if (disposed || syncing || !loadCloudSession()) return;
+      if (disposed || !loadCloudSession()) return;
+      if (syncing) {
+        // A sign-in/account change during an older request must be followed
+        // by a fresh sync for the current account, never silently dropped.
+        retryAfterCurrent = true;
+        return;
+      }
       syncing = true;
       try {
         await runFullCloudSync();
@@ -29,6 +36,10 @@ export function CloudSyncBridge() {
         // Status is emitted by cloud-sync. Local-first operation continues.
       } finally {
         syncing = false;
+        if (!disposed && retryAfterCurrent) {
+          retryAfterCurrent = false;
+          void fullSync();
+        }
       }
     };
 
