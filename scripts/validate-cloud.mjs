@@ -117,6 +117,28 @@ if (!rootRoute.includes("<CloudSyncBridge />")) {
   fail("CloudSyncBridge is not mounted at the app root");
 }
 
+const authSource = fs.readFileSync(
+  path.join(root, "src", "lib", "cloud-auth.ts"),
+  "utf8",
+);
+const bridgeSource = fs.readFileSync(
+  path.join(root, "src", "components", "cloud-sync-bridge.tsx"),
+  "utf8",
+);
+if (
+  !authSource.includes("refreshInFlight") ||
+  !authSource.includes("CloudAuthRequestError") ||
+  !authSource.includes("latest.refresh_token !== current.refresh_token")
+) {
+  fail("cloud auth lacks safe concurrent refresh and account switch protection");
+}
+if (
+  !bridgeSource.includes('addEventListener("online"') ||
+  !bridgeSource.includes('addEventListener("visibilitychange"')
+) {
+  fail("cloud sync retry handlers are missing");
+}
+
 console.log(
-  "Cloud validation PASS: schema, RLS, browser config and sync bridge are present without service-role secrets.",
+  "Cloud validation PASS: schema, RLS, browser config and resilient sync refresh are present without service-role secrets.",
 );

@@ -24,6 +24,7 @@ jobs:
       - run: bun run recovery:validate
       - run: bun run pwa:validate
       - run: bun run cloud:validate
+      - run: bun run cloud-auth:validate
       - run: bun run realdata:validate
       - run: bun run backup:validate
       - run: bun run app:smoke
