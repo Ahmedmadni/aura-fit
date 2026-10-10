@@ -182,6 +182,11 @@ if (
 ) {
   fail("post-write cloud verification is missing");
 }
+for (const script of ["cloud-live-verify.mjs", "validate-cloud-live.mjs"]) {
+  if (!fs.existsSync(path.join(root, "scripts", script))) {
+    fail("live Supabase audit helper missing: " + script);
+  }
+}
 console.log(
-  "Cloud validation PASS: RLS, per-account data, conditional writes and post-write reconciliation are present.",
+  "Cloud validation PASS: RLS, per-account data, conditional writes, post-write reconciliation and opt-in live audit are present.",
 );
