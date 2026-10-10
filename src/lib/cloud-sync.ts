@@ -453,6 +453,100 @@ async function uploadFullWorkoutDeltas(session: CloudSession, server: WorkoutRow
   }
 }
 
+/**
+ * Never trim an unsaved LOCAL session merely because the cloud has a full
+ * 500/365 recent-item window. A successful HTTP POST can silently ignore an
+ * existing/conflicting row; a successful recent-page GET does not verify an
+ * older local record that was outside those pages.
+ *
+ * Before applying the bounded merge, identify only records that would be
+ * evicted. Resolve each omitted record by its EXACT owner-scoped key, and
+ * require a server-accepted version. This protects first-login guest data
+ * that predates the cloud window, including rows without ledger entries.
+ * Limit concurrent lookups so a large historical import cannot flood API.
+ */
+async function verifyEvictedLocalHistory(
+  session: CloudSession,
+  rows: Awaited<ReturnType<typeof readFullCloudRows>>,
+) {
+  assertCurrentCloudUser(session);
+  const remoteWorkouts = rows.workouts.map(row => ({
+    ...row.data,
+    id: row.workout_id,
+    date: row.workout_date,
+  }));
+  const remoteReadiness = rows.readiness.map(row => ({
+    ...row.data,
+    dateKey: row.date_key,
+    recordedAt: row.recorded_at,
+  }));
+  const currentWorkouts = loadHistory();
+  const currentReadiness = loadReadinessHistory();
+  const retainedWorkoutIds = new Set(
+    mergeHistory(currentWorkouts, remoteWorkouts).map(workout => workout.id),
+  );
+  const retainedReadinessDates = new Set(
+    mergeReadiness(currentReadiness, remoteReadiness).map(item => item.dateKey),
+  );
+  const evictedWorkouts = currentWorkouts.filter(
+    workout => !retainedWorkoutIds.has(workout.id),
+  );
+  const evictedReadiness = currentReadiness.filter(
+    item => !retainedReadinessDates.has(item.dateKey),
+  );
+  const userId = encodeURIComponent(session.user.id);
+  const proofWorkouts: WorkoutRow[] = [];
+  const proofReadiness: ReadinessRow[] = [];
+
+  // A subset may already appear in the recent-page results; for anything
+  // outside that window, make a dedicated targeted read-back.
+  async function verifyWorkout(workout: CompletedWorkout) {
+    const known = rows.workouts.find(row => row.workout_id === workout.id);
+    const found = known ? [known] : await cloudRequest<WorkoutRow[]>(
+      "aura_workouts?select=user_id,workout_id,workout_date,data,updated_at&user_id=eq." +
+        userId + "&workout_id=eq." + encodeURIComponent(workout.id) + "&limit=1",
+      session,
+    );
+    assertCurrentCloudUser(session);
+    if (!found[0] || found[0].workout_id !== workout.id ||
+        found[0].user_id !== session.user.id) {
+      throw new CloudRecordNotVerifiedError();
+    }
+    proofWorkouts.push(found[0]);
+  }
+
+  async function verifyReadiness(item: DailyReadinessCheckIn) {
+    const known = rows.readiness.find(row => row.date_key === item.dateKey);
+    const found = known ? [known] : await cloudRequest<ReadinessRow[]>(
+      "aura_readiness?select=user_id,date_key,data,recorded_at,updated_at&user_id=eq." +
+        userId + "&date_key=eq." + encodeURIComponent(item.dateKey) + "&limit=1",
+      session,
+    );
+    assertCurrentCloudUser(session);
+    if (!found[0] || found[0].date_key !== item.dateKey ||
+        found[0].user_id !== session.user.id ||
+        validTime(found[0].recorded_at) < validTime(item.recordedAt)) {
+      throw new CloudRecordNotVerifiedError();
+    }
+    proofReadiness.push(found[0]);
+  }
+
+  // Bound the number of concurrent verification requests to avoid a burst on
+  // accounts with hundreds of previously offline or imported sessions.
+  const checks: Array<() => Promise<void>> = [
+    ...evictedWorkouts.map(item => () => verifyWorkout(item)),
+    ...evictedReadiness.map(item => () => verifyReadiness(item)),
+  ];
+  for (let index = 0; index < checks.length; index += 8) {
+    await Promise.all(checks.slice(index, index + 8).map(check => check()));
+  }
+  return {
+    ...rows,
+    workouts: [...rows.workouts, ...proofWorkouts],
+    readiness: [...rows.readiness, ...proofReadiness],
+  };
+}
+
 function applyFullCloudRows(
   session: CloudSession,
   rows: Awaited<ReturnType<typeof readFullCloudRows>>,
@@ -616,12 +710,10 @@ export async function runFullCloudSync() {
   emitStatus({ state: "syncing", message: "مزامنة البيانات..." });
 
   try {
-    // Phase one: download remote data, then merge with the live local store.
-    // Profile/readiness timestamps and immutable cloud workout IDs win
-    // according to the same rules used for incremental changes.
+    // First publish the live local changes BEFORE merging/trimming to the
+    // cloud's latest 500/365 rows. Otherwise an older offline workout could
+    // be removed from the local array before the upload ever sees it.
     const initial = await readFullCloudRows(session);
-    applyFullCloudRows(session, initial);
-
     await Promise.all([
       upsertProfile(session),
       uploadFullReadinessDeltas(session, initial.readiness),
@@ -632,8 +724,11 @@ export async function runFullCloudSync() {
     // intervening edit by device B or an ignored duplicate/older PATCH and
     // avoids showing a false "synced" message with an outdated local copy.
     const verifiedRows = await readFullCloudRows(session);
+    // Guard the upcoming capped local merge. Only an independently verified
+    // row may be evicted from this device's recent working set.
+    const provenRows = await verifyEvictedLocalHistory(session, verifiedRows);
     const confirmedRevisions = verifiedPendingSnapshot(
-      session, pendingAtStart, verifiedRows,
+      session, pendingAtStart, provenRows,
     );
     const verified = applyFullCloudRows(session, verifiedRows);
 

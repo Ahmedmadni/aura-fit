@@ -27,6 +27,7 @@
     "cloud-ledger:validate": "bun run scripts/validate-cloud-ledger.ts",
     "cloud-pending:validate": "bun run scripts/validate-cloud-pending.ts",
     "cloud-history:validate": "bun run scripts/validate-cloud-history.ts",
+    "cloud-overflow:validate": "bun run scripts/validate-cloud-overflow.ts",
     "cloud-live:verify": "node scripts/cloud-live-verify.mjs",
     "realdata:validate": "node scripts/validate-real-data-pages.mjs",
     "browser:smoke": "node scripts/browser-smoke.mjs",
