@@ -20,6 +20,22 @@ import {
 
 export const CLOUD_SYNC_STATUS_EVENT = "aura:cloud-sync-status";
 
+// Never apply responses or create writes for an account that is no longer
+// active. Cloud sync uses browser-global localStorage, which can change
+// while awaiting network requests.
+export class CloudAccountChangedError extends Error {
+  constructor() {
+    super("Cloud account changed while syncing.");
+    this.name = "CloudAccountChangedError";
+  }
+}
+
+function assertCurrentCloudUser(session: CloudSession) {
+  if (loadCloudSession()?.user.id !== session.user.id) {
+    throw new CloudAccountChangedError();
+  }
+}
+
 export type CloudSyncStatus =
   | { state: "idle"; message: string }
   | { state: "syncing"; message: string }
@@ -77,6 +93,7 @@ async function cloudRequest<T>(
   const config = getCloudConfig();
   if (!config) throw new Error("Cloud sync is not configured.");
 
+  assertCurrentCloudUser(session);
   const response = await fetch(config.url + "/rest/v1/" + path, {
     ...init,
     headers: {
@@ -85,8 +102,11 @@ async function cloudRequest<T>(
     },
   });
 
+  // The request might have started under a different signed-in account.
+  assertCurrentCloudUser(session);
   if (!response.ok) {
     const body = await response.text();
+    assertCurrentCloudUser(session);
     throw new Error(
       "Cloud sync request failed (" +
         response.status +
@@ -97,6 +117,7 @@ async function cloudRequest<T>(
 
   if (response.status === 204) return undefined as T;
   const text = await response.text();
+  assertCurrentCloudUser(session);
   return text ? (JSON.parse(text) as T) : (undefined as T);
 }
 
@@ -147,6 +168,7 @@ function mergeReadiness(
 }
 
 async function upsertProfile(session: CloudSession) {
+  assertCurrentCloudUser(session);
   const updatedAt = loadProfileUpdatedAt() ?? new Date().toISOString();
   const row: ProfileRow = {
     user_id: session.user.id,
@@ -171,6 +193,7 @@ async function upsertReadiness(
   session: CloudSession,
   dateKey?: string,
 ) {
+  assertCurrentCloudUser(session);
   const rows = loadReadinessHistory()
     .filter((item) => !dateKey || item.dateKey === dateKey)
     .map<ReadinessRow>((item) => ({
@@ -199,6 +222,7 @@ async function upsertWorkouts(
   session: CloudSession,
   workoutId?: string,
 ) {
+  assertCurrentCloudUser(session);
   const rows = loadHistory()
     .filter((item) => !workoutId || item.id === workoutId)
     .map<WorkoutRow>((workout) => ({
@@ -225,7 +249,7 @@ async function upsertWorkouts(
 
 export async function syncLocalChange(change: LocalDataChange) {
   const session = await getValidCloudSession();
-  if (!session) return;
+  if (!session || loadCloudSession()?.user.id !== session.user.id) return;
 
   try {
     emitStatus({ state: "syncing", message: "مزامنة آخر تغيير..." });
@@ -236,12 +260,14 @@ export async function syncLocalChange(change: LocalDataChange) {
     if (change.kind === "workout") {
       await upsertWorkouts(session, change.id);
     }
+    assertCurrentCloudUser(session);
     emitStatus({
       state: "synced",
       message: "تمت المزامنة",
       syncedAt: new Date().toISOString(),
     });
   } catch (error) {
+    if (error instanceof CloudAccountChangedError) return;
     emitStatus({
       state: "error",
       message:
@@ -256,6 +282,7 @@ export async function runFullCloudSync() {
     return { signedIn: false as const };
   }
 
+  assertCurrentCloudUser(session);
   emitStatus({ state: "syncing", message: "مزامنة البيانات..." });
 
   try {
@@ -281,6 +308,7 @@ export async function runFullCloudSync() {
       ),
     ]);
 
+    assertCurrentCloudUser(session);
     const localProfileUpdated = loadProfileUpdatedAt();
     const cloudProfile = profileRows[0];
     if (cloudProfile) {
@@ -327,6 +355,7 @@ export async function runFullCloudSync() {
       upsertWorkouts(session),
     ]);
 
+    assertCurrentCloudUser(session);
     const syncedAt = new Date().toISOString();
     emitStatus({
       state: "synced",
@@ -341,9 +370,11 @@ export async function runFullCloudSync() {
       workouts: mergedHistory.length,
     };
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "تعذرت المزامنة.";
-    emitStatus({ state: "error", message });
+    if (!(error instanceof CloudAccountChangedError)) {
+      const message =
+        error instanceof Error ? error.message : "تعذرت المزامنة.";
+      emitStatus({ state: "error", message });
+    }
     throw error;
   }
 }

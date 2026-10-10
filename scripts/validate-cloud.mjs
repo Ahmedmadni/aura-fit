@@ -139,6 +139,20 @@ if (
   fail("cloud sync retry handlers are missing");
 }
 
+const syncSource = fs.readFileSync(
+  path.join(root, "src", "lib", "cloud-sync.ts"),
+  "utf8",
+);
+if (
+  !syncSource.includes("CloudAccountChangedError") ||
+  !syncSource.includes("assertCurrentCloudUser(session);")
+) {
+  fail("cross-account sync protection is missing");
+}
+if (!bridgeSource.includes("retryAfterCurrent = true")) {
+  fail("auth change while syncing must queue a new reconciliation");
+}
+
 console.log(
-  "Cloud validation PASS: schema, RLS, browser config and resilient sync refresh are present without service-role secrets.",
+  "Cloud validation PASS: schema, RLS, browser config and cross-account sync safety checks are present.",
 );
