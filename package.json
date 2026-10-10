@@ -18,6 +18,7 @@
     "app:smoke": "bun scripts/smoke-user-journey.ts",
     "typecheck": "tsc --noEmit",
     "cloud:validate": "node scripts/validate-cloud.mjs",
+    "cloud-auth:validate": "bun run scripts/validate-cloud-auth.ts",
     "realdata:validate": "node scripts/validate-real-data-pages.mjs",
     "browser:smoke": "node scripts/browser-smoke.mjs",
     "backup:validate": "bun scripts/validate-local-backup.ts",

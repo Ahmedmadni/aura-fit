@@ -24,6 +24,20 @@ type AuthResponse = Partial<CloudSession> & {
   msg?: string;
 };
 
+class CloudAuthRequestError extends Error {
+  constructor(message: string, readonly status: number) {
+    super(message);
+    this.name = "CloudAuthRequestError";
+  }
+}
+
+// Deduplicate simultaneous refreshes of the SAME token, without allowing an
+// old account's refresh result to replace a newer sign-in or sign-out.
+let refreshInFlight: {
+  token: string;
+  promise: Promise<CloudSession | null>;
+} | null = null;
+
 function storageAvailable() {
   return typeof window !== "undefined" && typeof localStorage !== "undefined";
 }
@@ -96,11 +110,12 @@ async function authRequest(
 
   const payload = (await response.json().catch(() => ({}))) as AuthResponse;
   if (!response.ok) {
-    throw new Error(
+    throw new CloudAuthRequestError(
       payload.error_description ??
         payload.msg ??
         payload.error ??
         "Cloud authentication request failed.",
+      response.status,
     );
   }
   return payload;
@@ -131,39 +146,94 @@ export async function signUpCloud(email: string, password: string) {
   };
 }
 
-export async function refreshCloudSession(
+export function refreshCloudSession(
   current = loadCloudSession(),
 ): Promise<CloudSession | null> {
-  if (!current) return null;
-  const payload = await authRequest(
-    "/auth/v1/token?grant_type=refresh_token",
-    {
-      method: "POST",
-      body: JSON.stringify({ refresh_token: current.refresh_token }),
+  if (!current) return Promise.resolve(null);
+  if (refreshInFlight?.token === current.refresh_token) {
+    return refreshInFlight.promise;
+  }
+
+  const promise = (async (): Promise<CloudSession | null> => {
+    try {
+      const payload = await authRequest(
+        "/auth/v1/token?grant_type=refresh_token",
+        {
+          method: "POST",
+          body: JSON.stringify({ refresh_token: current.refresh_token }),
+        },
+      );
+
+      // A slow response must never resurrect a signed-out account or replace
+      // the credentials of another account that signed in while it was pending.
+      const latest = loadCloudSession();
+      if (
+        !latest ||
+        latest.refresh_token !== current.refresh_token ||
+        latest.user.id !== current.user.id
+      ) {
+        return latest;
+      }
+
+      const session = normalizeSession(payload);
+      if (!session || session.user.id !== current.user.id) {
+        saveCloudSession(null);
+        return null;
+      }
+      saveCloudSession(session);
+      return session;
+    } catch (error) {
+      if (
+        error instanceof CloudAuthRequestError &&
+        (error.status === 400 || error.status === 401)
+      ) {
+        // Explicit invalid/expired refresh-token response: clear the account
+        // only if it is still the account that initiated this request.
+        const latest = loadCloudSession();
+        if (
+          latest?.refresh_token === current.refresh_token &&
+          latest.user.id === current.user.id
+        ) {
+          saveCloudSession(null);
+          return null;
+        }
+        return latest;
+      }
+      // Timeouts, offline fetch errors and 5xx are NOT a logout.
+      throw error;
+    }
+  })();
+
+  refreshInFlight = { token: current.refresh_token, promise };
+  void promise.then(
+    () => {
+      if (refreshInFlight?.promise === promise) refreshInFlight = null;
+    },
+    () => {
+      if (refreshInFlight?.promise === promise) refreshInFlight = null;
     },
   );
-  const session = normalizeSession(payload);
-  if (!session) {
-    saveCloudSession(null);
-    return null;
-  }
-  saveCloudSession(session);
-  return session;
+  return promise;
 }
 
 export async function getValidCloudSession() {
   const current = loadCloudSession();
   if (!current) return null;
-  const expiresAt = current.expires_at ?? 0;
-  if (expiresAt && expiresAt - Math.floor(Date.now() / 1000) > 60) {
+  const expiresAt = current.expires_at;
+  // Legacy sessions without an expiry cannot safely be assumed expired.
+  // Avoid rotating their refresh token on every write; an actual 401 remains
+  // visible to the sync layer instead of silently removing the account.
+  if (!expiresAt || expiresAt - Math.floor(Date.now() / 1000) > 60) {
     return current;
   }
 
   try {
     return await refreshCloudSession(current);
   } catch {
-    saveCloudSession(null);
-    return null;
+    // Retain credentials through transient network/server failures. The
+    // downstream request may still succeed, or full sync retries on reconnect.
+    const latest = loadCloudSession();
+    return latest?.user.id === current.user.id ? latest : null;
   }
 }
 
