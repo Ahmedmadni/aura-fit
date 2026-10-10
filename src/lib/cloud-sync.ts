@@ -146,7 +146,8 @@ function mergeReadiness(
   cloud: DailyReadinessCheckIn[],
 ) {
   const byDate = new Map<string, DailyReadinessCheckIn>();
-  for (const item of [...cloud, ...local]) {
+  // On exactly equal timestamps, use the row accepted by Supabase.
+  for (const item of [...local, ...cloud]) {
     const current = byDate.get(item.dateKey);
     if (
       !current ||
@@ -279,6 +280,119 @@ async function upsertWorkouts(
   await insertOnly(session, "aura_workouts", "user_id,workout_id", rows);
 }
 
+// PostgREST may accept an insert, reject an older conditional PATCH, or
+// ignore an existing immutable workout. A successful HTTP response alone does
+// NOT prove that the local and server copies agree. Always read back the
+// server-selected row before claiming an individual change is synced.
+function validTime(value: string | null | undefined) {
+  if (!value) return -Infinity;
+  const time = Date.parse(value);
+  return Number.isFinite(time) ? time : -Infinity;
+}
+
+function applyProfileRow(session: CloudSession, cloudProfile?: ProfileRow) {
+  assertCurrentCloudUser(session);
+  if (!cloudProfile) return;
+  if (
+    validTime(cloudProfile.client_updated_at ?? cloudProfile.updated_at) >=
+    validTime(loadProfileUpdatedAt())
+  ) {
+    replaceLocalProfile(
+      cloudProfile.data,
+      cloudProfile.client_updated_at ?? cloudProfile.updated_at ??
+        new Date().toISOString(),
+      false,
+    );
+  }
+}
+
+function applyReadinessRows(session: CloudSession, rows: ReadinessRow[]) {
+  assertCurrentCloudUser(session);
+  const merged = mergeReadiness(
+    loadReadinessHistory(),
+    rows.map((row) => ({
+      ...row.data,
+      dateKey: row.date_key,
+      recordedAt: row.recorded_at,
+    })),
+  );
+  replaceLocalReadinessHistory(merged, false);
+  return merged;
+}
+
+function applyWorkoutRows(session: CloudSession, rows: WorkoutRow[]) {
+  assertCurrentCloudUser(session);
+  const merged = mergeHistory(
+    loadHistory(),
+    rows.map((row) => ({
+      ...row.data,
+      id: row.workout_id,
+      date: row.workout_date,
+    })),
+  );
+  replaceLocalHistory(merged, false);
+  return merged;
+}
+
+async function readFullCloudRows(session: CloudSession) {
+  const userId = encodeURIComponent(session.user.id);
+  const [profiles, readiness, workouts] = await Promise.all([
+    cloudRequest<ProfileRow[]>(
+      "aura_profiles?select=user_id,data,client_updated_at,updated_at&user_id=eq." +
+        userId + "&limit=1",
+      session,
+    ),
+    cloudRequest<ReadinessRow[]>(
+      "aura_readiness?select=user_id,date_key,data,recorded_at,updated_at&user_id=eq." +
+        userId + "&order=date_key.desc&limit=90",
+      session,
+    ),
+    cloudRequest<WorkoutRow[]>(
+      "aura_workouts?select=user_id,workout_id,workout_date,data,updated_at&user_id=eq." +
+        userId + "&order=workout_date.desc&limit=200",
+      session,
+    ),
+  ]);
+  return { profiles, readiness, workouts };
+}
+
+function applyFullCloudRows(
+  session: CloudSession,
+  rows: Awaited<ReturnType<typeof readFullCloudRows>>,
+) {
+  assertCurrentCloudUser(session);
+  applyProfileRow(session, rows.profiles[0]);
+  const readiness = applyReadinessRows(session, rows.readiness);
+  const workouts = applyWorkoutRows(session, rows.workouts);
+  return { readiness, workouts };
+}
+
+async function verifyLocalChange(session: CloudSession, change: LocalDataChange) {
+  const userId = encodeURIComponent(session.user.id);
+  if (change.kind === "profile") {
+    const rows = await cloudRequest<ProfileRow[]>(
+      "aura_profiles?select=user_id,data,client_updated_at,updated_at&user_id=eq." +
+        userId + "&limit=1",
+      session,
+    );
+    applyProfileRow(session, rows[0]);
+  } else if (change.kind === "readiness") {
+    const rows = await cloudRequest<ReadinessRow[]>(
+      "aura_readiness?select=user_id,date_key,data,recorded_at,updated_at&user_id=eq." +
+        userId + "&date_key=eq." + encodeURIComponent(change.dateKey) + "&limit=1",
+      session,
+    );
+    applyReadinessRows(session, rows);
+  } else if (change.kind === "workout") {
+    const rows = await cloudRequest<WorkoutRow[]>(
+      "aura_workouts?select=user_id,workout_id,workout_date,data,updated_at&user_id=eq." +
+        userId + "&workout_id=eq." + encodeURIComponent(change.id) + "&limit=1",
+      session,
+    );
+    applyWorkoutRows(session, rows);
+  }
+}
+
 export async function syncLocalChange(change: LocalDataChange) {
   const session = await getValidCloudSession();
   if (!session || loadCloudSession()?.user.id !== session.user.id) return;
@@ -292,10 +406,13 @@ export async function syncLocalChange(change: LocalDataChange) {
     if (change.kind === "workout") {
       await upsertWorkouts(session, change.id);
     }
+    // Verify what the server actually retained; it can reject a stale write.
+    // A newer local edit during this request is preserved by timestamp checks.
+    await verifyLocalChange(session, change);
     assertCurrentCloudUser(session);
     emitStatus({
       state: "synced",
-      message: "تمت المزامنة",
+      message: "تمت مطابقة التغيير مع البيانات السحابية",
       syncedAt: new Date().toISOString(),
     });
   } catch (error) {
@@ -318,68 +435,10 @@ export async function runFullCloudSync() {
   emitStatus({ state: "syncing", message: "مزامنة البيانات..." });
 
   try {
-    const userId = encodeURIComponent(session.user.id);
-    const [profileRows, readinessRows, workoutRows] = await Promise.all([
-      cloudRequest<ProfileRow[]>(
-        "aura_profiles?select=user_id,data,client_updated_at,updated_at&user_id=eq." +
-          userId +
-          "&limit=1",
-        session,
-      ),
-      cloudRequest<ReadinessRow[]>(
-        "aura_readiness?select=user_id,date_key,data,recorded_at,updated_at&user_id=eq." +
-          userId +
-          "&order=date_key.desc&limit=90",
-        session,
-      ),
-      cloudRequest<WorkoutRow[]>(
-        "aura_workouts?select=user_id,workout_id,workout_date,data,updated_at&user_id=eq." +
-          userId +
-          "&order=workout_date.desc&limit=200",
-        session,
-      ),
-    ]);
-
-    assertCurrentCloudUser(session);
-    const localProfileUpdated = loadProfileUpdatedAt();
-    const cloudProfile = profileRows[0];
-    if (cloudProfile) {
-      const cloudTime = new Date(
-        cloudProfile.client_updated_at ?? cloudProfile.updated_at ?? 0,
-      ).getTime();
-      const localTime = localProfileUpdated
-        ? new Date(localProfileUpdated).getTime()
-        : 0;
-      if (!localProfileUpdated || cloudTime > localTime) {
-        replaceLocalProfile(
-          cloudProfile.data,
-          cloudProfile.client_updated_at ??
-            cloudProfile.updated_at ??
-            new Date().toISOString(),
-          false,
-        );
-      }
-    }
-
-    const mergedReadiness = mergeReadiness(
-      loadReadinessHistory(),
-      readinessRows.map((row) => ({
-        ...row.data,
-        dateKey: row.date_key,
-        recordedAt: row.recorded_at,
-      })),
-    );
-    replaceLocalReadinessHistory(mergedReadiness, false);
-
-    const mergedHistory = mergeHistory(
-      loadHistory(),
-      workoutRows.map((row) => ({
-        ...row.data,
-        id: row.workout_id,
-        date: row.workout_date,
-      })),
-    );
-    replaceLocalHistory(mergedHistory, false);
+    // Phase one: download remote data, then merge with the live local store.
+    // Profile/readiness timestamps and immutable cloud workout IDs win
+    // according to the same rules used for incremental changes.
+    applyFullCloudRows(session, await readFullCloudRows(session));
 
     await Promise.all([
       upsertProfile(session),
@@ -387,19 +446,27 @@ export async function runFullCloudSync() {
       upsertWorkouts(session),
     ]);
 
+    // Phase two: confirm what PostgreSQL actually saved. This handles an
+    // intervening edit by device B or an ignored duplicate/older PATCH and
+    // avoids showing a false "synced" message with an outdated local copy.
+    const verified = applyFullCloudRows(
+      session,
+      await readFullCloudRows(session),
+    );
+
     assertCurrentCloudUser(session);
     const syncedAt = new Date().toISOString();
     emitStatus({
       state: "synced",
-      message: "تمت مزامنة الحساب",
+      message: "تم التحقق من البيانات السحابية",
       syncedAt,
     });
     return {
       signedIn: true as const,
       syncedAt,
       profile: loadProfile(),
-      readiness: mergedReadiness.length,
-      workouts: mergedHistory.length,
+      readiness: verified.readiness.length,
+      workouts: verified.workouts.length,
     };
   } catch (error) {
     if (!(error instanceof CloudAccountChangedError)) {
