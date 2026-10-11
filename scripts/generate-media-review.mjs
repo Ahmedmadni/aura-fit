@@ -125,11 +125,21 @@ const entries = rows.map((row) => {
       safe(candidateGifUrl(row)) + '" aria-label="تشغيل معاينة المرشح غير المعتمد">▶ عرض الحركة المرشحة (غير معتمدة)</button>' +
     '<img class="gif-preview" data-preview-img hidden alt="معاينة حركة غير معتمدة للمرشح ' +
       safe(row.candidateName) + '">' +
-    '<p class="muted small">يُحمّل GIF عند النقر فقط؛ الصورة المتحركة للمقارنة وليست دليل اعتماد.</p></div>' :
+    '<p class="muted small" data-candidate-status aria-live="polite">' +
+      'يُحمّل GIF عند النقر فقط؛ لا تكفي تسمية التمرين أو صورة واحدة للاعتماد.' +
+    '</p></div>' :
     '<p class="muted">لم تُعثر مطابقة مرشحة صالحة بعد مراجعة المصدر الحالي.</p>';
-  const frameLinks = row.frames.map((url, i) =>
-    '<a target="_blank" rel="noopener noreferrer" href="' + safe(url) +
-    '">الإطار ' + (i + 1) + '</a>').join(" · ");
+  const frameBoard = row.frames.map((url, i) =>
+    '<figure class="reference-frame" data-reference-frame="' + (i + 1) + '">' +
+      '<a href="' + safe(url) + '" target="_blank" rel="noopener noreferrer" ' +
+        'aria-label="فتح الوضعية ' + (i + 1) + ' بالحجم الكامل لتمرين ' +
+          safe(row.arabic) + '">' +
+        '<img loading="lazy" decoding="async" data-reference-image src="' +
+          safe(url) + '" alt="الوضعية ' + (i + 1) +
+          ' من ثلاث وضعيات أصلية لتمرين ' + safe(row.arabic) + '">' +
+      '</a><figcaption>الوضعية ' + (i + 1) +
+        ' / 3 · تكبير ↗</figcaption>' +
+    '</figure>').join("");
   return '<article class="exercise" data-slug="' + safe(row.slug) +
     '" data-status="' + safe(row.status) +
     '" data-candidate="' + (hasCandidate ? "yes" : "no") +
@@ -139,10 +149,12 @@ const entries = rows.map((row) => {
     '<p class="latin" dir="ltr">' + safe(row.english) + '</p>' +
     '<p class="muted">' + safe(status) + ' · ' + safe(row.equipment) +
     ' · ' + safe(row.muscle) + '</p>' +
-    '<div class="comparison"><div><p>المصدر المرجعي الأصلي</p>' +
-    '<img loading="lazy" alt="الإطار الأول لتمرين ' + safe(row.arabic) +
-    '" src="' + safe(row.frames[0]) + '"><p class="links">' +
-    frameLinks + '</p></div>' + review + '</div>' +
+    '<div class="comparison"><div class="reference-panel">' +
+    '<p class="reference-label">المرجع الأصلي: 3 وضعيات متتابعة وليست GIF</p>' +
+    '<div class="reference-frames" dir="ltr">' + frameBoard + '</div>' +
+    '<p class="muted small" data-reference-status aria-live="polite">' +
+      'افتح كل وضعية بالحجم الكامل للتحقق من اتجاه الحركة والمسار.' +
+    '</p></div>' + review + '</div>' +
     '<p class="muted small">المراجعة تتطلب تطابق نمط الحركة والمعدات والعضلة المستهدفة والوضعيات.</p>' +
     '<div class="review-form">' +
       '<label>قرار المراجعة (لا يغيّر التطبيق)' +
@@ -183,7 +195,16 @@ const html = [
   'input,select{box-sizing:border-box;background:#172431;border:1px solid #3b4b5a;border-radius:10px;color:#fff;padding:12px;font:inherit;min-width:0}',
   'input{flex:1}select{max-width:45%}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:15px}',
   '.exercise{min-width:0;background:#17212d;border:1px solid #33424c;border-radius:20px;padding:18px}',
-  '.comparison{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin:18px 0;align-items:start}',
+  '.comparison{display:grid;grid-template-columns:minmax(0,1.45fr) minmax(0,1fr);gap:14px;margin:18px 0;align-items:start}',
+  '.reference-panel{min-width:0}.reference-label{font-size:13px;font-weight:700;color:#d8efa3;margin:0 0 12px}',
+  '.reference-frames{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}',
+  '.reference-frame{min-width:0;margin:0;padding:5px;border:1px solid #3f5665;background:#101923;border-radius:12px}',
+  '.reference-frame a{display:block;border-radius:8px;overflow:hidden;outline-offset:2px}',
+  '.reference-frame img{width:100%;height:auto;aspect-ratio:1;object-fit:contain;background:#192633;display:block}',
+  '.reference-frame figcaption{font-size:11px;text-align:center;color:#d4dfeb;margin:7px 0 3px}',
+  '.reference-panel [data-reference-status]{line-height:1.7;margin-top:10px}',
+  '.reference-frame.asset-error{border-color:#c67b54}',
+
   '.comparison img{width:100%;max-height:260px;aspect-ratio:1;object-fit:contain;background:#101923;border-radius:12px}',
   '.candidate{border:1px dashed #d2a75a;border-radius:13px;padding:8px}',
   '.gif-preview{margin-top:12px}.preview-btn,.export-btn{border:1px solid #a6d54f;background:#26391f;color:#ecffcf;border-radius:10px;padding:10px 12px;cursor:pointer;font:inherit;font-size:12px;min-height:40px}',
@@ -196,7 +217,8 @@ const html = [
   '.review-error{color:#ffbd8a;font-size:12px;margin:0;min-height:16px}',
   '.warn{color:#f0c372;font-size:12px;font-weight:bold;margin-bottom:8px}',
   '.links a{color:#cafa82}.code{font:12px monospace;direction:ltr;text-align:left;color:#859eb3}',
-  '[hidden]{display:none!important}@media(max-width:700px){.grid{grid-template-columns:1fr}.filters{flex-wrap:wrap}.filters input{min-width:100%}}',
+  '[hidden]{display:none!important}@media(max-width:950px){.grid{grid-template-columns:1fr}.comparison{grid-template-columns:1fr}}',
+  '@media(max-width:700px){.filters{flex-wrap:wrap}.filters input{min-width:100%}.exercise{padding:14px}.reference-frames{gap:5px}.reference-frame{padding:3px}.reference-frame figcaption{font-size:10px}}',
   '</style></head><body><main>',
   '<p class="muted">Aura Fit / مراجعة داخلية — مصدر مثبت بإصدار محدد</p>',
   '<h1>قائمة فحص مطابقة وسائط التمارين</h1>',
@@ -266,6 +288,21 @@ const html = [
   'refresh();}',
   'for(const item of items){',
   'showDecision(item);',
+  'const frameImages=[...item.querySelectorAll("[data-reference-image]")];',
+  'if(frameImages.length!==3)throw new Error("يجب عرض ثلاث وضعيات لكل تمرين.");',
+  'frameImages.forEach(img=>img.addEventListener("error",()=>{',
+  'img.closest(".reference-frame").classList.add("asset-error");',
+  'item.querySelector("[data-reference-status]").textContent=',
+  '"تعذر عرض وضعية من المصدر. لا تعتبر الصور مكتملة؛ افتح المرجع بعد عودة الاتصال."; ',
+  '}));',
+  'const previewImg=item.querySelector("[data-preview-img]");',
+  'if(previewImg){previewImg.addEventListener("error",()=>{',
+  'item.querySelector("[data-candidate-status]").textContent=',
+  '"فشل تحميل GIF المرشح. أبقِ القرار على «تحتاج أدلة إضافية» حتى تتوفر الحركة."; ',
+  'previewImg.hidden=true;previewImg.removeAttribute("src");',
+  'item.querySelector("[data-preview-control]").textContent="▶ إعادة محاولة معاينة GIF";',
+  '});}',
+
   'item.querySelector("[data-decision]").addEventListener("change",()=>saveDecision(item));',
   'item.querySelector("[data-notes]").addEventListener("input",()=>saveDecision(item));',
   'for(const input of item.querySelectorAll("[data-review-check]")){input.addEventListener("change",()=>saveDecision(item));}',
@@ -323,10 +360,17 @@ const html = [
 assert(html.includes("مرشح غير معتمد") && html.includes("data-candidate") &&
   html.includes("data-preview-control") && html.includes("export-csv") &&
   html.includes("data-decision") && html.includes("data-notes") &&
-  html.includes("import-csv") && html.includes("data-review-check"),
+  html.includes("import-csv") && html.includes("data-review-check") &&
+  html.includes("reference-frames") && html.includes("data-reference-status"),
   "audit page must expose human-review controls and mark all candidates as unapproved");
 assert((html.match(/data-preview-control data-src=/g) ?? []).length === candidates.length,
   "GIF previews must be present only for reviewed candidates, not unrelated exercises");
+assert((html.match(/data-reference-frame="[123]"/g) ?? []).length === rows.length * 3,
+  "every outstanding exercise must show all three original reference frames");
+assert((html.match(/data-reference-image src=/g) ?? []).length === rows.length * 3,
+  "each reference thumbnail must link to its pinned full-size SVG");
+assert((html.match(/data-candidate-status/g) ?? []).length === candidates.length,
+  "unapproved GIF load status must appear only for proposed candidates");
 const embeddedScript = html.split("<script>")[1]?.split("</script>")[0];
 assert(embeddedScript, "generated review page is missing JavaScript interactions");
 new Script(embeddedScript, { filename: "aura-fit-media-review-inline.js" });
