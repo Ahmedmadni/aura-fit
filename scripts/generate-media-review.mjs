@@ -369,7 +369,7 @@ assert((html.match(/data-reference-frame="[123]"/g) ?? []).length === rows.lengt
   "every outstanding exercise must show all three original reference frames");
 assert((html.match(/data-reference-image src=/g) ?? []).length === rows.length * 3,
   "each reference thumbnail must link to its pinned full-size SVG");
-assert((html.match(/data-candidate-status/g) ?? []).length === candidates.length,
+assert((html.match(/data-candidate-status aria-live=/g) ?? []).length === candidates.length,
   "unapproved GIF load status must appear only for proposed candidates");
 const embeddedScript = html.split("<script>")[1]?.split("</script>")[0];
 assert(embeddedScript, "generated review page is missing JavaScript interactions");
