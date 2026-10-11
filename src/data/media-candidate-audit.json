@@ -1,0 +1,51 @@
+{
+  "auditedOn": "2026-10-11",
+  "sourceRepository": "hasaneyldrm/exercises-dataset",
+  "sourceCommit": "7455efae41b330c265e7cd4b78dfa848e7ce5ebd",
+  "evidenceScope": "Pinned candidate title, static source poster, and existence of source GIF; whole GIF frame sequence and movement trajectory have NOT been visually verified.",
+  "statusPolicy": "rejected = remove candidate from active review queue; needs-motion-review = keep candidate disabled pending full movement review; neither enables an exercise GIF.",
+  "reviews": [
+    {
+      "slug": "hindu-push-up",
+      "sourceExerciseId": "3217",
+      "sourceName": "modified hindu push-up (male)",
+      "poster": "images/3217-epOSYUZ.jpg",
+      "gif": "videos/3217-epOSYUZ.gif",
+      "posterBlobSha": "43c60d24f049923c8d2fa8bd3bdff01e20812e62",
+      "gifBlobSha": "85687dca70be730a673c3a84c60d90c722a0f2c3",
+      "result": "needs-motion-review",
+      "evidence": "title-and-static-poster",
+      "motionFullyReviewed": false,
+      "reasonAr": "اسم المصدر يحدد نسخة معدلة من الضغط الهندي. الملصق الثابت لا يكفي لإثبات مسار الانزلاق من وضعية V المقلوبة إلى الاندفاع الأمامي ثم الرجوع؛ تُطلب مقارنة الحركة الكاملة والكتفين والحوض مع الوضعيات الثلاث قبل الترشيح.",
+      "requiredFollowUp": "Inspect original pinned GIF throughout its complete cycle, compare shoulder/hip path and start/middle/end reference poses; approve only if the exact Hindu push-up variant matches."
+    },
+    {
+      "slug": "doorway-row",
+      "sourceExerciseId": "3156",
+      "sourceName": "bodyweight standing close-grip one arm row",
+      "poster": "images/3156-v2DfH14.jpg",
+      "gif": "videos/3156-v2DfH14.gif",
+      "posterBlobSha": "26e521b7b3c6129181f2719530c6ab194ff262be",
+      "gifBlobSha": "ab75f4cd41dd8377a464b0782d317f56268018cd",
+      "result": "rejected",
+      "evidence": "title-and-static-poster",
+      "motionFullyReviewed": false,
+      "reasonAr": "الصورة المصدرية تعرض سحبًا قائمًا بذراع واحدة على قضبان سلم حائط/سويدية، بينما التمرين المطلوب يستخدم إطار باب ونقطة تمسك مختلفة. اختلاف المعدات والقبضة والإعداد كافٍ لرفض المطابقة؛ لا يجوز عرضه كأنه تجديف الباب.",
+      "requiredFollowUp": "Seek an independently verified door-jamb row visual, not a stall-bar or one-arm wall-ladder row."
+    },
+    {
+      "slug": "stability-ball-hamstring-curl",
+      "sourceExerciseId": "1417",
+      "sourceName": "exercise ball one legged diagonal kick hamstring curl",
+      "poster": "images/1417-GOJKFfO.jpg",
+      "gif": "videos/1417-GOJKFfO.gif",
+      "posterBlobSha": "eabafd13c73f73285d5bfbb0fb71aaf6e7f345ed",
+      "gifBlobSha": "a4bdc0d996e8219bae75c8bb081ae84cbd1529bf",
+      "result": "rejected",
+      "evidence": "title-and-static-poster",
+      "motionFullyReviewed": false,
+      "reasonAr": "اسم المصدر يحدد ثنيًا لأوتار الركبة على الكرة برجل واحدة مع ركلة قطرية. تمرين التطبيق العام Stability Ball Hamstring Curl لا يتطلب هذه النسخة أحادية الرجل أو مسارًا قطريًا، والاختلاف في طريقة الأداء واضح من الوصف، ولذلك استُبعد المرشح.",
+      "requiredFollowUp": "Find a standard stability-ball hamstring curl reference matching the application movement and its actual leg stance."
+    }
+  ]
+}

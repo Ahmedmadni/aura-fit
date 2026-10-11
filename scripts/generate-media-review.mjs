@@ -11,6 +11,8 @@ const media = read("src/data/exercise-media-map.json");
 const arabic = read("src/data/exercise-arabic-names.json");
 const report = read("src/data/exercise-media-match-report.json");
 const posters = read("src/data/media-review-candidate-posters.json");
+const triage = read("src/data/media-candidate-audit.json");
+const reviewedCandidates = new Map(triage.reviews.map(row => [row.slug, row]));
 
 function assert(ok, message) {
   if (!ok) throw new Error("Media review audit FAILED: " + message);
@@ -51,19 +53,17 @@ const rows = manifest.flatMap((exercise) => {
     // in the pinned dataset. Preview is opt-in and is never enabled in-app.
     candidateGif: candidateId ? posters[candidateId]
       .replace(/^images\//, "videos/").replace(/\.jpg$/, ".gif") : "",
-    candidateCaution: candidateId === "3217"
-      ? "نسخة modified: افحص مدى الحركة ومسار الكتفين والحوض."
-      : candidateId === "3156"
-        ? "مرشح بذراع واحدة وقبضة ضيقة: تحقق من المعدات وطريقة السحب."
-        : candidateId === "1417"
-          ? "نسخة رجل واحدة ومسار قطري: تحقق من اختلاف الحركة المستهدفة."
-          : "",
+    candidateCaution: candidateId
+      ? reviewedCandidates.get(exercise.slug)?.reasonAr ?? ""
+      : "",
     frames: exercise.frames.map((frame) => framesBase + frame.path),
   }];
 });
 const reviewed = rows.filter((row) => row.status === "review");
 const missing = rows.filter((row) => row.status === "none");
 const candidates = reviewed.filter((row) => row.candidateId);
+const rejectedPrevious = reviewed.filter((row) =>
+  reviewedCandidates.get(row.slug)?.result === "rejected");
 const candidateIds = new Set(candidates.map((row) => row.candidateId));
 const activeIds = new Set(Object.values(media).filter((entry) =>
   entry && (entry.matchConfidence === "exact" || entry.matchConfidence === "high")
@@ -79,6 +79,10 @@ assert(candidates.length === report.candidateQueueAudit.remainingReviewCandidate
   "candidate queue does not match audited count");
 assert(candidateIds.size === Object.keys(posters).length,
   "candidate poster manifest contains stale or missing IDs");
+assert(rejectedPrevious.length === triage.reviews.filter(r => r.result === "rejected").length,
+  "rejected candidate evidence is not reflected in the review gallery");
+assert(candidates.length === triage.reviews.filter(r => r.result === "needs-motion-review").length,
+  "candidate motion-review queue and evidence ledger disagree");
 for (const row of candidates) {
   assert(typeof row.candidatePoster === "string" &&
     /^images\/[0-9]{4}-[A-Za-z0-9]+\.jpg$/.test(row.candidatePoster),
@@ -113,8 +117,11 @@ const reviewKey = "aura-fit-media-review-v3-" + report.sourceCommit;
 const legacyReviewKey = "aura-fit-media-review-v2-" + report.sourceCommit;
 const entries = rows.map((row) => {
   const hasCandidate = Boolean(row.candidateId);
+  const auditRow = reviewedCandidates.get(row.slug);
   const status = row.status === "none" ? "لا توجد مطابقة آمنة" :
-    hasCandidate ? "مرشح يحتاج فحصًا" : "لا يوجد مرشح محدد";
+    hasCandidate ? "مرشح يحتاج فحص الحركة كاملة" :
+    auditRow?.result === "rejected" ? "مرشح سابق مستبعد بعد مراجعة المصدر" :
+    "لا يوجد مرشح محدد";
   const review = hasCandidate ?
     '<div class="candidate"><div class="warn">مرشح غير معتمد — لا يُستخدم في التطبيق</div>' +
     '<img loading="lazy" alt="' + safe(row.candidateName) + '" src="' +
@@ -149,6 +156,12 @@ const entries = rows.map((row) => {
     '<p class="latin" dir="ltr">' + safe(row.english) + '</p>' +
     '<p class="muted">' + safe(status) + ' · ' + safe(row.equipment) +
     ' · ' + safe(row.muscle) + '</p>' +
+    (auditRow?.result === "rejected"
+      ? '<p class="warn" data-rejected-candidate>' + safe(auditRow.reasonAr) +
+        '</p><p class="muted small">المعرف المستبعد: ' +
+        safe(auditRow.sourceExerciseId) +
+        ' · هذه الصور لا تُستخدم لتشغيل حركة التمرين.</p>'
+      : '') +
     '<div class="comparison"><div class="reference-panel">' +
     '<p class="reference-label">المرجع الأصلي: 3 وضعيات متتابعة وليست GIF</p>' +
     '<div class="reference-frames" dir="ltr">' + frameBoard + '</div>' +
@@ -228,6 +241,7 @@ const html = [
   '<section class="stats"><div class="stat"><strong>' + rows.length + '</strong>بانتظار وسائط معتمدة</div>',
   '<div class="stat"><strong>' + reviewed.length + '</strong>قيد المراجعة</div>',
   '<div class="stat"><strong>' + candidates.length + '</strong>مرشح محدد فقط</div>',
+  '<div class="stat"><strong>' + rejectedPrevious.length + '</strong>مرشح سابق مستبعد</div>',
   '<div class="stat"><strong>' + missing.length + '</strong>دون مطابقة آمنة</div></section>',
   '<div class="filters"><input id="search" type="search" aria-label="البحث عن تمرين" placeholder="ابحث باسم التمرين أو المعدات…">',
   '<select id="filter" aria-label="تصفية قائمة المراجعة">',
@@ -371,6 +385,8 @@ assert((html.match(/data-reference-image src=/g) ?? []).length === rows.length *
   "each reference thumbnail must link to its pinned full-size SVG");
 assert((html.match(/data-candidate-status aria-live=/g) ?? []).length === candidates.length,
   "unapproved GIF load status must appear only for proposed candidates");
+assert((html.match(/data-rejected-candidate>/g) ?? []).length === rejectedPrevious.length,
+  "removed source candidates must retain their rejection explanations");
 const embeddedScript = html.split("<script>")[1]?.split("</script>")[0];
 assert(embeddedScript, "generated review page is missing JavaScript interactions");
 new Script(embeddedScript, { filename: "aura-fit-media-review-inline.js" });

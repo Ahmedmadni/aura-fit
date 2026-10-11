@@ -1687,9 +1687,7 @@
     "target": "triceps"
   },
   "doorway-row": {
-    "matchConfidence": "review",
-    "candidateSourceExerciseId": "3156",
-    "candidateSourceName": "bodyweight standing close-grip one arm row"
+    "matchConfidence": "review"
   },
   "towel-row": {
     "source": "hasaneyldrm/exercises-dataset",
@@ -1887,9 +1885,7 @@
     "matchConfidence": "none"
   },
   "stability-ball-hamstring-curl": {
-    "matchConfidence": "review",
-    "candidateSourceExerciseId": "1417",
-    "candidateSourceName": "exercise ball one legged diagonal kick hamstring curl"
+    "matchConfidence": "review"
   },
   "banded-glute-bridge": {
     "source": "hasaneyldrm/exercises-dataset",

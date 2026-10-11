@@ -18,7 +18,7 @@ Aura Fit keeps the 302-exercise Workout Guide catalog as the canonical applicati
 - Aura Fit exercises evaluated: 302
 - Exact approved matches: 79
 - High-confidence approved matches: 112
-- Review required: 71
+- Review required: 71 (1 pinned candidate awaiting full-motion visual proof; 2 earlier candidates rejected with documented equipment/variant mismatch)
 - No safe match: 40
 - Preferred GIFs enabled in the app: 191
 - Frame-only fallbacks: 111 (review + no-safe-match)
@@ -39,3 +39,7 @@ Only `exact` and `high` entries in `src/data/exercise-media-map.json` receive an
 6. A media link must agree with the exercise movement, equipment as closely as the catalogs allow, and the target muscle before promotion.
 
 The legacy `exercise-gymvisual-media.json` file is retained only as import history; `exercise-media-map.json` is the canonical runtime mapping.
+
+### Candidate audit status — 2026-10-11
+
+The named/pinned poster of three outstanding candidate IDs was inspected. Two proposals (Doorway Row vs stall-bar one-arm row; standard stability-ball curl vs unilateral diagonal variant) were rejected; modified Hindu Push-up stays unapproved until its full GIF motion is inspected. The source GIF blob exists, but its full movement sequence has **not** been certified. See `src/data/media-candidate-audit.json`. These are conservative candidate-queue decisions, not new approved media. Counts remain **191 exact/high, 71 review, 40 none**.
