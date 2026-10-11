@@ -15,6 +15,8 @@
     "media:review:check": "node scripts/generate-media-review.mjs --check",
     "media:review:decisions": "node scripts/validate-media-review-decisions.mjs",
     "media:review:triage": "node scripts/validate-media-candidate-audit.mjs",
+    "media:motion:inspect": "node scripts/inspect-motion-gif.mjs",
+    "media:motion:validate": "node scripts/validate-motion-gif-parser.mjs",
     "workout:validate": "bun scripts/validate-workout-program.ts",
     "pwa:validate": "node scripts/validate-pwa.mjs",
     "app:smoke": "bun scripts/smoke-user-journey.ts",

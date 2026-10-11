@@ -1,9 +1,9 @@
 {
-  "auditedOn": "2026-10-11",
+  "auditedOn": "2026-10-12",
   "sourceRepository": "hasaneyldrm/exercises-dataset",
   "sourceCommit": "7455efae41b330c265e7cd4b78dfa848e7ce5ebd",
-  "evidenceScope": "Pinned candidate title, static source poster, and existence of source GIF; whole GIF frame sequence and movement trajectory have NOT been visually verified.",
-  "statusPolicy": "rejected = remove candidate from active review queue; needs-motion-review = keep candidate disabled pending full movement review; neither enables an exercise GIF.",
+  "evidenceScope": "Pinned titles/posters verified for all 3 records. The complete 18-frame, 4.5-second original GIF for source 3217 was decoded and visually inspected frame by frame (0–17); older 3156/1417 cases retain title/poster evidence only.",
+  "statusPolicy": "rejected = remove mismatched source IDs and posters from the active candidate queue, retain the exercise's verified Workout Guide frame fallback. Rejection never promotes, deletes, or disables the exercise itself.",
   "reviews": [
     {
       "slug": "hindu-push-up",
@@ -13,11 +13,59 @@
       "gif": "videos/3217-epOSYUZ.gif",
       "posterBlobSha": "43c60d24f049923c8d2fa8bd3bdff01e20812e62",
       "gifBlobSha": "85687dca70be730a673c3a84c60d90c722a0f2c3",
-      "result": "needs-motion-review",
-      "evidence": "title-and-static-poster",
-      "motionFullyReviewed": false,
-      "reasonAr": "اسم المصدر يحدد نسخة معدلة من الضغط الهندي. الملصق الثابت لا يكفي لإثبات مسار الانزلاق من وضعية V المقلوبة إلى الاندفاع الأمامي ثم الرجوع؛ تُطلب مقارنة الحركة الكاملة والكتفين والحوض مع الوضعيات الثلاث قبل الترشيح.",
-      "requiredFollowUp": "Inspect original pinned GIF throughout its complete cycle, compare shoulder/hip path and start/middle/end reference poses; approve only if the exact Hindu push-up variant matches."
+      "result": "rejected",
+      "evidence": "decoded-full-gif-18-frame-audit",
+      "motionFullyReviewed": true,
+      "reasonAr": "بعد فحص الإطارات الثمانية عشر لملف GIF الأصلي، تظهر دورة ضغط منخفض ← رفع الحوض في شكل V مقلوب ← فرد الذراعين مع جسم أقرب للاستقامة ← عودة للضغط المنخفض، دون إظهار مرحلة الرفع الصدري المقوس المميزة للضغط الهندي القياسي بوضوح. ولأن المصدر يصفها بأنها نسخة معدّلة فلا يعتمد فيديو هذا المرشح للتمرين القياسي.",
+      "requiredFollowUp": "Search for a standard Hindu push-up sequence where the downward-dog, chest-dive, distinct upward-dog arch, and return are clearly visible. Keep Workout Guide fallback frames until verified.",
+      "motionAudit": {
+        "frames": 18,
+        "durationMs": 4500,
+        "frameIndexesInspected": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15,
+          16,
+          17
+        ],
+        "phases": [
+          {
+            "range": "0–2",
+            "observationAr": "وضعية ضغط منخفضة والجسم قريب من الاستقامة."
+          },
+          {
+            "range": "3–8",
+            "observationAr": "انتقال إلى رفع الحوض على هيئة حرف V مقلوب؛ توجد ظلال الحركة داخل GIF."
+          },
+          {
+            "range": "9–14",
+            "observationAr": "عودة الجسم إلى وضعية أقرب إلى الضغط المستقيم مع فرد الذراعين."
+          },
+          {
+            "range": "15–17",
+            "observationAr": "عودة إلى وضعية الضغط المنخفض."
+          }
+        ],
+        "mismatchAr": "مسار النسخة المعدلة لا يعرض بوضوح وضعية الكوبرا / الكلب الصاعد مع تمديد الظهر ورفع الصدر كمرحلة مستقلة واضحة قبل العودة؛ لذلك لا يثبت التطابق الدقيق مع الضغط الهندي القياسي.",
+        "limitation": "This is visual kinematic triage of the supplied low-resolution 180×180 GIF, not medical or biomechanical validation and not certification of exact workout-guide source-frame equivalence.",
+        "resolution": [
+          180,
+          180
+        ]
+      }
     },
     {
       "slug": "doorway-row",

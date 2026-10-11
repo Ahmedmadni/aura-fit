@@ -149,6 +149,7 @@ const entries = rows.map((row) => {
     '</figure>').join("");
   return '<article class="exercise" data-slug="' + safe(row.slug) +
     '" data-status="' + safe(row.status) +
+    '" data-rejected="' + (auditRow?.result === "rejected" ? "yes" : "no") +
     '" data-candidate="' + (hasCandidate ? "yes" : "no") +
     '" data-search="' + safe([row.arabic, row.english, row.slug,
       row.equipment, row.muscle].join(" ").toLowerCase()) + '">' +
@@ -245,7 +246,8 @@ const html = [
   '<div class="stat"><strong>' + missing.length + '</strong>دون مطابقة آمنة</div></section>',
   '<div class="filters"><input id="search" type="search" aria-label="البحث عن تمرين" placeholder="ابحث باسم التمرين أو المعدات…">',
   '<select id="filter" aria-label="تصفية قائمة المراجعة">',
-  '<option value="all">جميع التمارين</option><option value="candidate">مرشح محدد</option>',
+  '<option value="all">جميع التمارين</option><option value="candidate">مرشح غير معتمد</option>',
+  '<option value="rejected">مرشح سابق مستبعد (موثق)</option>',
   '<option value="review">قيد المراجعة بلا مرشح</option><option value="none">دون مطابقة آمنة</option>',
   '<option value="pending">لم يُحدد لها قرار بعد</option>',
   '</select><button type="button" class="export-btn" id="import-csv">استيراد قرارات CSV</button>',
@@ -338,6 +340,7 @@ const html = [
   'const match=(!query||item.dataset.search.includes(query))&&',
   '(mode==="all"||(mode==="candidate"&&item.dataset.candidate==="yes")||',
   '(mode==="review"&&item.dataset.status==="review"&&item.dataset.candidate==="no")||',
+  '(mode==="rejected"&&item.dataset.rejected==="yes")||',
   '(mode==="none"&&item.dataset.status==="none")||',
   '(mode==="pending"&&!choice));',
   'item.hidden=!match;if(match)shown++;}',
@@ -387,6 +390,8 @@ assert((html.match(/data-candidate-status aria-live=/g) ?? []).length === candid
   "unapproved GIF load status must appear only for proposed candidates");
 assert((html.match(/data-rejected-candidate>/g) ?? []).length === rejectedPrevious.length,
   "removed source candidates must retain their rejection explanations");
+assert((html.match(/data-rejected="yes"/g) ?? []).length === rejectedPrevious.length,
+  "rejected proposals must be discoverable using the reviewer status filter");
 const embeddedScript = html.split("<script>")[1]?.split("</script>")[0];
 assert(embeddedScript, "generated review page is missing JavaScript interactions");
 new Script(embeddedScript, { filename: "aura-fit-media-review-inline.js" });
