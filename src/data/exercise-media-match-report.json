@@ -1,5 +1,5 @@
 {
-  "generatedOn": "2026-10-04",
+  "generatedOn": "2026-10-11",
   "sourceRepository": "hasaneyldrm/exercises-dataset",
   "sourceCommit": "7455efae41b330c265e7cd4b78dfa848e7ce5ebd",
   "sourceExerciseCount": 1324,
@@ -189,9 +189,16 @@
   "candidateQueueAudit": {
     "activeSourceIdCollisions": 0,
     "removedBlockedCandidates": 19,
-    "auditedOn": "2026-10-06",
-    "method": "removed semantic false positives, then rescanned the full 1324-source catalogue; promoted four visually/instruction-verified mappings and retained only three plausible review candidates",
+    "auditedOn": "2026-10-11",
+    "method": "Pinned source poster/title re-review rejected Doorway Row (wall ladder / one-arm row) and Stability Ball Hamstring Curl (one-leg diagonal variation); Hindu Push-up modified remains unapproved pending full GIF-motion visual verification. Historical initial scan counts retained.",
     "removedSemanticMismatches": 48,
-    "remainingReviewCandidates": 3
+    "remainingReviewCandidates": 1,
+    "posterTriage": {
+      "checked": 3,
+      "rejected": 2,
+      "motionReviewPending": 1,
+      "fullGifMotionCertified": 0,
+      "evidenceFile": "src/data/media-candidate-audit.json"
+    }
   }
 }
