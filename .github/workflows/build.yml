@@ -20,6 +20,7 @@ jobs:
       - run: bun run media:review:check
       - run: bun run media:review:decisions
       - run: bun run media:review:triage
+      - run: bun run media:motion:validate
       - run: bun run media-runtime:validate
       - run: bun run workout:validate
       - run: bun run session:validate

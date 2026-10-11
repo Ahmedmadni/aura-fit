@@ -18,7 +18,7 @@ Aura Fit keeps the 302-exercise Workout Guide catalog as the canonical applicati
 - Aura Fit exercises evaluated: 302
 - Exact approved matches: 79
 - High-confidence approved matches: 112
-- Review required: 71 (1 pinned candidate awaiting full-motion visual proof; 2 earlier candidates rejected with documented equipment/variant mismatch)
+- Review required: 71 (0 currently viable GIF proposals; all 3 previous candidates rejected with documented evidence)
 - No safe match: 40
 - Preferred GIFs enabled in the app: 191
 - Frame-only fallbacks: 111 (review + no-safe-match)
@@ -43,3 +43,7 @@ The legacy `exercise-gymvisual-media.json` file is retained only as import histo
 ### Candidate audit status — 2026-10-11
 
 The named/pinned poster of three outstanding candidate IDs was inspected. Two proposals (Doorway Row vs stall-bar one-arm row; standard stability-ball curl vs unilateral diagonal variant) were rejected; modified Hindu Push-up stays unapproved until its full GIF motion is inspected. The source GIF blob exists, but its full movement sequence has **not** been certified. See `src/data/media-candidate-audit.json`. These are conservative candidate-queue decisions, not new approved media. Counts remain **191 exact/high, 71 review, 40 none**.
+
+### Full motion follow-up — 2026-10-12
+
+The original pinned GIF for modified Hindu Push-up (3217) was parsed into 18 frames (4.5 seconds) and visually examined across its full cycle. It depicts a low press → inverted-V hip lift → near-straight-arm plank → return to low press; the canonical Hindu push-up's distinct upward-dog torso/chest extension is not evident. It was conservatively rejected as a **non-equivalent variant** rather than activated in the app. The earlier two mismatches remained rejected. See `src/data/media-candidate-audit.json` for the per-frame range observations and the pinned Git object SHA. Exercise coverage remains 191 exact/high, 71 review, 40 none, and there are now 0 proposed candidate GIFs. The review does not evaluate the medical or biomechanical safety of the demonstrated motion.

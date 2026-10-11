@@ -1626,9 +1626,7 @@
     "target": "pectorals"
   },
   "hindu-push-up": {
-    "matchConfidence": "review",
-    "candidateSourceExerciseId": "3217",
-    "candidateSourceName": "modified hindu push-up (male)"
+    "matchConfidence": "review"
   },
   "scapular-push-up": {
     "source": "hasaneyldrm/exercises-dataset",

@@ -1,5 +1,5 @@
 {
-  "generatedOn": "2026-10-11",
+  "generatedOn": "2026-10-12",
   "sourceRepository": "hasaneyldrm/exercises-dataset",
   "sourceCommit": "7455efae41b330c265e7cd4b78dfa848e7ce5ebd",
   "sourceExerciseCount": 1324,
@@ -189,14 +189,15 @@
   "candidateQueueAudit": {
     "activeSourceIdCollisions": 0,
     "removedBlockedCandidates": 19,
-    "auditedOn": "2026-10-11",
-    "method": "Pinned source poster/title re-review rejected Doorway Row (wall ladder / one-arm row) and Stability Ball Hamstring Curl (one-leg diagonal variation); Hindu Push-up modified remains unapproved pending full GIF-motion visual verification. Historical initial scan counts retained.",
+    "auditedOn": "2026-10-12",
+    "method": "Full 18-frame GIF audit of pinned modified Hindu Push-up (3217) showed an ambiguous/not-distinct upward-dog chest-extension phase; combined with two earlier poster/title mismatches (3156/1417), all 3 candidates rejected conservatively. No unverified GIF enabled; 191 active GIFs retained.",
     "removedSemanticMismatches": 48,
-    "remainingReviewCandidates": 1,
+    "remainingReviewCandidates": 0,
     "posterTriage": {
       "checked": 3,
-      "rejected": 2,
-      "motionReviewPending": 1,
+      "rejected": 3,
+      "motionReviewPending": 0,
+      "fullGifMotionInspected": 1,
       "fullGifMotionCertified": 0,
       "evidenceFile": "src/data/media-candidate-audit.json"
     }
