@@ -2,6 +2,7 @@ import { spawn, spawnSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { assertNoPrivateNavigationCache, seedApprovedMediaProbe, assertRealOfflineMediaFetch } from "./pwa-browser-offline-contract.mjs";
 
 const BASE_URL = process.env.AURA_BASE_URL ?? "http://127.0.0.1:4173";
 const DEBUG_PORT = Number(process.env.AURA_CHROME_DEBUG_PORT ?? 9222);
@@ -909,7 +910,14 @@ async function main() {
       );
     }
 
-    // The profile route has now been visited online and should be in runtime cache.
+    // The profile route has been visited online by an actual authenticated
+    // browser. It must NOT have been persisted as an account-specific HTML
+    // page in shared CacheStorage (the install-time public shell is allowed).
+    await assertNoPrivateNavigationCache(evaluate);
+    // Seed exactly one pinned/approved GIF using synthetic 1×1 pixel bytes.
+    // This isolates the *real browser SW interception* from GitHub CDN uptime.
+    const offlineMediaProbe = await seedApprovedMediaProbe(evaluate);
+
     await cdp.send("Network.emulateNetworkConditions", {
       offline: true,
       latency: 0,
@@ -931,8 +939,28 @@ async function main() {
     const offlineBody = await evaluate("document.body.innerText");
     if (!String(offlineBody).includes("ملف التدريب")) {
       throw new Error(
-        "Previously visited profile route was not available offline.",
+        "Offline public shell did not hydrate the on-device profile route.",
       );
+    }
+    // Online profile content came from the network and the offline page is
+    // rebuilt from the public shell + existing per-device local state. It
+    // must never be a saved private /profile HTML response.
+    await assertNoPrivateNavigationCache(evaluate);
+    // This negative test intentionally requests a rejected GitHub GIF while
+    // disconnected. Chromium logs one ERR_INTERNET_DISCONNECTED for that
+    // *expected* image rejection; do not mistake it for an app crash.
+    const expectedOfflineErrorStart = runtimeErrors.length;
+    await assertRealOfflineMediaFetch(evaluate, offlineMediaProbe);
+    await timeout(120);
+    const negativeTestErrors = runtimeErrors.splice(expectedOfflineErrorStart);
+    let expectedBlockedRequestLogs = 0;
+    for (const entry of negativeTestErrors) {
+      if (entry.trim() === "Failed to load resource: net::ERR_INTERNET_DISCONNECTED" &&
+          expectedBlockedRequestLogs === 0) {
+        expectedBlockedRequestLogs++;
+      } else {
+        runtimeErrors.push(entry);
+      }
     }
 
     await cdp.send("Network.emulateNetworkConditions", {
@@ -956,7 +984,7 @@ async function main() {
     }
 
     console.log(
-      "Browser smoke PASS: mobile onboarding, readiness, injury-safe workout, active-session conflict guard, dashboard and bottom-nav resume, explicit save-and-exit, guided manual fallback frame review, recovery cleanup, hydration-safe cloud session, safe backup controls, PWA install UX, real-data routes, service worker and offline cached navigation all verified in headless Chrome.",
+      "Browser smoke PASS: mobile onboarding, readiness, injury-safe workout, active-session conflict guard, dashboard and bottom-nav resume, explicit save-and-exit, guided manual fallback frame review, recovery cleanup, hydration-safe cloud session, safe backup controls, PWA install UX, real-data routes, real service-worker offline GIF replay, rejected media blocking and public-shell-only profile navigation verified in headless Chrome.",
     );
 
     cdp.close();
