@@ -57,6 +57,16 @@ if (/cache\.put\(request,\s*response\.clone\(\)\)/.test(sw.split('if (request.mo
 const allowlistPath = path.join(root, "public", "media-offline-allowlist.js");
 if (!fs.existsSync(allowlistPath)) fail("missing pinned offline media allowlist");
 
+const browserSmoke = fs.readFileSync(
+  path.join(root, "scripts", "browser-smoke.mjs"), "utf8",
+);
+const offlineContract = path.join(root, "scripts", "pwa-browser-offline-contract.mjs");
+if (!fs.existsSync(offlineContract) ||
+    !browserSmoke.includes("assertNoPrivateNavigationCache(evaluate)") ||
+    !browserSmoke.includes("assertRealOfflineMediaFetch(evaluate, offlineMediaProbe)")) {
+  fail("browser smoke must assert actual offline GIF replay and private navigation cache isolation");
+}
+
 const rootRoute = fs.readFileSync(rootRoutePath, "utf8");
 if (!rootRoute.includes("<PwaRegister />")) {
   fail("root route does not mount PwaRegister");
