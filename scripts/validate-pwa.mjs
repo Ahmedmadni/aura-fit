@@ -43,9 +43,19 @@ for (const required of [
   'self.addEventListener("activate"',
   'self.addEventListener("fetch"',
   '"/offline.html"',
+  'importScripts("/media-offline-allowlist.js")',
+  "classifyExerciseMedia(",
+  "MEDIA_LIMITS",
 ]) {
   if (!sw.includes(required)) fail("service worker missing " + required);
 }
+
+if (/cache\.put\(request,\s*response\.clone\(\)\)/.test(sw.split('if (request.mode === "navigate")')[1]?.split('const isStaticAsset')[0] ?? "")) {
+  fail("private navigation HTML must never be written to CacheStorage");
+}
+
+const allowlistPath = path.join(root, "public", "media-offline-allowlist.js");
+if (!fs.existsSync(allowlistPath)) fail("missing pinned offline media allowlist");
 
 const rootRoute = fs.readFileSync(rootRoutePath, "utf8");
 if (!rootRoute.includes("<PwaRegister />")) {

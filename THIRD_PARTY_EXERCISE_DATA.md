@@ -47,3 +47,10 @@ The named/pinned poster of three outstanding candidate IDs was inspected. Two pr
 ### Full motion follow-up — 2026-10-12
 
 The original pinned GIF for modified Hindu Push-up (3217) was parsed into 18 frames (4.5 seconds) and visually examined across its full cycle. It depicts a low press → inverted-V hip lift → near-straight-arm plank → return to low press; the canonical Hindu push-up's distinct upward-dog torso/chest extension is not evident. It was conservatively rejected as a **non-equivalent variant** rather than activated in the app. The earlier two mismatches remained rejected. See `src/data/media-candidate-audit.json` for the per-frame range observations and the pinned Git object SHA. Exercise coverage remains 191 exact/high, 71 review, 40 none, and there are now 0 proposed candidate GIFs. The review does not evaluate the medical or biomechanical safety of the demonstrated motion.
+
+
+## Cached offline exercise visuals — Phase 46
+
+The PWA service worker may retain **only previously viewed** source-commit-pinned approved GIFs (191 exact/high) and their static posters, plus the three pinned Workout Guide frames for every canonical exercise. Caches are **bounded FIFO**: at most 24 GIFs, 48 posters and 120 frames; these are not offline pre-downloads. This does not change media approvals. The static allowlist is generated from the canonical media map and frame manifest by `bun run media:offline:generate` and verified in CI by `bun run media:offline:check`.
+
+The service worker does not persist visited navigation HTML, Supabase API requests, unapproved candidate GIFs or non-pinned external URLs. Offline refresh uses only the public shell precached on installation. Cross-origin image responses may be opaque in some browsers, so full device/network testing is still required. Site-data deletion or OS storage eviction removes previously cached visuals. No SQL migration is required.
