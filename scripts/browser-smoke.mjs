@@ -778,6 +778,31 @@ async function main() {
       throw new Error("Fallback frame review could not resume automatic playback.");
     }
 
+    // Exercise the real React image-error handler without depending on the
+    // third-party GitHub CDN being unavailable in a particular CI run.
+    const injectedFrameError = await evaluate(
+      "(() => { const img = document.querySelector('[data-fallback-frame-index] img'); if (!img) return false; img.dispatchEvent(new Event('error')); return true; })()",
+    );
+    if (!injectedFrameError) {
+      throw new Error("Could not simulate failed exercise reference image.");
+    }
+    await waitForExpression(
+      "Boolean(document.querySelector('[data-exercise-media-mode=generic]'))",
+      "generic illustration after failed reference frame",
+    );
+    const genericNotice = String(await evaluate(
+      "document.querySelector('[data-exercise-media-mode=generic]')?.textContent ?? ''",
+    ));
+    if (!genericNotice.includes("رسم توضيحي عام") ||
+        !genericNotice.includes("ليس عرضًا دقيقًا")) {
+      throw new Error("Generic pose was not labeled as a non-matching illustration.");
+    }
+    await clickAria("إعادة محاولة تحميل صور التمرين");
+    await waitForExpression(
+      "Array.from(document.querySelectorAll('[data-media-retry]')).some(n => n.getAttribute('data-media-retry') === '1')",
+      "manual retry triggered a new media attempt",
+    );
+
     const routes = [
       ["/programs", "التوزيع الحالي"],
       ["/workout?day=0", "فلترة الإصابة فعّالة"],
@@ -984,7 +1009,7 @@ async function main() {
     }
 
     console.log(
-      "Browser smoke PASS: mobile onboarding, readiness, injury-safe workout, active-session conflict guard, dashboard and bottom-nav resume, explicit save-and-exit, guided manual fallback frame review, recovery cleanup, hydration-safe cloud session, safe backup controls, PWA install UX, real-data routes, real service-worker offline GIF replay, rejected media blocking and public-shell-only profile navigation verified in headless Chrome.",
+      "Browser smoke PASS: mobile onboarding, readiness, injury-safe workout, active-session conflict guard, dashboard and bottom-nav resume, explicit save-and-exit, guided manual fallback frame review, clearly labeled generic recovery and retry, recovery cleanup, hydration-safe cloud session, safe backup controls, PWA install UX, real-data routes, real service-worker offline GIF replay, rejected media blocking and public-shell-only profile navigation verified in headless Chrome.",
     );
 
     cdp.close();

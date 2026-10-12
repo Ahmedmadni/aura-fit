@@ -13,8 +13,18 @@ if (!fs.existsSync(mediaPlayerPath)) fail("missing athlete-video.tsx");
 const source = fs.readFileSync(mediaPlayerPath, "utf8");
 
 for (const required of [
-  "const usingFallback = !preferredGif || preferredFailed;",
-  "if (!autoAdvanceFrames || !usingFallback || !frames?.length) return;",
+  "const usingFallback =",
+  "!preferredGif || preferredFailed || (!running && (!poster || posterFailed));",
+  "if (!autoAdvanceFrames || !usingFallback || !frames?.length || framesFailed) return;",
+  'data-exercise-media-mode="generic"',
+  'data-exercise-media-mode="frame"',
+  'data-exercise-media-mode={running ? "approved-gif" : "approved-poster"}',
+  "setPosterFailed(true);",
+  "setFramesFailed(true)",
+  'aria-label="إعادة محاولة تحميل صور التمرين"',
+  'aria-label="إعادة محاولة فيديو التمرين"',
+  'window.addEventListener("online", reconnect);',
+  "if (!autoAdvanceFrames || !usingFallback || !frames?.length || framesFailed) return;",
   "const nextFrame = frames[(frameIndex + 1) % frames.length];",
   "const autoAdvanceFrames = running && !(allowFrameReview && frameReviewPaused);",
   "data-fallback-frame-index={allowFrameReview ? frameIndex + 1 : undefined}",
@@ -42,5 +52,5 @@ if (!intervalBlock || !intervalBlock[0].includes("usingFallback") || !intervalBl
 }
 
 console.log(
-  "Media runtime PASS: approved GIF playback avoids hidden fallback timers; frame-only media supports explicit pause/step review without preloading all frames.",
+  "Media runtime PASS: approved GIF/poster failures are isolated, fallback frame failures show a clearly labeled generic illustration, retry and reconnect work without hidden timers.",
 );
