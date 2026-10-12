@@ -946,7 +946,22 @@ async function main() {
     // rebuilt from the public shell + existing per-device local state. It
     // must never be a saved private /profile HTML response.
     await assertNoPrivateNavigationCache(evaluate);
+    // This negative test intentionally requests a rejected GitHub GIF while
+    // disconnected. Chromium logs one ERR_INTERNET_DISCONNECTED for that
+    // *expected* image rejection; do not mistake it for an app crash.
+    const expectedOfflineErrorStart = runtimeErrors.length;
     await assertRealOfflineMediaFetch(evaluate, offlineMediaProbe);
+    await timeout(120);
+    const negativeTestErrors = runtimeErrors.splice(expectedOfflineErrorStart);
+    let expectedBlockedRequestLogs = 0;
+    for (const entry of negativeTestErrors) {
+      if (entry.trim() === "Failed to load resource: net::ERR_INTERNET_DISCONNECTED" &&
+          expectedBlockedRequestLogs === 0) {
+        expectedBlockedRequestLogs++;
+      } else {
+        runtimeErrors.push(entry);
+      }
+    }
 
     await cdp.send("Network.emulateNetworkConditions", {
       offline: false,
