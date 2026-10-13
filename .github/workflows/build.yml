@@ -37,6 +37,7 @@ jobs:
       - run: node --check scripts/cloud-live-verify.mjs
       - run: bun run cloud-live:validate
       - run: bun run cloud:production-audit:validate
+      - run: bun run cloud:auth-bundle:validate
       - run: bun run cloud-ledger:validate
       - run: bun run cloud-pending:validate
       - run: bun run cloud-history:validate
