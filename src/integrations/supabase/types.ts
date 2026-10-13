@@ -14,7 +14,75 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      aura_profiles: {
+        Row: {
+          client_updated_at: string
+          data: Json
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          client_updated_at?: string
+          data?: Json
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          client_updated_at?: string
+          data?: Json
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      aura_readiness: {
+        Row: {
+          data: Json
+          date_key: string
+          recorded_at: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          data?: Json
+          date_key: string
+          recorded_at: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          data?: Json
+          date_key?: string
+          recorded_at?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      aura_workouts: {
+        Row: {
+          data: Json
+          updated_at: string
+          user_id: string
+          workout_date: string
+          workout_id: string
+        }
+        Insert: {
+          data?: Json
+          updated_at?: string
+          user_id: string
+          workout_date: string
+          workout_id: string
+        }
+        Update: {
+          data?: Json
+          updated_at?: string
+          user_id?: string
+          workout_date?: string
+          workout_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
