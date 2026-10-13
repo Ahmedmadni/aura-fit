@@ -15,7 +15,11 @@ export function getCloudConfig(): CloudConfig | null {
   );
 
   if (!url || !key) return null;
-  if (!/^https:\/\/.+\.supabase\.co$/i.test(url)) return null;
+  // Lovable Cloud serves the same backend either directly (*.supabase.co) or
+  // through its managed proxy host (*.lovable.cloud); both are valid origins.
+  if (!/^https:\/\/[a-z0-9.-]+\.(supabase\.co|lovable\.cloud)$/i.test(url)) {
+    return null;
+  }
   return { url, key };
 }
 
