@@ -31,6 +31,7 @@
     "cloud-conflicts:validate": "bun run scripts/validate-cloud-conflicts.ts",
     "cloud-convergence:validate": "bun run scripts/validate-cloud-convergence.ts",
     "cloud-live:validate": "node scripts/validate-cloud-live.mjs",
+    "cloud:production-audit:validate": "node scripts/validate-cloud-production-audit.mjs",
     "cloud-ledger:validate": "bun run scripts/validate-cloud-ledger.ts",
     "cloud-pending:validate": "bun run scripts/validate-cloud-pending.ts",
     "cloud-history:validate": "bun run scripts/validate-cloud-history.ts",
