@@ -1895,7 +1895,10 @@ function tuneWeeklyVolume(
         const candidate = candidates[cursor % candidates.length];
         const item =
           cloned[candidate.workoutIndex].exercises[candidate.exerciseIndex];
-        const floor = item.phase === "main" ? 2 : 1;
+        // The volume safety cap takes precedence over preserving two sets
+        // on every main lift. Keep at least one prescribed set and never
+        // trim if another affected muscle would fall below its minimum.
+        const floor = 1;
 
         if (item.sets > floor) {
           const affected = new Set<Muscle>([
