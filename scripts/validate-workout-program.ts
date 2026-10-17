@@ -950,6 +950,34 @@ console.log(
     injuryScenarios.map((items) => items.join("+")).join(", "),
 );
 
+// Verify every phase of the four-week cycle, not only the current calendar
+// week. This catches weekly volume regressions hidden by calendar-dependent
+// periodization and safeguards the post-normalization set floor.
+for (const daysPerWeek of [2, 3, 4, 5, 6]) {
+  const profile: UserProfile = {
+    ...DEFAULT_PROFILE,
+    level: "intermediate",
+    goals: daysPerWeek >= 5 ? ["muscle-gain"] : ["general-fitness"],
+    equipment: FULL_EQUIPMENT,
+    daysPerWeek,
+    sessionMinutes: 45,
+  };
+  generateMonthlyProgram(profile).forEach((week, weekIndex) => {
+    for (const workout of week) {
+      for (const item of workout.exercises) {
+        if (["main", "accessory", "core"].includes(item.phase) && item.sets < 1) {
+          fail(`monthly ${daysPerWeek}d week ${weekIndex + 1}: ${item.exercise.id} has no prescribed sets`);
+        }
+      }
+    }
+    for (const item of getWeeklyVolumeStatus(week, profile)) {
+      if (item.status !== "target") {
+        fail(`monthly ${daysPerWeek}d week ${weekIndex + 1}: ${item.muscle} volume ${item.effectiveSets} outside ${item.min}-${item.max}`);
+      }
+    }
+  });
+}
+
 for (const daysPerWeek of [2, 3, 4, 5, 6]) {
   const goals: Goal[] = daysPerWeek >= 5 ? ["muscle-gain"] : ["general-fitness"];
   const profile: UserProfile = {
