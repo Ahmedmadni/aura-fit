@@ -3,7 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 const root = path.resolve("public");
 const manifest = JSON.parse(fs.readFileSync(path.join(root,"manifest.webmanifest"),"utf8"));
-const required = new Map([["192x192","any"],["512x512","any"],["512x512","maskable"]].map(([size,purpose])=>[`${size}:${purpose}`,false]));
+const required = new Map([["small","any"],["large","any"],["large","maskable"]].map(([size,purpose])=>[`${size}:${purpose}`,false]));
 for(const icon of manifest.icons ?? []) {
   if(typeof icon.src !== "string" || !/^\/[a-z0-9/_-]+\.png$/i.test(icon.src)) throw Error("Unsafe icon path: " + icon.src);
   const bytes=fs.readFileSync(path.join(root,icon.src.slice(1)));
@@ -13,7 +13,8 @@ for(const icon of manifest.icons ?? []) {
   if(icon.sizes!==`${width}x${height}`) throw Error(`Icon ${icon.src}: declared ${icon.sizes} but actual ${width}x${height}`);
   const purposes=(icon.purpose ?? "any").split(/\s+/);
   for(const purpose of purposes) {
-    const key=`${icon.sizes}:${purpose}`;
+    const sizeClass = width >= 512 && height >= 512 ? "large" : width >= 192 && height >= 192 ? "small" : "undersized";
+    const key=`${sizeClass}:${purpose}`;
     if(required.has(key)) required.set(key,true);
   }
   if(icon.type!=="image/png")throw Error("PNG icon MIME mismatch "+icon.src);
