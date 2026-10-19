@@ -54,6 +54,20 @@ if (/cache\.put\(request,\s*response\.clone\(\)\)/.test(sw.split('if (request.mo
   fail("private navigation HTML must never be written to CacheStorage");
 }
 
+// Guard against accidentally caching private same-origin downloads such as
+// profile images or account exports with otherwise static-looking suffixes.
+for (const required of [
+  'url.pathname.startsWith("/assets/")',
+  'publicIcons.has(url.pathname)',
+  '"/icon-192.png"',
+  '"/icon-maskable-512.png"',
+]) {
+  if (!sw.includes(required)) fail("service worker public-cache restriction missing " + required);
+}
+if (/url\\.pathname\\.startsWith\\("\\/assets\\/"\\)\\s*\\|\\|\\s*\\/\\\\\\./.test(sw)) {
+  fail("broad same-origin extension caching must not be restored");
+}
+
 const allowlistPath = path.join(root, "public", "media-offline-allowlist.js");
 if (!fs.existsSync(allowlistPath)) fail("missing pinned offline media allowlist");
 
