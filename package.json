@@ -22,6 +22,7 @@
     "pwa:offline:validate": "node scripts/validate-pwa-offline-media.mjs",
     "workout:validate": "bun scripts/validate-workout-program.ts",
     "pwa:validate": "node scripts/validate-pwa.mjs",
+    "pwa:icons:validate": "node scripts/validate-pwa-icon-integrity.mjs",
     "app:smoke": "bun scripts/smoke-user-journey.ts",
     "typecheck": "tsc --noEmit",
     "cloud:validate": "node scripts/validate-cloud.mjs",
