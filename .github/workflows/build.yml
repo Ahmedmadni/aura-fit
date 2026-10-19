@@ -29,6 +29,7 @@ jobs:
       - run: bun run recovery:validate
       - run: bun run pwa:validate
       - run: bun run pwa:icons:validate
+      - run: bun run pwa:shortcuts:validate
       - run: bun run cloud:validate
       - run: bun run cloud-auth:validate
       - run: bun run cloud-isolation:validate
