@@ -64,7 +64,7 @@ for (const required of [
 ]) {
   if (!sw.includes(required)) fail("service worker public-cache restriction missing " + required);
 }
-if (/url\\.pathname\\.startsWith\\("\\/assets\\/"\\)\\s*\\|\\|\\s*\\/\\\\\\./.test(sw)) {
+if (sw.includes('url.pathname.startsWith("/assets/") ||')) {
   fail("broad same-origin extension caching must not be restored");
 }
 
