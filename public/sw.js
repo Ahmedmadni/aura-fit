@@ -129,9 +129,17 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
+  // Only immutable build assets and known public app icons may enter the
+  // shared CacheStorage. A same-origin URL ending in .png/.js may be a
+  // personalized export or authenticated response and must NOT be cached.
+  const publicIcons = new Set([
+    "/icon-192.png", "/icon-512.png", "/icon-maskable-512.png",
+    "/apple-touch-icon.png",
+  ]);
   const isStaticAsset =
-    url.pathname.startsWith("/assets/") ||
-    /\.(?:js|css|png|jpg|jpeg|webp|svg|woff2?)$/i.test(url.pathname);
+    (url.pathname.startsWith("/assets/") &&
+      /\.(?:js|css|png|jpg|jpeg|webp|svg|woff2?)$/i.test(url.pathname)) ||
+    publicIcons.has(url.pathname);
   if (!isStaticAsset || url.search || request.headers?.has?.("authorization")) return;
 
   event.respondWith(
