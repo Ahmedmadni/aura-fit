@@ -23,6 +23,7 @@
     "workout:validate": "bun scripts/validate-workout-program.ts",
     "pwa:validate": "node scripts/validate-pwa.mjs",
     "pwa:icons:validate": "node scripts/validate-pwa-icon-integrity.mjs",
+    "pwa:shortcuts:validate": "node scripts/validate-pwa-shortcuts.mjs",
     "app:smoke": "bun scripts/smoke-user-journey.ts",
     "typecheck": "tsc --noEmit",
     "cloud:validate": "node scripts/validate-cloud.mjs",
