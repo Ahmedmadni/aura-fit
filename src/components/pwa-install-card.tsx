@@ -27,6 +27,7 @@ export function PwaInstallCard() {
   const [ios, setIos] = useState(false);
   const [installed, setInstalled] = useState(true);
   const [message, setMessage] = useState("");
+  const [installing, setInstalling] = useState(false);
   const [installResult, setInstallResult] = useState<
     "accepted" | "dismissed" | null
   >(null);
@@ -57,7 +58,8 @@ export function PwaInstallCard() {
   }, []);
 
   async function install() {
-    if (!promptEvent) return;
+    if (!promptEvent || installing) return;
+    setInstalling(true);
     try {
       await promptEvent.prompt();
       const choice = await promptEvent.userChoice;
@@ -68,8 +70,12 @@ export function PwaInstallCard() {
         setInstallResult("dismissed");
         setMessage("لم يتم التثبيت. يمكنك المحاولة لاحقًا.");
       }
+    } catch {
+      setInstallResult("dismissed");
+      setMessage("تعذر فتح نافذة التثبيت. حاول مرة أخرى من قائمة المتصفح.");
     } finally {
       setPromptEvent(null);
+      setInstalling(false);
     }
   }
 
@@ -100,6 +106,8 @@ export function PwaInstallCard() {
           <button
             type="button"
             onClick={() => void install()}
+            disabled={installing}
+            aria-busy={installing}
             className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-3 py-3 text-xs font-black text-primary-foreground"
           >
             <Download className="size-3.5" />
