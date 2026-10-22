@@ -7,7 +7,7 @@
 
 ## المتطلبات
 - نطاق HTTPS **منشور** يمثل تطبيق Lovable الفعلي (ليس رابط محرر Lovable).
-- JDK 17 وAndroid SDK API 35 وGradle 8.10.2 (يجب تثبيتها في بيئة التطوير، ولا يوجد Gradle Wrapper مرفق).
+- JDK 17 وAndroid SDK API 36 وGradle 8.11.1 (يجب تثبيتها في بيئة التطوير، ولا يوجد Gradle Wrapper مرفق).
 - Chrome أو متصفح متوافق مع TWA على جهاز Android.
 - اسم الحزمة الحالي `com.aurafit.kinetic` مبدئي ويجب حسمه قبل النشر على Google Play؛ تغيير الاسم بعد النشر مؤثر على هوية التطبيق.
 - أيقونة Android مناسبة بدقة عالية قبل الإصدار التجاري.
