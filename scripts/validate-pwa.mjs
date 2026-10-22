@@ -107,6 +107,9 @@ for (const required of [
   "display-mode: standalone",
   "await promptEvent.prompt()",
   "await promptEvent.userChoice",
+  "disabled={installing}",
+  "aria-busy={installing}",
+  "setMessage(\"تعذر فتح نافذة التثبيت.",
   "تثبيت Aura Fit",
   "إضافة إلى الشاشة الرئيسية",
 ]) {
