@@ -15,7 +15,7 @@ def assetStatements = '[{"relation":["delegate_permission/common.handle_all_urls
 
 android {
     namespace 'com.aurafit.kinetic'
-    compileSdk 35
+    compileSdk 36
     defaultConfig {
         applicationId 'com.aurafit.kinetic'
         minSdk 24
