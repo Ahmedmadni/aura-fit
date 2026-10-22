@@ -1,0 +1,40 @@
+# المرحلة 59 — تطبيق Aura Fit للأندرويد
+
+**الحالة: مشروع Android Studio مبدئي قائم على Trusted Web Activity (TWA). لم يتم إنشاء APK/AAB أو اختبار جهاز فعلي بعد.**
+
+## لماذا TWA؟
+التطبيق الحالي TanStack Start مع SSR وLovable Cloud ويملك PWA فعّالًا. يحافظ TWA على عمل الواجهة الحالية، تسجيل الدخول والبرامج والمزامنة دون نسخ مصدر الويب إلى WebView منفصل. يعتمد العرض الكامل دون شريط المتصفح على تحقق ملكية النطاق عبر Digital Asset Links. إذا فشل التحقق يظهر Custom Tab بدل العرض الموثوق. لا تدعِ أن هذا تطبيق Native كامل.
+
+## المتطلبات
+- نطاق HTTPS **منشور** يمثل تطبيق Lovable الفعلي (ليس رابط محرر Lovable).
+- JDK 17 وAndroid SDK API 36 وGradle 8.11.1 (يجب تثبيتها في بيئة التطوير، ولا يوجد Gradle Wrapper مرفق).
+- Chrome أو متصفح متوافق مع TWA على جهاز Android.
+- اسم الحزمة الحالي `com.aurafit.kinetic` مبدئي ويجب حسمه قبل النشر على Google Play؛ تغيير الاسم بعد النشر مؤثر على هوية التطبيق.
+- أيقونة Android مناسبة بدقة عالية قبل الإصدار التجاري.
+
+## بناء نسخة اختبار
+من مجلد `android/` شغّل:
+
+```bash
+gradle assembleDebug -PauraSiteUrl=https://YOUR_PUBLISHED_DOMAIN
+```
+
+ثم ثبّت `app/build/outputs/apk/debug/app-debug.apk` على هاتف اختبار. **هذه تعليمات للبناء فقط، ولم تُنفذ أو يُنتج ملف APK في هذه المرحلة.** لا تضع رابطًا غير HTTPS ولا رابط معاينة Lovable.
+
+## إثبات ملكية النطاق
+بعد حسم اسم الحزمة وإنشاء مفتاح التوقيع، استخرج SHA-256 لشهادة توقيع التطبيق. يجب تقديم ملف:
+`https://YOUR_PUBLISHED_DOMAIN/.well-known/assetlinks.json`
+يحتوي على علاقة `delegate_permission/common.handle_all_urls` واسم الحزمة وبصمة الشهادة الصحيحة. عند استخدام Play App Signing استخدم بصمة مفتاح **توقيع Google Play** لتطبيق المتجر، لا تخلط بينها وبين مفتاح الرفع. تأكد أن endpoint يرجع JSON مباشرة مع HTTP 200 وبدون إعادة توجيه. يمكن حفظ الملف في `public/.well-known/assetlinks.json` **بعد** تحديد بصمة رسمية حقيقية؛ لا تخمّنها ولا تضع مثالًا كأنه صالح.
+
+## قبل الرفع إلى Google Play
+1. حسم النطاق والحزمة والهوية البصرية والأيقونات واسم التطبيق النهائي.
+2. اختبار تسجيل الدخول والحسابات والمزامنة على جهاز Android فعلي، والتأكد من SameSite وعودة تسجيل الدخول في TWA.
+3. اختبار فقد الشبكة وإعادة الاتصال والتحقق من PWA ووسائط التمارين.
+4. مراجعة أذونات التطبيق وسياسة الخصوصية وإفصاحات Google Play المتعلقة بالبيانات الصحية/اللياقة.
+5. تهيئة توقيع الإصدار بطريقة آمنة وخارج GitHub. لا ترفع ملفات المفاتيح أو كلمات مرور التوقيع مطلقًا.
+6. تشغيل `gradle bundleRelease -PauraSiteUrl=https://YOUR_PUBLISHED_DOMAIN` **بعد** تجهيز إعداد توقيع الإصدار المعتمدة؛ وجود ملف غير موقّع أو موقّع تجريبيًا لا يعني الجاهزية للمتجر.
+
+## حماية Lovable Cloud
+لا تغيير في Supabase أو Migration أو RLS. لم يتم تشغيل اختبار إنتاج حقيقي. راجع `PHASE_51_RELEASE_GATES.md` و`LOVABLE_PHASE_53_QA_AR.md`.
+
+مرجع رسمي: https://developer.android.com/develop/ui/views/layout/webapps/guide-trusted-web-activities-version2

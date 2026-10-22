@@ -1,0 +1,42 @@
+plugins {
+    id 'com.android.application'
+}
+
+// Explicit, secure Android launch URL. Always use the *published* Lovable
+// domain that you own. Never point production APKs at editor/preview URLs.
+def siteValue = providers.gradleProperty('auraSiteUrl').orElse(providers.environmentVariable('AURA_SITE_URL')).orNull
+if (!siteValue) throw new GradleException('Provide -PauraSiteUrl=https://your-published-domain or AURA_SITE_URL')
+def site = new URI(siteValue)
+if (site.scheme != 'https' || !site.host || site.userInfo || site.query || site.fragment || (site.path && site.path != '/')) {
+    throw new GradleException('AURA_SITE_URL must be a clean HTTPS origin, without path/query/credentials')
+}
+def origin = "https://${site.authority}"
+def assetStatements = '[{"relation":["delegate_permission/common.handle_all_urls"],"target":{"namespace":"web","site":"' + origin + '"}}]'
+
+android {
+    namespace 'com.aurafit.kinetic'
+    compileSdk 36
+    defaultConfig {
+        applicationId 'com.aurafit.kinetic'
+        minSdk 24
+        targetSdk 35
+        versionCode 1
+        versionName '0.1.0'
+        manifestPlaceholders = [launchUrl: origin + '/']
+        // Android resource compiler expects XML-escaped JSON quotes in strings.
+        resValue 'string', 'asset_statements', assetStatements.replace('"', '\\"')
+    }
+    buildTypes {
+        release {
+            minifyEnabled false
+        }
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}
+
+dependencies {
+    implementation 'com.google.androidbrowserhelper:androidbrowserhelper:2.7.4'
+}

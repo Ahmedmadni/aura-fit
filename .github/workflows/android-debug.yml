@@ -1,0 +1,44 @@
+name: android-debug
+on:
+  pull_request:
+    paths:
+      - 'android/**'
+      - 'ANDROID_RELEASE_GUIDE_AR.md'
+      - '.github/workflows/android-debug.yml'
+  workflow_dispatch:
+jobs:
+  debug-apk:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      # Ubuntu GitHub runners already include Android command-line tools.
+      # The setup-android action's default legacy 'tools' SDK package is no longer available.
+      - name: Accept SDK licenses
+        run: |
+          SDKMANAGER=$(find "${ANDROID_HOME:-/usr/local/lib/android/sdk}/cmdline-tools" -type f -name sdkmanager | head -n 1)
+          test -x "$SDKMANAGER"
+          yes | "$SDKMANAGER" --licenses > /dev/null || true
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.11.1'
+      - name: Install Android API 36
+        run: |
+          SDKMANAGER=$(find "${ANDROID_HOME:-/usr/local/lib/android/sdk}/cmdline-tools" -type f -name sdkmanager | head -n 1)
+          "$SDKMANAGER" 'platforms;android-36' 'build-tools;35.0.0'
+      - name: Build Android debug APK (non-production example origin)
+        working-directory: android
+        run: gradle --no-daemon assembleDebug -PauraSiteUrl=https://example.org
+      - name: Validate APK is generated
+        run: test -s android/app/build/outputs/apk/debug/app-debug.apk
+      - name: Archive debug APK (placeholder domain, NOT for distribution)
+        uses: actions/upload-artifact@v4
+        with:
+          name: aura-fit-android-build-check-example-origin
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          retention-days: 7
