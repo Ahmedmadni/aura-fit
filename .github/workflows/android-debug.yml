@@ -36,3 +36,9 @@ jobs:
         run: gradle --no-daemon assembleDebug -PauraSiteUrl=https://example.org
       - name: Validate APK is generated
         run: test -s android/app/build/outputs/apk/debug/app-debug.apk
+      - name: Archive debug APK (placeholder domain, NOT for distribution)
+        uses: actions/upload-artifact@v4
+        with:
+          name: aura-fit-android-build-check-example-origin
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          retention-days: 7
