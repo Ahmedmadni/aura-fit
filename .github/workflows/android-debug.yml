@@ -17,7 +17,10 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
-      - uses: android-actions/setup-android@v3
+      # Ubuntu GitHub runners already include Android command-line tools.
+      # The setup-android action's default legacy 'tools' SDK package is no longer available.
+      - name: Accept SDK licenses
+        run: yes | sdkmanager --licenses > /dev/null || true
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.10.2'
