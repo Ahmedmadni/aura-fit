@@ -1,0 +1,44 @@
+name: android-site-debug
+on:
+  workflow_dispatch:
+    inputs:
+      site_url:
+        description: 'Published HTTPS origin of Aura Fit (not Lovable editor or example.org)'
+        required: true
+        type: string
+jobs:
+  site-debug-apk:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.11.1'
+      - name: Validate published origin
+        env:
+          AURA_SITE_URL: ${{ inputs.site_url }}
+        run: node scripts/validate-android-site-url.mjs
+      - name: Install Android SDK
+        run: |
+          SDKMANAGER=$(find "${ANDROID_HOME:-/usr/local/lib/android/sdk}/cmdline-tools" -type f -name sdkmanager | head -n 1)
+          test -x "$SDKMANAGER"
+          yes | "$SDKMANAGER" --licenses > /dev/null || true
+          "$SDKMANAGER" 'platforms;android-36' 'build-tools;35.0.0'
+      - name: Build site-specific debug APK
+        working-directory: android
+        env:
+          AURA_SITE_URL: ${{ inputs.site_url }}
+        run: gradle --no-daemon assembleDebug
+      - name: Validate APK
+        run: test -s android/app/build/outputs/apk/debug/app-debug.apk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: aura-fit-android-site-debug-unsigned-for-release
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          retention-days: 7
