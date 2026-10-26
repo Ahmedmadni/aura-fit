@@ -7,10 +7,28 @@ plugins {
 def siteValue = providers.gradleProperty('auraSiteUrl').orElse(providers.environmentVariable('AURA_SITE_URL')).orNull
 if (!siteValue) throw new GradleException('Provide -PauraSiteUrl=https://your-published-domain or AURA_SITE_URL')
 def site = new URI(siteValue)
-if (site.scheme != 'https' || !site.host || site.userInfo || site.query || site.fragment || (site.path && site.path != '/')) {
+if (site.scheme != 'https' || !site.host || site.userInfo || site.query != null || site.fragment != null || site.port != -1 || (site.path && site.path != '/')) {
     throw new GradleException('AURA_SITE_URL must be a clean HTTPS origin, without path/query/credentials')
 }
 def origin = "https://${site.authority}"
+if (siteValue != origin && siteValue != origin + '/') {
+    throw new GradleException('AURA_SITE_URL must be a canonical HTTPS origin')
+}
+def host = site.host.toLowerCase(java.util.Locale.ROOT)
+// The placeholder is allowed only for the isolated CI compile check, never
+// for site-specific APKs or release tasks. Normal local builds validate too.
+def buildCheck = providers.gradleProperty('auraBuildCheck').orNull == 'true'
+def blockedHost = host ==~ /^(localhost|127\..*|0\..*|10\..*|192\.168\..*|172\.(1[6-9]|2\d|3[01])\..*|.*\.localhost|.*\.local|.*\.internal)$/ ||
+    host.contains(':') || host ==~ /^(id-)?preview--.*/ ||
+    host ==~ /^(.*\.)?(example\.(com|org|net)|lovable\.dev|github\.com|github\.io)$/
+if (buildCheck) {
+    def tasks = gradle.startParameter.taskNames
+    if (siteValue != 'https://example.org' || tasks.isEmpty() || tasks.any { it != 'assembleDebug' && it != ':app:assembleDebug' }) {
+        throw new GradleException('auraBuildCheck permits only assembleDebug at https://example.org; not a distributable build')
+    }
+} else if (blockedHost) {
+    throw new GradleException('Use a published app origin, not a preview, private, editor or placeholder domain')
+}
 def assetStatements = '[{"relation":["delegate_permission/common.handle_all_urls"],"target":{"namespace":"web","site":"' + origin + '"}}]'
 
 android {

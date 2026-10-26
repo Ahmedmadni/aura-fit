@@ -24,6 +24,8 @@ jobs:
         env:
           AURA_SITE_URL: ${{ inputs.site_url }}
         run: node scripts/validate-android-site-url.mjs
+      - name: Check origin validation regressions
+        run: node scripts/validate-android-targets.mjs
       - name: Install Android SDK
         run: |
           SDKMANAGER=$(find "${ANDROID_HOME:-/usr/local/lib/android/sdk}/cmdline-tools" -type f -name sdkmanager | head -n 1)

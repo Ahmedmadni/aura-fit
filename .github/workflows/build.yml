@@ -27,6 +27,7 @@ jobs:
       - run: bun run workout:validate
       - run: bun run session:validate
       - run: bun run recovery:validate
+      - run: bun run android:targets:validate
       - run: AURA_SITE_URL=https://fit.example-fitness.com node scripts/validate-android-site-url.mjs
       - run: '! AURA_SITE_URL=https://example.org node scripts/validate-android-site-url.mjs'
       - run: '! AURA_SITE_URL=https://lovable.dev/projects/example node scripts/validate-android-site-url.mjs'

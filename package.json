@@ -9,6 +9,7 @@
     "build:dev": "vite build --mode development",
     "preview": "vite preview",
     "lint": "eslint .",
+    "android:targets:validate": "node scripts/validate-android-targets.mjs",
     "format": "prettier --write .",
     "media:validate": "node scripts/validate-exercise-media-map.mjs",
     "media:review": "node scripts/generate-media-review.mjs",
