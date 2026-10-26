@@ -46,6 +46,19 @@ import {
 } from "@/lib/workout-engine";
 
 export const Route = createFileRoute("/exercise/$id")({
+  head: ({ params }) => {
+    const exercise = getExercise(params.id);
+    const title = `${exercise?.name ?? "تفاصيل التمرين"} | Aura Fit`;
+    const description = `إرشادات الحركة والسلامة ومراجع ${exercise?.name ?? "التمرين"} ومتابعة تقدمك.`;
+    return { meta: [
+      { title },
+      { name: "description", content: description },
+      { property: "og:title", content: title },
+      { property: "og:description", content: description },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary_large_image" },
+    ] };
+  },
   component: ExerciseDetail,
 });
 

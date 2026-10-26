@@ -45,6 +45,16 @@ import {
 } from "@/lib/workout-session-meta";
 
 export const Route = createFileRoute("/")({
+  head: () => ({
+    meta: [
+      { title: "لوحة التدريب | Aura Fit" },
+      { name: "description", content: "تابع جاهزيتك وخطتك الأسبوعية وجلسات التمرين من لوحة التدريب." },
+      { property: "og:title", content: "لوحة التدريب | Aura Fit" },
+      { property: "og:description", content: "تابع جاهزيتك وخطتك الأسبوعية وجلسات التمرين من لوحة التدريب." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary_large_image" },
+    ],
+  }),
   component: Dashboard,
 });
 

@@ -63,6 +63,16 @@ import {
 } from "@/lib/user-profile";
 
 export const Route = createFileRoute("/profile")({
+  head: () => ({
+    meta: [
+      { title: "حسابي وإعداداتي | Aura Fit" },
+      { name: "description", content: "إدارة ملف التدريب وحجم الخط والنسخ الاحتياطي والمزامنة الاختيارية." },
+      { property: "og:title", content: "حسابي وإعداداتي | Aura Fit" },
+      { property: "og:description", content: "إدارة ملف التدريب وحجم الخط والنسخ الاحتياطي والمزامنة الاختيارية." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary_large_image" },
+    ],
+  }),
   component: Profile,
 });
 

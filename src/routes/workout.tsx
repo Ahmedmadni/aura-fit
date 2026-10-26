@@ -52,6 +52,16 @@ import {
 } from "@/lib/workout-session";
 
 export const Route = createFileRoute("/workout")({
+  head: () => ({
+    meta: [
+      { title: "جلسة التدريب | Aura Fit" },
+      { name: "description", content: "تتبع مجموعاتك وتكراراتك وأحمالك مع مؤقت التمرين وإرشادات الحركة." },
+      { property: "og:title", content: "جلسة التدريب | Aura Fit" },
+      { property: "og:description", content: "تتبع مجموعاتك وتكراراتك وأحمالك مع مؤقت التمرين وإرشادات الحركة." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary_large_image" },
+    ],
+  }),
   validateSearch: (search: Record<string, unknown>) => {
     const parsed = Number(search.day);
     return {

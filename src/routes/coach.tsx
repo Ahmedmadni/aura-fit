@@ -37,6 +37,10 @@ export const Route = createFileRoute("/coach")({
         content:
           "إرشاد تدريبي مبني على بياناتك الفعلية: الجاهزية، الخطة، الأحمال، RIR والاستشفاء.",
       },
+      { property: "og:title", content: "المدرب التحليلي | Aura Fit" },
+      { property: "og:description", content: "إرشاد تدريبي مبني على بياناتك الفعلية: الجاهزية، الخطة، الأحمال، RIR والاستشفاء." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary_large_image" },
     ],
   }),
   component: Coach,
