@@ -3,6 +3,8 @@ on:
   pull_request:
     paths:
       - 'android/**'
+      - 'scripts/validate-android-site-url.mjs'
+      - 'scripts/validate-android-targets.mjs'
       - 'ANDROID_RELEASE_GUIDE_AR.md'
       - '.github/workflows/android-debug.yml'
   workflow_dispatch:
@@ -33,7 +35,7 @@ jobs:
           "$SDKMANAGER" 'platforms;android-36' 'build-tools;35.0.0'
       - name: Build Android debug APK (non-production example origin)
         working-directory: android
-        run: gradle --no-daemon assembleDebug -PauraSiteUrl=https://example.org
+        run: gradle --no-daemon assembleDebug -PauraSiteUrl=https://example.org -PauraBuildCheck=true
       - name: Validate APK is generated
         run: test -s android/app/build/outputs/apk/debug/app-debug.apk
       - name: Archive debug APK (placeholder domain, NOT for distribution)

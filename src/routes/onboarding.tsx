@@ -12,6 +12,16 @@ import {
 import { loadProfile, saveProfile } from "@/lib/user-profile";
 
 export const Route = createFileRoute("/onboarding")({
+  head: () => ({
+    meta: [
+      { title: "إعداد ملف التدريب | Aura Fit" },
+      { name: "description", content: "حدد أهدافك ومعداتك ومستواك وجدولك لإعداد خطة تدريب مناسبة." },
+      { property: "og:title", content: "إعداد ملف التدريب | Aura Fit" },
+      { property: "og:description", content: "حدد أهدافك ومعداتك ومستواك وجدولك لإعداد خطة تدريب مناسبة." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary_large_image" },
+    ],
+  }),
   component: Onboarding,
 });
 

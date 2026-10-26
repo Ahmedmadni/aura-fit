@@ -24,6 +24,10 @@ export const Route = createFileRoute("/nutrition")({
         content:
           "احتياج طاقة وماكروز تقديري مبني على بيانات الملف الشخصي، بدون وجبات أو استهلاك وهمي.",
       },
+      { property: "og:title", content: "التغذية التقديرية | Aura Fit" },
+      { property: "og:description", content: "احتياج طاقة وماكروز تقديري مبني على بيانات الملف الشخصي، بدون وجبات أو استهلاك وهمي." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary_large_image" },
     ],
   }),
   component: Nutrition,

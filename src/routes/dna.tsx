@@ -43,6 +43,10 @@ export const Route = createFileRoute("/dna")({
         content:
           "ملخص واقعي لهويتك التدريبية من الجلسات والأحمال والجاهزية وتوازن الحجم، بدون ادعاءات جينية.",
       },
+      { property: "og:title", content: "بصمة التدريب | Aura Fit" },
+      { property: "og:description", content: "ملخص واقعي لهويتك التدريبية من الجلسات والأحمال والجاهزية وتوازن الحجم، بدون ادعاءات جينية." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary_large_image" },
     ],
   }),
   component: TrainingFingerprint,

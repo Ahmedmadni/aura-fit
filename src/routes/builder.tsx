@@ -14,6 +14,10 @@ export const Route = createFileRoute("/builder")({
     meta: [
       { title: "منشئ التمارين — Kinetic Performance" },
       { name: "description", content: "أنشئ تمارينك الخاصة بالسحب والإفلات، أو ولّد جلسة ذكية بلمسة زر." },
+      { property: "og:title", content: "منشئ التمارين — Kinetic Performance" },
+      { property: "og:description", content: "أنشئ تمارينك الخاصة بالسحب والإفلات، أو ولّد جلسة ذكية بلمسة زر." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary_large_image" },
     ],
   }),
 });

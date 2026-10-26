@@ -26,6 +26,13 @@ gradle assembleDebug -PauraSiteUrl=https://YOUR_PUBLISHED_DOMAIN
 
 ثم ثبّت `app/build/outputs/apk/debug/app-debug.apk` على هاتف اختبار. **هذه تعليمات للبناء فقط، ولم تُنفذ أو يُنتج ملف APK في هذه المرحلة.** لا تضع رابطًا غير HTTPS ولا رابط معاينة Lovable.
 
+### تجهيز APK من GitHub
+بعد نشر الموقع، افتح Actions ثم `android-site-debug` ثم Run workflow، وأدخل النطاق المنشور في `site_url`. نزّل ملف APK من Artifacts بعد نجاح المهمة؛ توقيعه تجريبي وغير مناسب للمتجر. لا يزال تنفيذ المهمة وحالة GitHub المباشرة غير متحققين من هذه الجلسة.
+
+البناء المباشر وGitHub يرفضان روابط المعاينة والمحرر والنطاقات الخاصة والمثال، والمنافذ والمسارات. فحص `android-debug` منفصل: يستخدم `https://example.org` مع `-PauraBuildCheck=true` للتحقق من التجميع فقط، ويُرفض هذا الاستثناء لأي مهمة غير `assembleDebug`. لا توزّع الملف الناتج عن هذا الفحص.
+
+شغّل `bun run android:targets:validate` من جذر المشروع للتحقق من قواعد العنوان؛ نجاحه لا يثبت نشر النطاق أو إنشاء APK أو تحقق ملكية النطاق.
+
 ## إثبات ملكية النطاق
 بعد حسم اسم الحزمة وإنشاء مفتاح التوقيع، استخرج SHA-256 لشهادة توقيع التطبيق. يجب تقديم ملف:
 `https://YOUR_PUBLISHED_DOMAIN/.well-known/assetlinks.json`

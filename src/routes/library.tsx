@@ -12,6 +12,10 @@ export const Route = createFileRoute("/library")({
     meta: [
       { title: "مكتبة التمارين — Kinetic Performance" },
       { name: "description", content: "مكتبة تمارين شاملة مع فلاتر ذكية حسب المستوى والمعدات والعضلات المستهدفة." },
+      { property: "og:title", content: "مكتبة التمارين — Kinetic Performance" },
+      { property: "og:description", content: "مكتبة تمارين شاملة مع فلاتر ذكية حسب المستوى والمعدات والعضلات المستهدفة." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary_large_image" },
     ],
   }),
 });

@@ -41,6 +41,16 @@ import {
 } from "@/lib/user-profile";
 
 export const Route = createFileRoute("/programs")({
+  head: () => ({
+    meta: [
+      { title: "البرامج والخطة الأسبوعية | Aura Fit" },
+      { name: "description", content: "راجع جدول التدريب والحجم الأسبوعي والاستشفاء بحسب ملفك وجاهزيتك." },
+      { property: "og:title", content: "البرامج والخطة الأسبوعية | Aura Fit" },
+      { property: "og:description", content: "راجع جدول التدريب والحجم الأسبوعي والاستشفاء بحسب ملفك وجاهزيتك." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary_large_image" },
+    ],
+  }),
   component: Programs,
 });
 

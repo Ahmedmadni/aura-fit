@@ -24,6 +24,16 @@ import {
 } from "@/lib/exercise-db";
 
 export const Route = createFileRoute("/exercises")({
+  head: () => ({
+    meta: [
+      { title: "دليل الحركات | Aura Fit" },
+      { name: "description", content: "استعرض الحركات حسب العضلات والمعدات ومستوى التدريب مع مراجعها." },
+      { property: "og:title", content: "دليل الحركات | Aura Fit" },
+      { property: "og:description", content: "استعرض الحركات حسب العضلات والمعدات ومستوى التدريب مع مراجعها." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary_large_image" },
+    ],
+  }),
   component: ExerciseLibrary,
 });
 
