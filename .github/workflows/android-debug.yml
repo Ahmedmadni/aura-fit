@@ -5,6 +5,7 @@ on:
       - 'android/**'
       - 'scripts/validate-android-site-url.mjs'
       - 'scripts/validate-android-targets.mjs'
+      - 'scripts/validate-android-gradle.groovy'
       - 'ANDROID_RELEASE_GUIDE_AR.md'
       - '.github/workflows/android-debug.yml'
   workflow_dispatch:
@@ -19,6 +20,11 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
+      - name: Verify actual Gradle target policy without Android SDK
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y groovy
+          groovy scripts/validate-android-gradle.groovy
       # Ubuntu GitHub runners already include Android command-line tools.
       # The setup-android action's default legacy 'tools' SDK package is no longer available.
       - name: Accept SDK licenses
