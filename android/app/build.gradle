@@ -18,7 +18,10 @@ def host = site.host.toLowerCase(java.util.Locale.ROOT)
 // The placeholder is allowed only for the isolated CI compile check, never
 // for site-specific APKs or release tasks. Normal local builds validate too.
 def buildCheck = providers.gradleProperty('auraBuildCheck').orNull == 'true'
-def blockedHost = host ==~ /^(localhost|127\..*|0\..*|10\..*|192\.168\..*|172\.(1[6-9]|2\d|3[01])\..*|.*\.localhost|.*\.local|.*\.internal)$/ ||
+// Distribution targets must be domain names, not literal IP addresses;
+// this also excludes link-local metadata endpoints and shared-address ranges.
+def blockedHost = host ==~ /^\d+\.\d+\.\d+\.\d+$/ ||
+    host ==~ /^(localhost|.*\.localhost|.*\.local|.*\.internal)$/ ||
     host.contains(':') || host ==~ /^(id-)?preview--.*/ ||
     host ==~ /^(.*\.)?(example\.(com|org|net)|lovable\.dev|github\.com|github\.io)$/
 if (buildCheck) {
