@@ -39,6 +39,9 @@ const ctx=vm.createContext({
   fetch:async request=>{
     const url=key(request);history.push(url);
     if(offline)throw Error("synthetic offline");
+    if(url==="https://aura.local/")return new Response('<script src="/assets/entry.js"></script><link href="/assets/app.css"><script src="/api/private.js"></script>');
+    if(url.endsWith("/assets/entry.js"))return new Response('import "./shared.js"; import("./profile.js"); import "https://other.example/assets/remote.js";');
+    if(url.endsWith("/assets/app.css"))return new Response('@import "./shared.css";');
     if(url.endsWith("/profile"))return new Response("PRIVATE ACCOUNT A");
     return new Response("HTTP 200 "+url,{status:200});
   },
@@ -55,7 +58,11 @@ async function dispatch(name,request){
   return response;
 }
 await dispatch("install");
-assert(store.get("aura-fit-v2").rows.has("https://aura.local/"),"public install shell missing");
+assert(store.get("aura-fit-v3").rows.has("https://aura.local/"),"public install shell missing");
+for(const asset of ["entry.js","shared.js","profile.js","app.css","shared.css"]){
+  assert(Boolean(await caches.match("/assets/"+asset)),"shell dependency not precached: "+asset);
+}
+assert(!history.some(url=>url.includes("other.example")||url.includes("/api/private")),"install followed a nonpublic dependency");
 store.set("aura-fit-v1",new Cache("aura-fit-v1"));
 await dispatch("activate");
 assert(!store.has("aura-fit-v1"),"old cache not cleaned on activation");
@@ -69,7 +76,7 @@ assert((await online.text())==="PRIVATE ACCOUNT A","network navigation missing")
 assert(!(await caches.match(profile)),"private profile HTML leaked to public CacheStorage");
 offline=true;
 const offlinePage=await dispatch("fetch",profile);
-assert((await offlinePage.text())==="public:/",
+assert((await offlinePage.text()).includes('/assets/entry.js'),
   "offline private route did not fall back to public install shell");
 offline=false;
 const publicMedia=self.AURA_OFFLINE_MEDIA;
