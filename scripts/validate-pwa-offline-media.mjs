@@ -39,7 +39,8 @@ const ctx=vm.createContext({
   fetch:async (request, options)=>{
     const url=key(request);history.push(url);
     if(offline)throw Error("synthetic offline");
-    if(url==="https://aura.local/" || url.includes('/assets/'))assert(options?.credentials==="omit","install sent account cookies");
+    if(new URL(url).origin==="https://aura.local" &&
+        (url==="https://aura.local/" || new URL(url).pathname.startsWith('/assets/')))assert(options?.credentials==="omit","install sent account cookies");
     if(url.includes('/assets/assets/'))throw Error('incorrect Vite preload URL');
     if(url==="https://aura.local/")return new Response('<script src="/assets/entry.js"></script><link href="/assets/app.css"><script src="/api/private.js"></script>');
     if(url.endsWith("/assets/entry.js"))return new Response('import "./shared.js"; import("./settings.js"); const deps=["assets/workout.js"]; import "https://other.example/assets/remote.js";');
