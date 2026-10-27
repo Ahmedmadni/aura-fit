@@ -68,7 +68,10 @@ async function precachePublicShell(cache) {
   const visited = new Set();
   const discover = (text, base) => {
     for (const match of text.matchAll(/["']([^"'\s<>]+\.(?:js|css))["']/g)) {
-      const url = new URL(match[1], base);
+      // Vite preload maps use root-relative "assets/chunk.js" strings even
+      // inside an /assets entry module; imports use ./chunk.js instead.
+      const reference = match[1].startsWith("assets/") ? "/" + match[1] : match[1];
+      const url = new URL(reference, base);
       if (url.origin !== self.location.origin || !(/^\/assets\//).test(url.pathname) ||
           url.search || url.hash || url.username || url.password || visited.has(url.href)) continue;
       visited.add(url.href);

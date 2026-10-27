@@ -33,6 +33,8 @@ gradle assembleDebug -PauraSiteUrl=https://YOUR_PUBLISHED_DOMAIN
 
 شغّل `bun run android:targets:validate` من جذر المشروع للتحقق من قواعد العنوان؛ نجاحه لا يثبت نشر النطاق أو إنشاء APK أو تحقق ملكية النطاق.
 
+ولفحص كتلة التحقق الفعلية داخل Gradle دون Android SDK، شغّل `groovy scripts/validate-android-gradle.groovy` من الجذر بعد تثبيت Groovy. يشمل ذلك استثناء رابط المثال ومهام الإصدار؛ يطبّق GitHub الفحص نفسه قبل البناء. نجاحه ليس اختبار تجميع APK.
+
 ## إثبات ملكية النطاق
 بعد حسم اسم الحزمة وإنشاء مفتاح التوقيع، استخرج SHA-256 لشهادة توقيع التطبيق. يجب تقديم ملف:
 `https://YOUR_PUBLISHED_DOMAIN/.well-known/assetlinks.json`
