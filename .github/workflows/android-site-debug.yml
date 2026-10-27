@@ -26,6 +26,11 @@ jobs:
         run: node scripts/validate-android-site-url.mjs
       - name: Check origin validation regressions
         run: node scripts/validate-android-targets.mjs
+      - name: Check actual Gradle target policy
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y groovy
+          groovy scripts/validate-android-gradle.groovy
       - name: Install Android SDK
         run: |
           SDKMANAGER=$(find "${ANDROID_HOME:-/usr/local/lib/android/sdk}/cmdline-tools" -type f -name sdkmanager | head -n 1)

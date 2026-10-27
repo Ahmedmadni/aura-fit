@@ -8,7 +8,8 @@ if (url.protocol !== "https:" || !url.hostname || url.username || url.password |
     url.port || supplied !== url.origin && supplied !== url.origin + "/") {
   throw Error("Use only a published HTTPS origin without path, port, credentials or query");
 }
-if (/^(localhost|127\.|0\.|10\.|192\.168\.|172\.(?:1[6-9]|2\d|3[01])\.)/i.test(url.hostname) ||
+if (/^\d+\.\d+\.\d+\.\d+$/.test(url.hostname) ||
+    /^localhost$/i.test(url.hostname) ||
     /^(example\.(?:com|org|net)|[^.]+\.localhost|.*\.local|.*\.internal)$/i.test(url.hostname) ||
     url.hostname.includes(":") ||
     /^(?:id-)?preview--/i.test(url.hostname) ||

@@ -8,7 +8,7 @@
  */
 importScripts("/media-offline-allowlist.js");
 
-const CACHE_VERSION = "aura-fit-v2";
+const CACHE_VERSION = "aura-fit-v3";
 const GIF_CACHE = "aura-fit-approved-gifs-v1";
 const POSTER_CACHE = "aura-fit-approved-posters-v1";
 const FRAME_CACHE = "aura-fit-exercise-frames-v1";
@@ -56,6 +56,41 @@ function classifyExerciseMedia(url, request) {
   return null;
 }
 
+// Install the public shell's build dependency graph before taking control.
+// Requests omit account cookies; only immutable same-origin /assets JS/CSS
+// are discovered. Never follow API, navigation, dev-server or remote URLs.
+async function precachePublicShell(cache) {
+  await cache.addAll(APP_SHELL.filter((asset) => asset !== "/"));
+  const response = await fetch("/", { credentials: "omit", cache: "reload" });
+  if (!response.ok) throw new Error("Public shell is unavailable");
+  const html = await response.clone().text();
+  const pending = [];
+  const visited = new Set();
+  const discover = (text, base) => {
+    for (const match of text.matchAll(/["']([^"'\s<>]+\.(?:js|css))["']/g)) {
+      // Vite preload maps use root-relative "assets/chunk.js" strings even
+      // inside an /assets entry module; imports use ./chunk.js instead.
+      const reference = match[1].startsWith("assets/") ? "/" + match[1] : match[1];
+      const url = new URL(reference, base);
+      if (url.origin !== self.location.origin || !(/^\/assets\//).test(url.pathname) ||
+          url.search || url.hash || url.username || url.password || visited.has(url.href)) continue;
+      visited.add(url.href);
+      if (visited.size > 256) throw new Error("Public shell asset graph exceeds its budget");
+      pending.push(url.href);
+    }
+  };
+  discover(html, self.location.origin + "/");
+  for (let index = 0; index < pending.length; index++) {
+    const url = pending[index];
+    const asset = await fetch(url, { credentials: "omit", cache: "reload" });
+    if (!asset.ok) throw new Error("Public shell dependency is unavailable");
+    discover(await asset.clone().text(), url);
+    await cache.put(url, asset);
+  }
+  // Publish the shell only after every required dependency was saved.
+  await cache.put("/", response);
+}
+
 async function trimMediaCache(cache, maxEntries) {
   const keys = await cache.keys();
   if (keys.length <= maxEntries) return;
@@ -87,7 +122,7 @@ async function serveExerciseMedia(request, kind, event) {
 self.addEventListener("install", (event) => {
   event.waitUntil(
     caches.open(CACHE_VERSION)
-      .then((cache) => cache.addAll(APP_SHELL))
+      .then((cache) => precachePublicShell(cache))
       .then(() => self.skipWaiting()),
   );
 });
