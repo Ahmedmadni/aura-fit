@@ -40,7 +40,7 @@ const ctx=vm.createContext({
     const url=key(request);history.push(url);
     if(offline)throw Error("synthetic offline");
     if(url==="https://aura.local/")return new Response('<script src="/assets/entry.js"></script><link href="/assets/app.css"><script src="/api/private.js"></script>');
-    if(url.endsWith("/assets/entry.js"))return new Response('import "./shared.js"; import("./profile.js"); import "https://other.example/assets/remote.js";');
+    if(url.endsWith("/assets/entry.js"))return new Response('import "./shared.js"; import("./settings.js"); import "https://other.example/assets/remote.js";');
     if(url.endsWith("/assets/app.css"))return new Response('@import "./shared.css";');
     if(url.endsWith("/profile"))return new Response("PRIVATE ACCOUNT A");
     return new Response("HTTP 200 "+url,{status:200});
@@ -59,7 +59,7 @@ async function dispatch(name,request){
 }
 await dispatch("install");
 assert(store.get("aura-fit-v3").rows.has("https://aura.local/"),"public install shell missing");
-for(const asset of ["entry.js","shared.js","profile.js","app.css","shared.css"]){
+for(const asset of ["entry.js","shared.js","settings.js","app.css","shared.css"]){
   assert(Boolean(await caches.match("/assets/"+asset)),"shell dependency not precached: "+asset);
 }
 assert(!history.some(url=>url.includes("other.example")||url.includes("/api/private")),"install followed a nonpublic dependency");

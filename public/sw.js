@@ -69,7 +69,7 @@ async function precachePublicShell(cache) {
   const discover = (text, base) => {
     for (const match of text.matchAll(/["']([^"'\s<>]+\.(?:js|css))["']/g)) {
       const url = new URL(match[1], base);
-      if (url.origin !== self.location.origin || !url.pathname.startsWith("/assets/") ||
+      if (url.origin !== self.location.origin || !(/^\/assets\//).test(url.pathname) ||
           url.search || url.hash || url.username || url.password || visited.has(url.href)) continue;
       visited.add(url.href);
       if (visited.size > 256) throw new Error("Public shell asset graph exceeds its budget");
