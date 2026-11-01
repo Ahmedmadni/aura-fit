@@ -8,6 +8,13 @@
       "when": 1791866094179,
       "tag": "0000_aura_cloud_sync",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1793510870015,
+      "tag": "0001_restore_aura_table_grants",
+      "breakpoints": true
     }
   ]
 }
