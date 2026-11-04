@@ -62,12 +62,14 @@ jobs:
           AURA_SITE_URL: ${{ inputs.site_url }}
         run: gradle --no-daemon assembleDebug
       - name: Validate APK
+        env:
+          AURA_SITE_URL: ${{ inputs.site_url }}
         run: |
           APK=android/app/build/outputs/apk/debug/app-debug.apk
           test -s "$APK"
           "${ANDROID_HOME:-/usr/local/lib/android/sdk}/build-tools/35.0.0/apksigner" verify --print-certs "$APK" > android/app/build/outputs/apk/debug/signing-certificate.txt
           sha256sum "$APK" > android/app/build/outputs/apk/debug/apk-sha256.txt
-          printf 'Published origin: %s\nPackage: com.aurafit.kinetic\nDebug build only; not for Google Play.\n' '${{ inputs.site_url }}' > android/app/build/outputs/apk/debug/build-info.txt
+          printf 'Published origin: %s\nPackage: com.aurafit.kinetic\nDebug build only; not for Google Play.\n' "$AURA_SITE_URL" > android/app/build/outputs/apk/debug/build-info.txt
       - uses: actions/upload-artifact@v4
         with:
           name: aura-fit-android-site-debug-unsigned-for-release
