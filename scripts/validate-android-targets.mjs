@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
+import fs from 'node:fs';
 
 // Exercise the actual workflow entry point, including missing input. These
 // checks validate URL safety, not whether the target has been published.
@@ -50,3 +51,13 @@ for (const [target, allowed] of cases) {
   assert.equal(result.status === 0, allowed, `Unexpected Android target decision: ${target || '(missing)'}`);
 }
 console.log(`Android target safety PASS: ${cases.length} accepted/rejected origins.`);
+
+// The default must open the verified published app, not the editor or preview.
+const workflow = fs.readFileSync('.github/workflows/android-site-debug.yml', 'utf8');
+const defaultOrigin = workflow.match(/default:\s*'([^']+)'/)?.[1];
+assert.equal(defaultOrigin, 'https://adaptive-wellspring-36.lovable.app');
+const defaultCheck = spawnSync(process.execPath, ['scripts/validate-android-site-url.mjs'], {
+  env: { ...process.env, AURA_SITE_URL: defaultOrigin }, encoding: 'utf8',
+});
+assert.equal(defaultCheck.status, 0, 'Workflow default must pass the real Android origin policy');
+console.log('Android workflow default PASS: verified published origin.');
