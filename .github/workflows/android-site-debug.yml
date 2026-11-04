@@ -4,6 +4,7 @@ on:
     inputs:
       site_url:
         description: 'Published HTTPS origin of Aura Fit (not Lovable editor or example.org)'
+        default: 'https://adaptive-wellspring-36.lovable.app'
         required: true
         type: string
 jobs:
@@ -26,6 +27,24 @@ jobs:
         run: node scripts/validate-android-site-url.mjs
       - name: Check origin validation regressions
         run: node scripts/validate-android-targets.mjs
+      - name: Verify published app is reachable
+        env:
+          AURA_SITE_URL: ${{ inputs.site_url }}
+        run: |
+          node --input-type=module <<'NODE'
+          const origin = process.env.AURA_SITE_URL;
+          for (const path of ['/', '/manifest.webmanifest']) {
+            const response = await fetch(new URL(path, origin), { redirect: 'error', signal: AbortSignal.timeout(30000) });
+            if (!response.ok) throw new Error(`Published app unavailable at ${path}: HTTP ${response.status}`);
+            if (path === '/manifest.webmanifest') {
+              const manifest = await response.json();
+              if (!manifest.name || manifest.start_url !== '/' || manifest.scope !== '/') throw new Error('Published PWA manifest is invalid');
+            } else if (!(response.headers.get('content-type') || '').includes('text/html')) {
+              throw new Error('Published origin does not serve the app HTML');
+            }
+          }
+          console.log('Published app and PWA manifest are reachable.');
+          NODE
       - name: Check actual Gradle target policy
         run: |
           sudo apt-get update -qq
@@ -43,9 +62,20 @@ jobs:
           AURA_SITE_URL: ${{ inputs.site_url }}
         run: gradle --no-daemon assembleDebug
       - name: Validate APK
-        run: test -s android/app/build/outputs/apk/debug/app-debug.apk
+        env:
+          AURA_SITE_URL: ${{ inputs.site_url }}
+        run: |
+          APK=android/app/build/outputs/apk/debug/app-debug.apk
+          test -s "$APK"
+          "${ANDROID_HOME:-/usr/local/lib/android/sdk}/build-tools/35.0.0/apksigner" verify --print-certs "$APK" > android/app/build/outputs/apk/debug/signing-certificate.txt
+          sha256sum "$APK" > android/app/build/outputs/apk/debug/apk-sha256.txt
+          printf 'Published origin: %s\nPackage: com.aurafit.kinetic\nDebug build only; not for Google Play.\n' "$AURA_SITE_URL" > android/app/build/outputs/apk/debug/build-info.txt
       - uses: actions/upload-artifact@v4
         with:
           name: aura-fit-android-site-debug-unsigned-for-release
-          path: android/app/build/outputs/apk/debug/app-debug.apk
+          path: |
+            android/app/build/outputs/apk/debug/app-debug.apk
+            android/app/build/outputs/apk/debug/signing-certificate.txt
+            android/app/build/outputs/apk/debug/apk-sha256.txt
+            android/app/build/outputs/apk/debug/build-info.txt
           retention-days: 7

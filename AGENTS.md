@@ -14,4 +14,5 @@
 - Training data stays local-first: the app must work fully without a backend, and Cloud sync is an optional layer that never blocks or deletes local records.
 - Backend origin validation must accept both the managed Cloud proxy host and the direct database host; a host-format check that allows only one of them silently disables the entire cloud layer.
 - Android target validation applies both in Gradle and the workflow entry point; the isolated placeholder compile check is restricted to explicit debug-only tasks so it cannot become a distributable release target.
+- Site-specific Android builds verify the published shell and PWA manifest before assembly and export only the APK checksum and public signing certificate alongside the debug APK, so device testing and domain verification use real build evidence.
 - PWA installation saves the credential-free public shell and its same-origin immutable JS/CSS dependency graph before activation, so a first offline reload does not depend on assets fetched after worker control.
