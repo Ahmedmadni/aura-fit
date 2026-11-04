@@ -21,13 +21,17 @@
 من مجلد `android/` شغّل:
 
 ```bash
-gradle assembleDebug -PauraSiteUrl=https://YOUR_PUBLISHED_DOMAIN
+gradle assembleDebug -PauraSiteUrl=https://adaptive-wellspring-36.lovable.app
 ```
 
 ثم ثبّت `app/build/outputs/apk/debug/app-debug.apk` على هاتف اختبار. **هذه تعليمات للبناء فقط، ولم تُنفذ أو يُنتج ملف APK في هذه المرحلة.** لا تضع رابطًا غير HTTPS ولا رابط معاينة Lovable.
 
 ### تجهيز APK من GitHub
-بعد نشر الموقع، افتح Actions ثم `android-site-debug` ثم Run workflow، وأدخل النطاق المنشور في `site_url`. نزّل ملف APK من Artifacts بعد نجاح المهمة؛ توقيعه تجريبي وغير مناسب للمتجر. لا يزال تنفيذ المهمة وحالة GitHub المباشرة غير متحققين من هذه الجلسة.
+تم التحقق بتاريخ 2026-11-04 من أن `https://adaptive-wellspring-36.lovable.app` يعرض التطبيق المنشور وملف PWA باستجابة HTTP 200. أصبح هذا الرابط القيمة الجاهزة في `site_url`.
+
+بعد وصول التحديث إلى GitHub، افتح **Actions → android-site-debug → Run workflow** واترك الرابط الجاهز كما هو. يفحص السير الموقع وملف PWA قبل البناء. نزّل الحزمة من **Artifacts** بعد نجاح المهمة؛ ستحتوي على `app-debug.apk` وبصمة الملف `apk-sha256.txt` وشهادة التوقيع `signing-certificate.txt` ومعلومات الرابط `build-info.txt`. توقيع APK تجريبي وغير مناسب للمتجر. تشغيل المهمة على GitHub لم يُنفذ من هذه الجلسة.
+
+رابط `/.well-known/assetlinks.json` يرجع حاليًا HTTP 404: يمكن اختبار APK رغم ذلك، لكن قد يظهر شريط المتصفح. بعد البناء قدّم ملف `signing-certificate.txt` لإعداد إثبات الملكية ببصمة SHA-256 الحقيقية ثم نشره. شهادة debug قد تتغير بين عمليات البناء؛ لا تعتمدها لتطبيق المتجر ولا تخمّن بصمة شهادة الإنتاج.
 
 البناء المباشر وGitHub يرفضان روابط المعاينة والمحرر والنطاقات الخاصة والمثال، وعناوين IP المباشرة بما فيها عناوين الشبكة المحلية والمشتركة، والمنافذ والمسارات. فحص `android-debug` منفصل: يستخدم `https://example.org` مع `-PauraBuildCheck=true` للتحقق من التجميع فقط، ويُرفض هذا الاستثناء لأي مهمة غير `assembleDebug`. لا ينشر هذا الفحص APK قابلًا للتنزيل؛ ملفات اختبار الهاتف متاحة فقط من `android-site-debug` بالنطاق المنشور.
 
