@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.aurafit.kinetic",
+      "sha256_cert_fingerprints": [
+        "8F:48:F7:F5:B6:36:04:DC:A1:04:D4:69:E9:64:CC:A8:4B:0B:0E:4B:D7:4C:44:E5:2B:0D:9B:A1:32:2F:02:65"
+      ]
+    }
+  }
+]

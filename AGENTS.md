@@ -15,4 +15,5 @@
 - Backend origin validation must accept both the managed Cloud proxy host and the direct database host; a host-format check that allows only one of them silently disables the entire cloud layer.
 - Android target validation applies both in Gradle and the workflow entry point; the isolated placeholder compile check is restricted to explicit debug-only tasks so it cannot become a distributable release target.
 - Site-specific Android builds verify the published shell and PWA manifest before assembly and export only the APK checksum and public signing certificate alongside the debug APK, so device testing and domain verification use real build evidence.
+- Digital Asset Links must use the certificate extracted from the delivered APK and identify debug-only trust in the handoff; rebuild certificates can differ, so never claim domain verification before publishing and device validation.
 - PWA installation saves the credential-free public shell and its same-origin immutable JS/CSS dependency graph before activation, so a first offline reload does not depend on assets fetched after worker control.
