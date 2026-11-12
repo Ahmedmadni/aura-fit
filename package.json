@@ -22,6 +22,7 @@
     "media:offline:check": "node scripts/generate-offline-media-allowlist.mjs --check",
     "pwa:offline:validate": "node scripts/validate-pwa-offline-media.mjs",
     "workout:validate": "bun scripts/validate-workout-program.ts",
+    "all-exercises-forms:validate": "bun scripts/validate-all-exercises-forms.ts",
     "custom-plans:validate": "bun scripts/validate-custom-plans.ts",
     "offline-guest:validate": "bun scripts/validate-offline-guest.ts",
     "offline:web:build": "vite build --config vite.offline.config.ts",
