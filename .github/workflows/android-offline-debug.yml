@@ -37,6 +37,7 @@ jobs:
           VITE_SUPABASE_PUBLISHABLE_KEY: ''
           VITE_SUPABASE_ANON_KEY: ''
       - run: bun run offline:web:validate
+      - run: bun run all-exercises-forms:validate
       - name: Browser test with network disabled after bundle load
         run: node scripts/browser-offline-bundle-smoke.mjs
       - name: Android SDK
