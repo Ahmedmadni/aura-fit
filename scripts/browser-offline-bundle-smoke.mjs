@@ -116,12 +116,12 @@ async function main() {
     };
     async function waitForText(marker) {
       for (let i = 0; i < 120; i++) {
-        const body = await js("document.body.innerText");
+        const body = await js("document.body?.innerText ?? ''");
         if (String(body).includes(marker)) return;
         await delay(100);
       }
       throw new Error("Offline route did not render " + marker +
-        ". Visible: " + String(await js("document.body.innerText")).slice(0,800));
+        ". Visible: " + String(await js("document.body?.innerText ?? ''")).slice(0,800));
     }
     await cdp.send("Page.navigate", { url: url + "#/onboarding" });
     await waitForText("الخطوة ١ من ٨");
