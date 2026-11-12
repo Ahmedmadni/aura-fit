@@ -88,8 +88,12 @@ async function waitFor(check, label, attempts = 85, every = 150) {
 
 async function connectWebView() {
   for (let attempt=0; attempt<75; attempt++) {
-    const pidText = adb("shell","pidof",PACKAGE).split(/\s+/)[0];
-    const pid = Number(pidText);
+    let pid = 0;
+    try {
+      pid = Number(adb("shell","pidof",PACKAGE).split(/\s+/)[0]);
+    } catch {
+      // Android may still be spawning the WebView process.
+    }
     if (pid > 1) {
       const forward = spawnSync("adb", [
         "forward","tcp:"+PORT,"localabstract:webview_devtools_remote_"+pid,
