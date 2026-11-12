@@ -3,7 +3,7 @@ const OWNER_KEY = "aura.cloud.local-owner.v1";
 const PREFIX = "aura.cloud.local-data.v1.";
 const LOCAL_KEYS = [
   "kp.profile", "kp.profile.updated-at", "kp.history", "kp.readiness",
-  "kp.achievements", "aura.workout-session.v1",
+  "kp.achievements", "kp.customPlans", "aura.workout-session.v1",
   "aura.workout-session-meta.v1",
 ] as const;
 
