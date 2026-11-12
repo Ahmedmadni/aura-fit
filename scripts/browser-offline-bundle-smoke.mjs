@@ -430,6 +430,38 @@ async function main() {
       console.log("Local media importer PASS: GIF, IndexedDB persistence, deletion and forged MP4 rejection.");
     }
 
+    // Two-user-supplied files with canonical exercise slugs must import
+    // into the matching catalog records, not another movement.
+    await js("location.hash = '#/exercises'; true");
+    await waitForText("مكتبة التمارين");
+    const opened = await js("(() => { const b = document.querySelector('button[aria-controls=local-motion-bulk-panel]'); if(!b) return false; b.click(); return true; })()");
+    if (!opened) throw new Error("Bulk motion library is inaccessible");
+    const doc = await cdp.send("DOM.getDocument", { depth: 1 });
+    const chooser = await cdp.send("DOM.querySelector", {
+      nodeId:doc.root.nodeId, selector:'[data-testid="batch-motion-input"]',
+    });
+    if (!chooser.nodeId) throw new Error("Bulk multi-file picker missing");
+    const pushupGif = path.resolve(root, "media/gifs/push-up.gif");
+    await cdp.send("DOM.setFileInputFiles", {
+      nodeId:chooser.nodeId, files:[gif,pushupGif],
+    });
+    await waitForText("تأكيد ربط 2 حركة محلية");
+    await clickButton("تأكيد ربط 2 حركة محلية");
+    await waitForText("حُفظت 2 حركة من 2");
+    await js("location.hash = '#/exercise/push-up'; true");
+    await waitForMediaMode("local-gif");
+    await clickButton("الحركة");
+    await clickButton("حذف الملف المحلي");
+    await clickButton("تأكيد الحذف");
+    await waitForMediaMode("approved-gif");
+    await js("location.hash = '#/exercise/bench-press'; true");
+    await waitForMediaMode("local-gif");
+    await clickButton("الحركة");
+    await clickButton("حذف الملف المحلي");
+    await clickButton("تأكيد الحذف");
+    await waitForMediaMode("approved-gif");
+    console.log("Bulk media import PASS: 2 licensed GIFs matched by exact exercise slugs and removable independently.");
+
     if (assetErrors.length || deniedRemote.length) {
       throw new Error("Local exercise media accessed external network/missing asset: " +
         JSON.stringify({errors:assetErrors.slice(0,5),external:deniedRemote.slice(0,5)}));
