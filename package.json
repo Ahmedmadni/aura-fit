@@ -27,6 +27,8 @@
     "offline-guest:validate": "bun scripts/validate-offline-guest.ts",
     "offline:web:build": "vite build --config vite.offline.config.ts",
     "offline:web:validate": "node scripts/validate-android-offline-bundle.mjs",
+    "offline:media:prepare": "node scripts/prepare-android-exercise-media.mjs",
+    "offline:media:validate": "node scripts/validate-android-offline-media.mjs",
     "pwa:validate": "node scripts/validate-pwa.mjs",
     "pwa:icons:validate": "node scripts/validate-pwa-icon-integrity.mjs",
     "pwa:shortcuts:validate": "node scripts/validate-pwa-shortcuts.mjs",
