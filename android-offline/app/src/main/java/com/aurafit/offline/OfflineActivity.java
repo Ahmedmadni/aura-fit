@@ -66,6 +66,10 @@ public final class OfflineActivity extends Activity {
         WebSettings settings = webView.getSettings();
         settings.setJavaScriptEnabled(true);
         settings.setDomStorageEnabled(true);
+        // Exercise MP4 loops must start when the workout timer advances,
+        // not only after tapping each separate video. Only APK/user-selected
+        // local media can load, and the HTML player is always muted.
+        settings.setMediaPlaybackRequiresUserGesture(false);
         settings.setAllowFileAccess(false);
         // The Android system document picker returns content:// URIs.
         // A false value makes the restore form unable to read selected JSON.
