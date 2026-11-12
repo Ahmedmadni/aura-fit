@@ -2,7 +2,7 @@ import { useEffect } from "react";
 
 export function PwaRegister() {
   useEffect(() => {
-    if (!import.meta.env.PROD || !("serviceWorker" in navigator)) return;
+    if (import.meta.env.VITE_AURA_EMBEDDED_ANDROID === "true" || !import.meta.env.PROD || !("serviceWorker" in navigator)) return;
 
     const register = async () => {
       try {
