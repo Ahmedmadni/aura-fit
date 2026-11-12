@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 
 import { BottomNav } from "@/components/bottom-nav";
+import { LocalMotionBulkImport } from "@/components/local-motion-bulk-import";
 import { PageHeader, PageShell } from "@/components/page-shell";
 import {
   CATEGORY_LABEL_AR,
@@ -98,6 +99,8 @@ function ExerciseLibrary() {
   return (
     <PageShell>
       <PageHeader eyebrow="مكتبة حركات موثقة ومطابقة للمصدر" title="مكتبة التمارين" />
+
+      <LocalMotionBulkImport />
 
       <div className="px-6 mb-4 animate-enter">
         <div className="relative">

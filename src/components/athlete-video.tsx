@@ -5,9 +5,14 @@
  * used while paused, and the three Workout Guide frames remain the runtime
  * fallback when no verified GIF exists or a preferred asset fails to load.
  */
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { getExercise } from "@/lib/exercise-db";
+import {
+  loadLocalExerciseMotion,
+  LOCAL_MOTION_CHANGED_EVENT,
+  type LocalMotionKind,
+} from "@/lib/local-exercise-videos";
 import { AnimatedAthlete } from "./athlete-animated";
 
 type Pose =
@@ -49,6 +54,55 @@ export function ExerciseMediaPlayer({
   const [framesFailed, setFramesFailed] = useState(false);
   const [retryVersion, setRetryVersion] = useState(0);
   const [frameReviewPaused, setFrameReviewPaused] = useState(false);
+  const [localRevision, setLocalRevision] = useState(0);
+  const [localMotion, setLocalMotion] = useState<{
+    url: string; kind: LocalMotionKind;
+  } | null>(null);
+  const [localMotionFailed, setLocalMotionFailed] = useState(false);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+
+  useEffect(() => {
+    if (!exerciseId) return;
+    const changed = (event: Event) => {
+      if ((event as CustomEvent<{ exerciseId: string }>).detail?.exerciseId === exerciseId) {
+        setLocalRevision((version) => version + 1);
+      }
+    };
+    window.addEventListener(LOCAL_MOTION_CHANGED_EVENT, changed);
+    return () => window.removeEventListener(LOCAL_MOTION_CHANGED_EVENT, changed);
+  }, [exerciseId]);
+
+  useEffect(() => {
+    let active = true;
+    let url: string | undefined;
+    setLocalMotion(null);
+    setLocalMotionFailed(false);
+    if (exerciseId) {
+      void loadLocalExerciseMotion(exerciseId).then((record) => {
+        if (!active) return;
+        if (!record) { setLocalMotion(null); return; }
+        url = URL.createObjectURL(record.blob);
+        setLocalMotion({ url, kind: record.kind });
+      }).catch(() => { if (active) setLocalMotion(null); });
+    }
+    return () => {
+      active = false;
+      if (url) URL.revokeObjectURL(url);
+    };
+  }, [exerciseId, localRevision]);
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video || !localMotion || localMotion.kind === "gif" || localMotionFailed) return;
+    if (!running) {
+      video.pause();
+    } else {
+      void video.play().catch(() => {
+        // A user gesture may be required on some Android WebViews.
+        // The native controls remain available in the detail page.
+      });
+    }
+  }, [running, localMotion, localMotionFailed]);
 
   const intervalMs = useMemo(
     () => Math.max(280, Math.round((tempo * 1000) / 3)),
@@ -108,6 +162,45 @@ export function ExerciseMediaPlayer({
   const containerStyle = fluid
     ? { width: "100%", aspectRatio: "1 / 1" }
     : { width: size, height: size };
+
+  if (localMotion && !localMotionFailed) {
+    return (
+      <div
+        className="relative overflow-hidden rounded-3xl border border-primary/20 bg-background"
+        style={containerStyle}
+        data-exercise-media-mode={localMotion.kind === "gif" ? "local-gif" : "local-video"}
+        data-local-motion-kind={localMotion.kind}
+      >
+        {localMotion.kind === "gif" ? (
+          <img
+            src={running ? localMotion.url : poster ?? frames?.[0] ?? localMotion.url}
+            alt={"ملف حركة محلي لتمرين " + (exercise?.latin ?? "")}
+            className="size-full object-contain"
+            decoding="async"
+            onError={() => setLocalMotionFailed(true)}
+          />
+        ) : (
+          <video
+            ref={videoRef}
+            key={localMotion.url}
+            src={localMotion.url}
+            muted
+            loop
+            playsInline
+            autoPlay={running}
+            controls={allowFrameReview}
+            preload="metadata"
+            aria-label={"مقطع حركة محلي لتمرين " + (exercise?.latin ?? "")}
+            onError={() => setLocalMotionFailed(true)}
+            className="size-full object-contain"
+          />
+        )}
+        <div className="pointer-events-none absolute inset-x-2 bottom-2 rounded-lg border border-primary/30 bg-background/90 px-2 py-1 text-center text-[10px] font-semibold text-primary">
+          حركة اختيرت وحُفظت محليًا لهذا التمرين
+        </div>
+      </div>
+    );
+  }
 
   if (!usingFallback && preferredGif) {
     const source = running ? preferredGif : poster;

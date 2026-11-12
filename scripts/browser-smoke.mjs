@@ -748,7 +748,7 @@ async function main() {
     // In the motion tab, a user can pause and step through each pose.
     await navigate("/exercise/plank", "Plank");
     await clickText("الحركة", true);
-    await waitForText("ثلاثة إطارات توضيحية أصلية");
+    await waitForText("ثلاثة إطارات من Workout Guide");
     await clickAria("إيقاف عرض الإطارات التلقائي");
     const firstReviewFrame = Number(await evaluate(
       'Number(document.querySelector("[data-fallback-frame-index]")?.getAttribute("data-fallback-frame-index"))',

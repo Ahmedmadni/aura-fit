@@ -66,6 +66,10 @@ public final class OfflineActivity extends Activity {
         WebSettings settings = webView.getSettings();
         settings.setJavaScriptEnabled(true);
         settings.setDomStorageEnabled(true);
+        // Exercise MP4 loops must start when the workout timer advances,
+        // not only after tapping each separate video. Only APK/user-selected
+        // local media can load, and the HTML player is always muted.
+        settings.setMediaPlaybackRequiresUserGesture(false);
         settings.setAllowFileAccess(false);
         // The Android system document picker returns content:// URIs.
         // A false value makes the restore form unable to read selected JSON.
@@ -91,13 +95,39 @@ public final class OfflineActivity extends Activity {
                 fileChooser = callback;
                 try {
                     Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
-                    intent.setType("application/json");
                     intent.addCategory(Intent.CATEGORY_OPENABLE);
+                    // Backup JSON and licensed exercise MP4/WebM/GIF must
+                    // open in the same WebView SAF picker. Never grant broad
+                    // filesystem access: user explicitly picks one document.
+                    boolean motion = false;
+                    String[] accepted = params.getAcceptTypes();
+                    if (accepted != null) {
+                        for (String type : accepted) {
+                            if (type == null) continue;
+                            String lower = type.toLowerCase(java.util.Locale.ROOT);
+                            if (lower.contains("video/") || lower.contains("image/gif") ||
+                                lower.contains(".mp4") || lower.contains(".webm") ||
+                                lower.contains(".gif")) {
+                                motion = true;
+                                break;
+                            }
+                        }
+                    }
+                    if (motion) {
+                        intent.setType("*/*");
+                        intent.putExtra(Intent.EXTRA_MIME_TYPES,
+                            new String[]{"video/mp4", "video/webm", "image/gif"});
+                        if (params.getMode() == FileChooserParams.MODE_OPEN_MULTIPLE) {
+                            intent.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true);
+                        }
+                    } else {
+                        intent.setType("application/json");
+                    }
                     startActivityForResult(intent, CHOOSE_BACKUP);
                 } catch (Exception error) {
                     fileChooser = null;
                     callback.onReceiveValue(null);
-                    showToast("تعذر فتح اختيار ملف الاستعادة.");
+                    showToast("تعذر فتح اختيار الملف المحلي.");
                 }
                 return true;
             }
@@ -191,9 +221,20 @@ public final class OfflineActivity extends Activity {
         super.onActivityResult(requestCode, resultCode, intent);
         if (requestCode == CHOOSE_BACKUP) {
             if (fileChooser != null) {
-                Uri selected = resultCode == RESULT_OK && intent != null
-                    ? intent.getData() : null;
-                fileChooser.onReceiveValue(selected != null ? new Uri[]{selected} : null);
+                Uri[] selected = null;
+                if (resultCode == RESULT_OK && intent != null) {
+                    android.content.ClipData clips = intent.getClipData();
+                    if (clips != null && clips.getItemCount() > 0 &&
+                        clips.getItemCount() <= 60) {
+                        selected = new Uri[clips.getItemCount()];
+                        for (int index = 0; index < clips.getItemCount(); index++) {
+                            selected[index] = clips.getItemAt(index).getUri();
+                        }
+                    } else if (intent.getData() != null) {
+                        selected = new Uri[]{intent.getData()};
+                    }
+                }
+                fileChooser.onReceiveValue(selected);
                 fileChooser = null;
             }
         } else if (requestCode == SAVE_BACKUP) {

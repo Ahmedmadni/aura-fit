@@ -8,7 +8,7 @@
  */
 import { spawn, spawnSync } from "node:child_process";
 import { createServer } from "node:http";
-import { mkdtempSync, readFileSync, existsSync, rmSync } from "node:fs";
+import { mkdtempSync, readFileSync, existsSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 
@@ -203,6 +203,13 @@ async function main() {
       const url = message.params.request.url;
       try {
         const parsed = new URL(url);
+        if (parsed.protocol === "blob:") {
+          // Local IndexedDB media is played from a browser-internal blob URL.
+          // It never makes a network request and remains valid while offline.
+          void cdp.send("Fetch.continueRequest", { requestId })
+            .catch((e) => assetErrors.push("Local blob unavailable: " + String(e)));
+          return;
+        }
         const prefix = "/assets/web/";
         if (parsed.origin !== origin || !parsed.pathname.startsWith(prefix) ||
             parsed.search || message.params.request.method !== "GET") {
@@ -351,6 +358,119 @@ async function main() {
     }
     if (fulfilledAssets < 302) {
       throw new Error("APK asset loader served too few requests: " + fulfilledAssets);
+    }
+    // The app must let the user attach a licensed animation from Android
+    // documents and persist it to IndexedDB. Test all real UI actions, blob
+    // decoding, reload persistence, and deletion with an already-matched GIF.
+    async function pickedFile(fileName) {
+      const doc = await cdp.send("DOM.getDocument", { depth: 1 });
+      const input = await cdp.send("DOM.querySelector", {
+        nodeId: doc.root.nodeId, selector: '[data-testid="local-motion-file"]',
+      });
+      if (!input.nodeId) throw new Error("Exercise motion picker missing");
+      await cdp.send("DOM.setFileInputFiles", {
+        nodeId: input.nodeId, files: [fileName],
+      });
+    }
+    async function waitForMediaMode(mode) {
+      for (let attempt=0; attempt<110; attempt++) {
+        if (await js("document.querySelector('[data-exercise-media-mode]')?.getAttribute('data-exercise-media-mode')") === mode)
+          return;
+        await delay(75);
+      }
+      throw new Error("Media player not switched to " + mode + " after selection");
+    }
+    await js("location.hash = '#/exercise/bench-press'; true");
+    await waitForText("Bench Press");
+    await clickButton("الحركة");
+    await waitForText("إضافة حركة مرخصة");
+    const gif = path.resolve(root, "media/gifs/bench-press.gif");
+    if (!existsSync(gif)) throw new Error("Missing licensed bench-press fixture");
+    await pickedFile(gif);
+    await waitForText("ملف الحركة محفوظ");
+    await waitForMediaMode("local-gif");
+    await js("location.hash = '#/profile'; true");
+    await waitForText("ملف التدريب");
+    await js("location.hash = '#/exercise/bench-press'; true");
+    await waitForMediaMode("local-gif");
+    await clickButton("الحركة");
+    await waitForText("ملف الحركة محفوظ");
+    await clickButton("حذف الملف المحلي");
+    await clickButton("تأكيد الحذف");
+    await waitForText("حُذف الملف المحلي");
+    await waitForMediaMode("approved-gif");
+
+    // Reject forged file formats, not just extensions.
+    const fakeFile = path.join(profile, "invalid.mp4");
+    writeFileSync(fakeFile, Buffer.alloc(400, 33));
+    await pickedFile(fakeFile);
+    await waitForText("الصيغة غير مدعومة");
+
+    // Decodable 1-second 64x64 H.264 MP4 fixture: pure black frames,
+    // generated with FFmpeg before this test and checked in as base64 text.
+    // No runner tools or remote source are needed to verify MP4 playback.
+    const clip = path.join(profile, "test-motion.mp4");
+    const tinyH264 = Buffer.from(
+      readFileSync("scripts/fixtures/black-h264-64x64.mp4.base64", "utf8").trim(),
+      "base64",
+    );
+    if (tinyH264.length < 200 || tinyH264.toString("ascii",4,8) !== "ftyp") {
+      throw new Error("Invalid original MP4 test fixture");
+    }
+    writeFileSync(clip, tinyH264);
+    await pickedFile(clip);
+    await waitForText("ملف الحركة محفوظ");
+    await waitForMediaMode("local-video");
+    let videoReady = false;
+    for (let attempt=0; attempt<80; attempt++) {
+      videoReady = await js("(() => { const v=document.querySelector('[data-exercise-media-mode=local-video] video'); " +
+        "return Boolean(v && v.videoWidth > 0 && v.videoHeight > 0 && Number.isFinite(v.duration)); })()");
+      if (videoReady) break;
+      await delay(80);
+    }
+    if (!videoReady) throw new Error("Imported MP4 did not decode");
+    await clickButton("حذف الملف المحلي");
+    await clickButton("تأكيد الحذف");
+    await waitForMediaMode("approved-gif");
+    console.log("Local video importer PASS: GIF + actual H.264 MP4 decode, IndexedDB persistence, deletion and forged file refusal.");
+
+    // Two-user-supplied files with canonical exercise slugs must import
+    // into the matching catalog records, not another movement.
+    await js("location.hash = '#/exercises'; true");
+    await waitForText("مكتبة التمارين");
+    const opened = await js("(() => { const b = document.querySelector('button[aria-controls=local-motion-bulk-panel]'); if(!b) return false; b.click(); return true; })()");
+    if (!opened) throw new Error("Bulk motion library is inaccessible");
+    const doc = await cdp.send("DOM.getDocument", { depth: 1 });
+    const chooser = await cdp.send("DOM.querySelector", {
+      nodeId:doc.root.nodeId, selector:'[data-testid="batch-motion-input"]',
+    });
+    if (!chooser.nodeId) throw new Error("Bulk multi-file picker missing");
+    const pushupGif = path.resolve(root, "media/gifs/push-up.gif");
+    await cdp.send("DOM.setFileInputFiles", {
+      nodeId:chooser.nodeId, files:[gif,pushupGif],
+    });
+    await waitForText("تأكيد ربط 2 حركة محلية");
+    await clickButton("تأكيد ربط 2 حركة محلية");
+    await waitForText("حُفظت 2 حركة من 2");
+    await js("location.hash = '#/exercise/push-up'; true");
+    await waitForMediaMode("local-gif");
+    await clickButton("الحركة");
+    await waitForText("ملف الحركة محفوظ");
+    await clickButton("حذف الملف المحلي");
+    await clickButton("تأكيد الحذف");
+    await waitForMediaMode("approved-gif");
+    await js("location.hash = '#/exercise/bench-press'; true");
+    await waitForMediaMode("local-gif");
+    await clickButton("الحركة");
+    await waitForText("ملف الحركة محفوظ");
+    await clickButton("حذف الملف المحلي");
+    await clickButton("تأكيد الحذف");
+    await waitForMediaMode("approved-gif");
+    console.log("Bulk media import PASS: 2 licensed GIFs matched by exact exercise slugs and removable independently.");
+
+    if (assetErrors.length || deniedRemote.length) {
+      throw new Error("Local exercise media accessed external network/missing asset: " +
+        JSON.stringify({errors:assetErrors.slice(0,5),external:deniedRemote.slice(0,5)}));
     }
     console.log("APK asset loader simulation PASS: " + fulfilledAssets +
       " local assets served from disk; no external requests.");

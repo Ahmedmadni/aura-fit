@@ -17,6 +17,7 @@ import {
 import { AnimatePresence, motion } from "framer-motion";
 
 import { AthleteVideo } from "@/components/athlete-video";
+import { LocalExerciseMotionManager } from "@/components/local-exercise-motion-manager";
 import { BottomNav } from "@/components/bottom-nav";
 import { PageShell } from "@/components/page-shell";
 import {
@@ -365,9 +366,10 @@ function ExerciseDetail() {
 
             {tab === "motion" && (
               <>
+                <LocalExerciseMotionManager exerciseId={exercise.id} />
                 <Card>
                   <CardHeader
-                    label={exercise.media.gif ? "فيديو الحركة المطابق" : "الإطارات المطابقة للتمرين"}
+                    label={exercise.media.gif ? "العرض الحركي الموثّق أو الملف المحلي" : "عرض الحركة من الملف المحلي أو الإطارات"}
                   />
 
                   {exercise.media.gif ? (
@@ -380,7 +382,7 @@ function ExerciseDetail() {
                         fluid
                       />
                       <p className="type-small mt-3 text-muted-foreground">
-                        هذا الـGIF مرتبط مباشرة بنفس معرّف التمرين في
+                        عند عدم اختيار ملف حركة محلي، يرتبط GIF المدمج مباشرة بمعرّف التمرين في
                         hasaneyldrm/exercises-dataset: {exercise.media.sourceExerciseId}. مستوى
                         المطابقة: {exercise.media.matchConfidence === "exact" ? "تطابق اسمي" : "ثقة مرتفعة"}.
                       </p>
@@ -389,8 +391,8 @@ function ExerciseDetail() {
                     <>
                       <p className="type-small mb-4 text-muted-foreground">
                         {exercise.media.matchConfidence === "review" && exercise.media.candidateSourceExerciseId
-                          ? "توجد مطابقة مرشحة تحتاج مراجعة فنية؛ لن يتم تشغيلها تلقائيًا، لذلك يعرض التطبيق إطارات Workout Guide الأصلية."
-                          : "لا توجد مطابقة GIF معتمدة لهذا التمرين حاليًا، لذلك يعرض التطبيق ثلاثة إطارات توضيحية أصلية من Workout Guide. هذه الإطارات ليست فيديو للحركة."}
+                          ? "توجد مطابقة مرشحة تحتاج مراجعة فنية؛ لا تُستخدم تلقائيًا. عند عدم وجود ملف محلي يعرض التطبيق إطارات Workout Guide الأصلية."
+                          : "لا توجد مطابقة GIF معتمدة لهذا التمرين حاليًا؛ عند عدم وجود ملف حركة محلي يعرض التطبيق ثلاثة إطارات من Workout Guide. الإطارات ليست فيديو."}
                       </p>
 
                       <AthleteVideo
