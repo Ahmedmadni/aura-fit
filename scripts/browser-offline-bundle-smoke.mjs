@@ -457,12 +457,14 @@ async function main() {
     await js("location.hash = '#/exercise/push-up'; true");
     await waitForMediaMode("local-gif");
     await clickButton("الحركة");
+    await waitForText("ملف الحركة محفوظ");
     await clickButton("حذف الملف المحلي");
     await clickButton("تأكيد الحذف");
     await waitForMediaMode("approved-gif");
     await js("location.hash = '#/exercise/bench-press'; true");
     await waitForMediaMode("local-gif");
     await clickButton("الحركة");
+    await waitForText("ملف الحركة محفوظ");
     await clickButton("حذف الملف المحلي");
     await clickButton("تأكيد الحذف");
     await waitForMediaMode("approved-gif");
