@@ -126,6 +126,11 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 });
 
 function RootShell({ children }: { children: ReactNode }) {
+  // Packaged Android web runtime supplies its own document shell.
+  // Never nest <html>/<head>/<body> inside a client-side React root.
+  if (import.meta.env.VITE_AURA_EMBEDDED_ANDROID === "true") {
+    return <>{children}</>;
+  }
   return (
     <html lang="ar" dir="rtl">
       <head>

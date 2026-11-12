@@ -1,0 +1,71 @@
+name: android-offline-debug
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'offline/**'
+      - 'src/**'
+      - 'android-offline/**'
+      - 'vite.offline.config.ts'
+      - 'scripts/validate-android-offline-bundle.mjs'
+      - 'scripts/browser-offline-bundle-smoke.mjs'
+      - 'package.json'
+      - 'bun.lock'
+      - '.github/workflows/android-offline-debug.yml'
+jobs:
+  apk-offline:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.11.1'
+      - run: bun install --frozen-lockfile
+      - name: Bundle React training app inside the APK
+        run: bun run offline:web:build
+        env:
+          VITE_SUPABASE_URL: ''
+          VITE_SUPABASE_PUBLISHABLE_KEY: ''
+          VITE_SUPABASE_ANON_KEY: ''
+      - run: bun run offline:web:validate
+      - name: Browser test with network disabled after bundle load
+        run: node scripts/browser-offline-bundle-smoke.mjs
+      - name: Android SDK
+        run: |
+          SDKMANAGER=$(find "${ANDROID_HOME:-/usr/local/lib/android/sdk}/cmdline-tools" -type f -name sdkmanager | head -n 1)
+          test -x "$SDKMANAGER"
+          yes | "$SDKMANAGER" --licenses > /dev/null || true
+          "$SDKMANAGER" 'platforms;android-36' 'build-tools;35.0.0'
+      - name: Build independent, offline-only debug APK
+        working-directory: android-offline
+        run: gradle --no-daemon :app:assembleDebug
+      - name: Verify packaged assets and absence of network permission
+        run: |
+          APK=android-offline/app/build/outputs/apk/debug/app-debug.apk
+          test -s "$APK"
+          unzip -Z1 "$APK" | grep -qx 'assets/web/index.html'
+          AAPT="${ANDROID_HOME:-/usr/local/lib/android/sdk}/build-tools/35.0.0/aapt"
+          "$AAPT" dump permissions "$APK" > /tmp/aura-offline-apk-permissions.txt
+          if grep -q 'android.permission.INTERNET' /tmp/aura-offline-apk-permissions.txt; then
+            echo 'Offline APK unexpectedly has INTERNET permission'
+            exit 1
+          fi
+          printf 'Standalone offline guest edition. No network permission.\nPackage: com.aurafit.offline\nDoes not share Chrome/TWA data. Debug-only; not for store distribution.\n' > android-offline/app/build/outputs/apk/debug/build-info.txt
+          sha256sum "$APK" > android-offline/app/build/outputs/apk/debug/apk-sha256.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: aura-fit-offline-android-debug
+          path: |
+            android-offline/app/build/outputs/apk/debug/app-debug.apk
+            android-offline/app/build/outputs/apk/debug/apk-sha256.txt
+            android-offline/app/build/outputs/apk/debug/build-info.txt
+          retention-days: 7

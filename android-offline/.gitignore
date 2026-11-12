@@ -1,0 +1,4 @@
+# Generated and reproducible from source by bun run offline:web:build
+/app/src/main/assets/web/
+**/build/
+.gradle/
