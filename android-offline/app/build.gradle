@@ -3,6 +3,12 @@ plugins {
 }
 
 def bundleIndex = file('src/main/assets/web/index.html')
+def mediaPack = file('src/main/assets/web/media/manifest.json')
+if (!mediaPack.isFile()) {
+    throw new GradleException(
+        'Missing exercise GIF and frame pack: run "bun run offline:media:prepare" after offline:web:build.'
+    )
+}
 if (!bundleIndex.isFile()) {
     throw new GradleException(
         'Missing bundled web app: run "bun run offline:web:build" from repository root before assembling offline APK.'
