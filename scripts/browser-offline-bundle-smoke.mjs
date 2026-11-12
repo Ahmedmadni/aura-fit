@@ -1,7 +1,9 @@
 /**
  * Real Chromium render of the self-contained Android web bundle.
- * Local HTTP stands in for WebViewAssetLoader. After initial load, CDP
- * disables network and exercises client hash routes without any cloud user.
+ * Local HTTP bootstraps the bundle, then Chrome Fetch intercepts every
+ * request: packaged files are fulfilled from disk like WebViewAssetLoader,
+ * while every other origin and missing path is rejected. No remote requests
+ * or post-bootstrap HTTP fetches are allowed.
  * This is NOT an Android device/physical APK test.
  */
 import { spawn, spawnSync } from "node:child_process";
@@ -52,7 +54,10 @@ class Cdp {
     });
     this.socket.addEventListener("message", (event) => {
       const result = JSON.parse(String(event.data));
-      if (!result.id) return;
+      if (!result.id) {
+        this.onEvent?.(result);
+        return;
+      }
       const entry = this.pending.get(result.id);
       if (!entry) return;
       this.pending.delete(result.id);
@@ -183,10 +188,55 @@ async function main() {
       throw new Error("Not a guest-only embedded Android build");
     }
 
-    // No network after bootstrap. Hash history must not reload or call a server.
-    await cdp.send("Network.emulateNetworkConditions", {
-      offline: true, latency:0, downloadThroughput:0, uploadThroughput:0,
-      connectionType:"none",
+    // Simulate Android WebViewAssetLoader faithfully: every asset request is
+    // fulfilled from APK files in the CI workspace (no HTTP/network), and
+    // ALL remote domains, requests with queries and unknown files are denied.
+    // CDP Network.emulateNetworkConditions(offline=true) incorrectly blocks
+    // the HTTP test origin as well; the real Android app intercepts that
+    // synthetic HTTPS host from assets without granting INTERNET permission.
+    const deniedRemote = [];
+    const assetErrors = [];
+    let fulfilledAssets = 0;
+    cdp.onEvent = (message) => {
+      if (message.method !== "Fetch.requestPaused") return;
+      const requestId = message.params.requestId;
+      const url = message.params.request.url;
+      try {
+        const parsed = new URL(url);
+        const prefix = "/assets/web/";
+        if (parsed.origin !== origin || !parsed.pathname.startsWith(prefix) ||
+            parsed.search || message.params.request.method !== "GET") {
+          deniedRemote.push(url);
+          void cdp.send("Fetch.failRequest", { requestId,
+            errorReason:"BlockedByClient" }).catch((e) => assetErrors.push(String(e)));
+          return;
+        }
+        const relative = decodeURIComponent(parsed.pathname.slice(prefix.length));
+        const file = path.resolve(root, relative);
+        if (!file.startsWith(root + path.sep) || !existsSync(file)) {
+          assetErrors.push("Bundled asset not found: " + url);
+          void cdp.send("Fetch.failRequest", { requestId,
+            errorReason:"Failed" }).catch((e) => assetErrors.push(String(e)));
+          return;
+        }
+        fulfilledAssets++;
+        const body = readFileSync(file);
+        void cdp.send("Fetch.fulfillRequest", {
+          requestId, responseCode:200,
+          responseHeaders: [
+            { name:"Content-Type", value:mime[path.extname(file)] ?? "application/octet-stream" },
+            { name:"Cache-Control", value:"no-store" },
+          ],
+          body:body.toString("base64"),
+        }).catch((e) => assetErrors.push("Failed to fulfill " + url + ": " + String(e)));
+      } catch(error) {
+        assetErrors.push("Invalid intercepted request " + url + ": " + String(error));
+        void cdp.send("Fetch.failRequest", { requestId,
+          errorReason:"Failed" }).catch(() => {});
+      }
+    };
+    await cdp.send("Fetch.enable", {
+      patterns:[{urlPattern:"*",requestStage:"Request"}],
     });
     for (const [hash, label] of [
       ["#/profile","ملف التدريب"],
@@ -295,6 +345,15 @@ async function main() {
     if (!selected.includes("custom=")) throw new Error("Builder launched a generated workout instead of saved custom plan");
     const activeTitle = await js("document.body.innerText");
     if (!activeTitle.includes("مجموعة 1 /")) throw new Error("Saved sets not shown in the active workout");
+    if (assetErrors.length || deniedRemote.length) {
+      throw new Error("Android-media simulation requested missing/external assets: " +
+        JSON.stringify({errors:assetErrors.slice(0,10),external:deniedRemote.slice(0,10)}));
+    }
+    if (fulfilledAssets < 302) {
+      throw new Error("APK asset loader served too few requests: " + fulfilledAssets);
+    }
+    console.log("APK asset loader simulation PASS: " + fulfilledAssets +
+      " local assets served from disk; no external requests.");
     console.log("Offline form/exercise browser PASS: numeric validation, full 8-step onboarding, " +
       exercisesSeen.size + " detail routes (191 GIFs and 111 source frame previews), builder save and custom workout launch.");
     console.log("Offline bundled browser PASS: first render + local profile + 5 guest routes with network disabled.");
