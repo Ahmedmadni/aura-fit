@@ -262,10 +262,30 @@ const INSTRUCTIONS = instructionEnrichment as Record<string, InstructionEnrichme
 const MEDIA_MAP = mediaMap as unknown as ExerciseMediaMap;
 const MEDIA_META = MEDIA_MAP._meta;
 const MEDIA_SOURCE_URL = "https://github.com/" + MEDIA_META.sourceRepository;
+const EMBEDDED_ANDROID = import.meta.env.VITE_AURA_EMBEDDED_ANDROID === "true";
 
-function resolvePreferredAsset(path?: string) {
+// APK builds include every fallback frame and every approved GIF/poster.
+// Online web keeps the pinned remote URLs and existing PWA media cache.
+// Never fetch remote assets from an Android build without INTERNET permission.
+function resolvePreferredAsset(
+  path: string | undefined, slug: string, kind: "gif" | "poster",
+) {
   if (!path) return undefined;
+  if (EMBEDDED_ANDROID) {
+    return "/assets/web/media/" + (kind === "gif" ? "gifs/" : "posters/") +
+      slug + (kind === "gif" ? ".gif" : ".jpg");
+  }
   return /^https?:\/\//.test(path) ? path : MEDIA_META.rawBase + path;
+}
+
+function resolveFallbackFrames(
+  slug: string, sourceFrames: SourceExercise["frames"],
+): [string, string, string] {
+  return [...sourceFrames]
+    .sort((a, b) => a.index - b.index)
+    .map((frame) => EMBEDDED_ANDROID
+      ? "/assets/web/media/frames/" + slug + "-" + frame.index + ".svg"
+      : ASSET_BASE + frame.path) as [string, string, string];
 }
 
 const EQUIPMENT_MAP: Record<string, Equipment> = {
@@ -642,9 +662,7 @@ function toExercise(raw: SourceExercise): Exercise {
   const secondary = [...new Set(raw.secondaryMuscles.flatMap((muscle) => MUSCLE_MAP[muscle] ?? []))].filter(
     (muscle) => !primary.includes(muscle),
   );
-  const frames = [...raw.frames]
-    .sort((a, b) => a.index - b.index)
-    .map((frame) => ASSET_BASE + frame.path) as [string, string, string];
+  const frames = resolveFallbackFrames(raw.slug, raw.frames);
 
   const nameAr = ARABIC_NAMES[raw.slug] ?? raw.name;
   const cue = raw.isStretch
@@ -694,9 +712,9 @@ function toExercise(raw: SourceExercise): Exercise {
     movementFamily: movementFamilyFor(raw),
     media: {
       preferred: hasVerifiedPreferredMedia ? "gif" : "frames",
-      gif: hasVerifiedPreferredMedia ? resolvePreferredAsset(mediaMapping?.gif) : undefined,
+      gif: hasVerifiedPreferredMedia ? resolvePreferredAsset(mediaMapping?.gif, raw.slug, "gif") : undefined,
       poster:
-        (hasVerifiedPreferredMedia ? resolvePreferredAsset(mediaMapping?.poster) : undefined) ??
+        (hasVerifiedPreferredMedia ? resolvePreferredAsset(mediaMapping?.poster, raw.slug, "poster") : undefined) ??
         frames[0],
       frames,
       sourceExerciseId: hasVerifiedPreferredMedia ? mediaMapping?.sourceExerciseId : undefined,
