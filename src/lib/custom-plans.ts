@@ -34,9 +34,9 @@ function record(value: unknown): value is Record<string, unknown> {
 
 function readSlot(value: unknown): CustomPlanSlot | null {
   if (!record(value) || typeof value.id !== "string" || !getExercise(value.id)) return null;
-  if (!Number.isInteger(value.sets) || (value.sets as number) < 1 || (value.sets as number) > 8) return null;
+  if (typeof value.sets !== "number" || !Number.isInteger(value.sets) || value.sets < 1 || value.sets > 8) return null;
   if (typeof value.reps !== "string" || !value.reps.trim() || value.reps.length > 80) return null;
-  if (!Number.isInteger(value.rest) || (value.rest as number) < 0 || (value.rest as number) > 300) return null;
+  if (typeof value.rest !== "number" || !Number.isInteger(value.rest) || value.rest < 0 || value.rest > 300) return null;
   return { id: value.id, sets: value.sets as number, reps: value.reps.trim(), rest: value.rest as number };
 }
 
