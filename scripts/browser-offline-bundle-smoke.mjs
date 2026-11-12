@@ -210,6 +210,10 @@ async function main() {
       // Replace instead of pushing hundreds of browser history entries:
       // Chrome throttles excessive fragment navigation as potential abuse.
       await js("location.replace(" + JSON.stringify(hash) + "); true");
+      // Browser anti-abuse guards silently ignore hundreds of fragment
+      // navigations made in a short burst. Model realistic user pacing so
+      // every exercise can actually be visited and asserted.
+      await delay(400);
       let rendered = false;
       for (let attempt = 0; attempt < 85; attempt++) {
         rendered = await js("(() => { const title = document.querySelector('section h1')?.innerText; " +
