@@ -9,6 +9,10 @@ on:
       - 'vite.offline.config.ts'
       - 'scripts/validate-android-offline-bundle.mjs'
       - 'scripts/browser-offline-bundle-smoke.mjs'
+      - 'scripts/prepare-android-exercise-media.mjs'
+      - 'scripts/validate-android-offline-media.mjs'
+      - 'src/data/exercise-media-map.json'
+      - 'src/data/workout-guide-manifest.json'
       - 'package.json'
       - 'bun.lock'
       - '.github/workflows/android-offline-debug.yml'
@@ -38,6 +42,16 @@ jobs:
           VITE_SUPABASE_ANON_KEY: ''
       - run: bun run offline:web:validate
       - run: bun run all-exercises-forms:validate
+      # Restore only media from pinned immutable upstream commits. No secrets.
+      # This runs AFTER Vite, because Vite clears its generated outDir.
+      - uses: actions/cache@v4
+        with:
+          path: android-offline/app/src/main/assets/web/media
+          key: aurafit-offline-media-7455efae41b330c265e7cd4b78dfa848e7ce5ebd-aac599224bb9780305239607ef98540b7e0ce389-v1
+      - name: Bundle every approved GIF and every exercise guide frame
+        run: bun run offline:media:prepare
+      - name: Check all media hashes, formats and compiled offline URLs
+        run: bun run offline:media:validate
       - name: Browser test with network disabled after bundle load
         run: node scripts/browser-offline-bundle-smoke.mjs
       - name: Android SDK
