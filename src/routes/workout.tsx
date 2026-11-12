@@ -42,6 +42,7 @@ import {
   recordWorkout,
 } from "@/lib/user-profile";
 import { checkNewAchievements } from "@/lib/achievements";
+import { resolveWorkSetTransition } from "@/lib/workout-set-transitions";
 import { createCustomWorkout, getCustomPlan } from "@/lib/custom-plans";
 import {
   clearWorkoutSessionDraft,
@@ -653,13 +654,23 @@ function WorkoutPlayer() {
         // transition logic
         if (phase === "work") {
           saveCurrentSet();
-          if (setIdx < current.sets && current.restSeconds > 0) {
+          const transition = resolveWorkSetTransition(
+            setIdx, current.sets, current.restSeconds, Boolean(next),
+          );
+          if (transition === "rest") {
             setPhase("rest");
             setCurrentRir(null);
             sfxRest();
             return current.restSeconds;
           }
-          // move to next exercise
+          if (transition === "next-set") {
+            // Zero rest still means another prescribed set, not completion.
+            setSetIdx((value) => value + 1);
+            setCurrentRir(null);
+            sfxGo();
+            return current.workSeconds;
+          }
+          // Move only after all prescribed sets are completed.
           setCompleted((items) => new Set(items).add(current.exercise.id));
           setSkipped((items) => {
             const nextItems = new Set(items);
