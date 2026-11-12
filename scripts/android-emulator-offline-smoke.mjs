@@ -10,6 +10,7 @@
  */
 import assert from "node:assert/strict";
 import { execFileSync, spawnSync } from "node:child_process";
+import { mkdirSync, writeFileSync } from "node:fs";
 
 const APK = process.argv[2] || "android-offline/app/build/outputs/apk/debug/app-debug.apk";
 const PACKAGE = "com.aurafit.offline";
@@ -237,6 +238,16 @@ async function run() {
 }
 run().catch((error) => {
   console.error("ANDROID EMULATOR FAILED: "+String(error));
-  console.error(inspectLog());
+  const folder = "android-emulator-diagnostics";
+  mkdirSync(folder, { recursive:true });
+  writeFileSync(folder+"/failure.txt", String(error)+"\n");
+  const logcat = inspectLog();
+  writeFileSync(folder+"/logcat.txt", logcat);
+  console.error(logcat);
+  const screen = spawnSync("adb", ["exec-out","screencap","-p"],
+    {timeout:15_000,maxBuffer:5*1024*1024});
+  if (screen.status===0 && screen.stdout?.length) {
+    writeFileSync(folder+"/screen.png", screen.stdout);
+  }
   process.exitCode=1;
 });
