@@ -943,6 +943,10 @@ async function main() {
     // This isolates the *real browser SW interception* from GitHub CDN uptime.
     const offlineMediaProbe = await seedApprovedMediaProbe(evaluate);
 
+    // A previously logged-in browser must also function as a local-only
+    // guest after its cloud session is gone. No authentication redirect.
+    await evaluate('localStorage.removeItem("kp.cloud.session"); true');
+
     await cdp.send("Network.emulateNetworkConditions", {
       offline: true,
       latency: 0,
@@ -967,6 +971,23 @@ async function main() {
         "Offline public shell did not hydrate the on-device profile route.",
       );
     }
+    // Guest can navigate the core app with NO cloud session while offline.
+    await waitForText("تدرب دون إنشاء حساب", 15000);
+    await navigate("/", "Browser E2E");
+    await navigate("/programs", "التوزيع الحالي");
+    await navigate("/builder", "ابنِ جلستك");
+    await navigate("/profile", "تدرب دون إنشاء حساب");
+    const offlineGuestData = await evaluate(`(() => ({
+      profile: JSON.parse(localStorage.getItem("kp.profile") || "{}"),
+      readiness: JSON.parse(localStorage.getItem("kp.readiness") || "[]"),
+      session: localStorage.getItem("kp.cloud.session"),
+    }))()`);
+    if (offlineGuestData.session !== null ||
+        offlineGuestData.profile?.name !== "Browser E2E" ||
+        !offlineGuestData.readiness?.length) {
+      throw new Error("Guest offline navigation lost on-device data or required cloud login.");
+    }
+
     // Online profile content came from the network and the offline page is
     // rebuilt from the public shell + existing per-device local state. It
     // must never be a saved private /profile HTML response.
@@ -1009,7 +1030,7 @@ async function main() {
     }
 
     console.log(
-      "Browser smoke PASS: mobile onboarding, readiness, injury-safe workout, active-session conflict guard, dashboard and bottom-nav resume, explicit save-and-exit, guided manual fallback frame review, clearly labeled generic recovery and retry, recovery cleanup, hydration-safe cloud session, safe backup controls, PWA install UX, real-data routes, real service-worker offline GIF replay, rejected media blocking and public-shell-only profile navigation verified in headless Chrome.",
+      "Browser smoke PASS: mobile onboarding, readiness, injury-safe workout, active-session conflict guard, dashboard and bottom-nav resume, explicit save-and-exit, guided manual fallback frame review, clearly labeled generic recovery and retry, recovery cleanup, hydration-safe cloud session, safe backup controls, PWA install UX, real-data routes, guest-only offline routes and local data, real service-worker offline GIF replay, rejected media blocking and public-shell-only profile navigation verified in headless Chrome.",
     );
 
     cdp.close();
