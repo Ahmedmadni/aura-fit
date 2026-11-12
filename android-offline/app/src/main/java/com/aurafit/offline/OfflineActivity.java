@@ -156,7 +156,7 @@ public final class OfflineActivity extends Activity {
                     save.addCategory(Intent.CATEGORY_OPENABLE);
                     save.setType("application/json");
                     save.putExtra(Intent.EXTRA_TITLE,
-                        "aura-fit-backup-" + java.time.LocalDate.now() + ".json");
+                        "aura-fit-backup-" + new java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US).format(new java.util.Date()) + ".json");
                     try {
                         startActivityForResult(save, SAVE_BACKUP);
                     } catch (Exception error) {
