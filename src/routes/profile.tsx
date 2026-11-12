@@ -261,6 +261,18 @@ function Profile() {
   function handleBackupExport() {
     try {
       const text = serializeLocalBackup();
+      const native = window as Window & {
+        __AURA_EMBEDDED_ANDROID__?: boolean;
+        AuraLocalBackup?: { saveBackup: (content: string) => void };
+      };
+      if (native.__AURA_EMBEDDED_ANDROID__) {
+        if (!native.AuraLocalBackup?.saveBackup) {
+          throw new Error("واجهة حفظ ملفات Android غير متاحة.");
+        }
+        native.AuraLocalBackup.saveBackup(text);
+        setBackupMessage("اختر مكان حفظ ملف JSON في نافذة Android. ستظهر رسالة تأكيد بعد الحفظ.");
+        return;
+      }
       const blob = new Blob([text], { type: "application/json" });
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
