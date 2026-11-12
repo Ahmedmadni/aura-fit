@@ -67,7 +67,10 @@ public final class OfflineActivity extends Activity {
         settings.setJavaScriptEnabled(true);
         settings.setDomStorageEnabled(true);
         settings.setAllowFileAccess(false);
-        settings.setAllowContentAccess(false);
+        // The Android system document picker returns content:// URIs.
+        // A false value makes the restore form unable to read selected JSON.
+        // Only bundled HTTPS app assets can navigate, and network loads stay blocked.
+        settings.setAllowContentAccess(true);
         settings.setAllowFileAccessFromFileURLs(false);
         settings.setAllowUniversalAccessFromFileURLs(false);
         settings.setMixedContentMode(WebSettings.MIXED_CONTENT_NEVER_ALLOW);
