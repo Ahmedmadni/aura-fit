@@ -379,6 +379,23 @@ function Profile() {
           <PwaInstallCard />
         </div>
 
+        <div data-testid="local-first-status"
+          className="mb-4 rounded-2xl border border-primary/20 bg-primary/5 p-4">
+          <p className="text-sm font-black text-primary">
+            {cloudSession ? "التدريب متاح محليًا" : "تدرب دون إنشاء حساب"}
+          </p>
+          <p className="mt-2 text-xs leading-6 text-muted-foreground">
+            تُحفظ بياناتك وخططك وجلساتك على هذا الجهاز دون اشتراط تسجيل الدخول.
+            {cloudOnline
+              ? " المزامنة بين الأجهزة اختيارية عند ربط حساب."
+              : " لا يوجد اتصال حاليًا؛ استمر في استخدام التمارين والبيانات المحفوظة مسبقًا."}
+          </p>
+          <p className="mt-2 text-[11px] leading-5 text-muted-foreground">
+            تنبيه: إزالة التطبيق أو مسح بيانات المتصفح قد يحذف السجلات المحلية.
+            استخدم «تصدير واستعادة بيانات التدريب» للاحتفاظ بنسخة احتياطية.
+          </p>
+        </div>
+
         <div className="rounded-2xl border border-border bg-surface p-4 backdrop-blur-xl">
           <div className="mb-2 flex items-center justify-between">
             <div className="flex items-center gap-2">
