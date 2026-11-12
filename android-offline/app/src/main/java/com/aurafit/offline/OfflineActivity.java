@@ -56,6 +56,13 @@ public final class OfflineActivity extends Activity {
             }
         }
 
+        // Chrome DevTools is enabled only for debuggable APKs so CI can
+        // inspect the REAL Android WebView with airplane-mode networking.
+        // Production/release builds never expose the debugging socket.
+        if ((getApplicationInfo().flags &
+            android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE) != 0) {
+            WebView.setWebContentsDebuggingEnabled(true);
+        }
         webView = new WebView(this);
         webView.setLayoutParams(new ViewGroup.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT,
