@@ -394,6 +394,7 @@ async function main() {
     await js("location.hash = '#/exercise/bench-press'; true");
     await waitForMediaMode("local-gif");
     await clickButton("الحركة");
+    await waitForText("ملف الحركة محفوظ");
     await clickButton("حذف الملف المحلي");
     await clickButton("تأكيد الحذف");
     await waitForText("حُذف الملف المحلي");
@@ -418,8 +419,13 @@ async function main() {
       await pickedFile(clip);
       await waitForText("ملف الحركة محفوظ");
       await waitForMediaMode("local-video");
-      const videoReady = await js("(() => { const v=document.querySelector('[data-exercise-media-mode=local-video] video'); " +
-        "return Boolean(v && v.videoWidth > 0 && v.videoHeight > 0 && Number.isFinite(v.duration)); })()");
+      let videoReady = false;
+      for (let attempt=0; attempt<80; attempt++) {
+        videoReady = await js("(() => { const v=document.querySelector('[data-exercise-media-mode=local-video] video'); " +
+          "return Boolean(v && v.videoWidth > 0 && v.videoHeight > 0 && Number.isFinite(v.duration)); })()");
+        if (videoReady) break;
+        await delay(80);
+      }
       if (!videoReady) throw new Error("Imported MP4 did not decode");
       await clickButton("حذف الملف المحلي");
       await clickButton("تأكيد الحذف");
