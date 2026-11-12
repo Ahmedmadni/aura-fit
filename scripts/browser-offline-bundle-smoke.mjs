@@ -406,35 +406,33 @@ async function main() {
     await pickedFile(fakeFile);
     await waitForText("الصيغة غير مدعومة");
 
-    // Real H.264 MP4 sample if the image runner has FFmpeg. Playback is
-    // checked via HTMLVideoElement metadata, not inferred from file naming.
+    // Decodable 1-second 64x64 H.264 MP4 fixture: pure black frames,
+    // generated with FFmpeg before this test and checked in as base64 text.
+    // No runner tools or remote source are needed to verify MP4 playback.
     const clip = path.join(profile, "test-motion.mp4");
-    const encoder = spawnSync("ffmpeg", [
-      "-hide_banner", "-loglevel", "error", "-y", "-f", "lavfi",
-      "-i", "color=c=black:s=160x120:r=5:d=1",
-      "-c:v", "libx264", "-pix_fmt", "yuv420p",
-      "-movflags", "+faststart", "-an", clip,
-    ], { encoding:"utf8", timeout: 15000 });
-    if (encoder.status === 0 && existsSync(clip)) {
-      await pickedFile(clip);
-      await waitForText("ملف الحركة محفوظ");
-      await waitForMediaMode("local-video");
-      let videoReady = false;
-      for (let attempt=0; attempt<80; attempt++) {
-        videoReady = await js("(() => { const v=document.querySelector('[data-exercise-media-mode=local-video] video'); " +
-          "return Boolean(v && v.videoWidth > 0 && v.videoHeight > 0 && Number.isFinite(v.duration)); })()");
-        if (videoReady) break;
-        await delay(80);
-      }
-      if (!videoReady) throw new Error("Imported MP4 did not decode");
-      await clickButton("حذف الملف المحلي");
-      await clickButton("تأكيد الحذف");
-      await waitForMediaMode("approved-gif");
-      console.log("Local video importer PASS: GIF and H.264 MP4, local IndexedDB persistence, deletion and invalid file refusal.");
-    } else {
-      console.warn("H.264 clip integration skipped: ffmpeg missing or encoder unavailable", encoder.stderr?.slice(0,300));
-      console.log("Local media importer PASS: GIF, IndexedDB persistence, deletion and forged MP4 rejection.");
+    const tinyH264 = Buffer.from(
+      readFileSync("scripts/fixtures/black-h264-64x64.mp4.base64", "utf8").trim(),
+      "base64",
+    );
+    if (tinyH264.length < 200 || tinyH264.toString("ascii",4,8) !== "ftyp") {
+      throw new Error("Invalid original MP4 test fixture");
     }
+    writeFileSync(clip, tinyH264);
+    await pickedFile(clip);
+    await waitForText("ملف الحركة محفوظ");
+    await waitForMediaMode("local-video");
+    let videoReady = false;
+    for (let attempt=0; attempt<80; attempt++) {
+      videoReady = await js("(() => { const v=document.querySelector('[data-exercise-media-mode=local-video] video'); " +
+        "return Boolean(v && v.videoWidth > 0 && v.videoHeight > 0 && Number.isFinite(v.duration)); })()");
+      if (videoReady) break;
+      await delay(80);
+    }
+    if (!videoReady) throw new Error("Imported MP4 did not decode");
+    await clickButton("حذف الملف المحلي");
+    await clickButton("تأكيد الحذف");
+    await waitForMediaMode("approved-gif");
+    console.log("Local video importer PASS: GIF + actual H.264 MP4 decode, IndexedDB persistence, deletion and forged file refusal.");
 
     // Two-user-supplied files with canonical exercise slugs must import
     // into the matching catalog records, not another movement.
