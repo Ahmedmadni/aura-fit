@@ -19,6 +19,8 @@ const mime = {
   ".json": "application/json",
   ".png": "image/png",
   ".svg": "image/svg+xml",
+  ".jpg": "image/jpeg",
+  ".gif": "image/gif",
   ".webp": "image/webp",
 };
 const server = createServer((request, response) => {
@@ -204,7 +206,10 @@ async function main() {
     // Every exercise detail page must resolve in the packaged client while
     // network requests are disabled. Verify the actual rendered Latin name.
     const manifest = JSON.parse(readFileSync("src/data/workout-guide-manifest.json", "utf8"));
+    const mappings = JSON.parse(readFileSync("src/data/exercise-media-map.json", "utf8"));
     const exercisesSeen = new Set();
+    let animatedRendered = 0;
+    let sourceFramesRendered = 0;
     for (const exercise of manifest) {
       const hash = "#/exercise/" + encodeURIComponent(exercise.slug);
       // Replace instead of pushing hundreds of browser history entries:
@@ -230,9 +235,41 @@ async function main() {
           " observed=" + JSON.stringify(view) +
           " - " + String(await js("document.body?.innerText ?? ''")).slice(0,250));
       }
+      // Verify the REAL displayed image decodes in an offline browser.
+      // Rendering the name is not enough: a broken GIF could silently fall
+      // back to a generic squat illustration unrelated to this exercise.
+      const mapped = mappings[exercise.slug];
+      const approved = mapped.matchConfidence === "exact" || mapped.matchConfidence === "high";
+      const expectedMode = approved ? "approved-gif" : "frame";
+      const expectedPrefix = "/assets/web/media/" + (approved ? "gifs/" : "frames/");
+      let mediaLoaded = false;
+      for (let attempt=0; attempt<75; attempt++) {
+        const status = await js("(() => { const player = document.querySelector('[data-exercise-media-mode]'); " +
+          "const img = player?.querySelector('img'); " +
+          "return { mode: player?.getAttribute('data-exercise-media-mode'), " +
+          "source: img?.getAttribute('src'), decoded: Boolean(img?.complete && img?.naturalWidth > 0) }; })()");
+        if (status.mode === expectedMode && status.decoded &&
+            status.source?.startsWith(expectedPrefix)) {
+          mediaLoaded = true; break;
+        }
+        await delay(45);
+      }
+      if (!mediaLoaded) {
+        const diagnostic = await js("(() => { const p = document.querySelector('[data-exercise-media-mode]'); " +
+          "const img = p?.querySelector('img'); " +
+          "return { mode:p?.dataset.exerciseMediaMode, url:img?.src, width:img?.naturalWidth }; })()");
+        throw new Error("Exercise animation/frame did not decode offline: " +
+          exercise.slug + ", expected=" + expectedMode + ", got=" + JSON.stringify(diagnostic));
+      }
+      if (approved) animatedRendered++;
+      else sourceFramesRendered++;
       exercisesSeen.add(exercise.slug);
     }
-    if (exercisesSeen.size !== 302) throw new Error("Not all 302 exercises rendered");
+    if (exercisesSeen.size !== 302 || animatedRendered !== 191 || sourceFramesRendered !== 111) {
+      throw new Error("Exercise media coverage incorrect: " + JSON.stringify({
+        pages: exercisesSeen.size, animatedRendered, sourceFramesRendered,
+      }));
+    }
 
     // The library search and custom-plan editor are interactive while offline.
     await js("location.hash = '#/exercises'; true");
@@ -259,7 +296,7 @@ async function main() {
     const activeTitle = await js("document.body.innerText");
     if (!activeTitle.includes("مجموعة 1 /")) throw new Error("Saved sets not shown in the active workout");
     console.log("Offline form/exercise browser PASS: numeric validation, full 8-step onboarding, " +
-      exercisesSeen.size + " detail routes, builder save and custom workout launch.");
+      exercisesSeen.size + " detail routes (191 GIFs and 111 source frame previews), builder save and custom workout launch.");
     console.log("Offline bundled browser PASS: first render + local profile + 5 guest routes with network disabled.");
   } finally {
     cdp?.close();
