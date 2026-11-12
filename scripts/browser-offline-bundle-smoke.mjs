@@ -207,7 +207,9 @@ async function main() {
     const exercisesSeen = new Set();
     for (const exercise of manifest) {
       const hash = "#/exercise/" + encodeURIComponent(exercise.slug);
-      await js("location.hash = " + JSON.stringify(hash) + "; true");
+      // Replace instead of pushing hundreds of browser history entries:
+      // Chrome throttles excessive fragment navigation as potential abuse.
+      await js("location.replace(" + JSON.stringify(hash) + "); true");
       let rendered = false;
       for (let attempt = 0; attempt < 85; attempt++) {
         rendered = await js("(() => { const title = document.querySelector('section h1')?.innerText; " +
@@ -218,8 +220,11 @@ async function main() {
         await delay(35);
       }
       if (!rendered) {
+        const view = await js("({ hash: location.hash, heading: document.querySelector('section h1')?.innerText, " +
+          "latin: document.querySelector('section p[dir=ltr]')?.innerText })");
         throw new Error("Exercise detail failed while offline: " + exercise.slug +
-          " - " + String(await js("document.body?.innerText ?? ''")).slice(0,400));
+          " observed=" + JSON.stringify(view) +
+          " - " + String(await js("document.body?.innerText ?? ''")).slice(0,250));
       }
       exercisesSeen.add(exercise.slug);
     }
