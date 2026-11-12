@@ -8,6 +8,7 @@ on:
       - 'android-offline/**'
       - 'vite.offline.config.ts'
       - 'scripts/validate-android-offline-bundle.mjs'
+      - 'scripts/browser-offline-bundle-smoke.mjs'
       - 'package.json'
       - 'bun.lock'
       - '.github/workflows/android-offline-debug.yml'
@@ -36,6 +37,8 @@ jobs:
           VITE_SUPABASE_PUBLISHABLE_KEY: ''
           VITE_SUPABASE_ANON_KEY: ''
       - run: bun run offline:web:validate
+      - name: Browser test with network disabled after bundle load
+        run: node scripts/browser-offline-bundle-smoke.mjs
       - name: Android SDK
         run: |
           SDKMANAGER=$(find "${ANDROID_HOME:-/usr/local/lib/android/sdk}/cmdline-tools" -type f -name sdkmanager | head -n 1)
