@@ -160,8 +160,20 @@ async function main() {
   } finally {
     cdp?.close();
     chrome.kill("SIGTERM");
+    if (chrome.exitCode === null) {
+      await Promise.race([
+        new Promise((resolve) => chrome.once("exit", resolve)),
+        delay(2500),
+      ]);
+    }
     server.close();
-    rmSync(profile, { recursive:true, force:true });
+    try {
+      rmSync(profile, { recursive:true, force:true, maxRetries:12, retryDelay:200 });
+    } catch (error) {
+      // Test assertions already completed; Chrome may still release a Linux
+      // lock file asynchronously, which must not falsify successful UI QA.
+      console.warn("Temporary browser profile cleanup incomplete:", String(error));
+    }
   }
 }
 
