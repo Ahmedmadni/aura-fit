@@ -414,27 +414,7 @@ function WorkoutPlayer() {
   ]);
 
   useEffect(() => {
-    if (hydrated && custom && customError && !sessionConflict &&
-      !(sessionReady && sessionIdentity?.workoutId.startsWith(`custom:${custom}:`))) {
-    return (
-      <PageShell>
-        <section className="grid min-h-[65vh] place-items-center p-6 text-center">
-          <div className="w-full rounded-2xl border border-amber-400/30 bg-amber-400/5 p-6">
-            <h1 className="text-xl font-black">تعذر بدء الخطة المخصصة</h1>
-            <p role="alert" className="mt-3 text-sm leading-7 text-muted-foreground">{customError}</p>
-            <p className="mt-2 text-xs text-muted-foreground">
-              لا يتم استبدال خطتك تلقائيًا بتمرين مختلف. تحقّق من المعدات والقيود المسجلة.
-            </p>
-            <Link to="/builder" className="mt-5 inline-block rounded-xl bg-primary px-5 py-3 font-bold text-primary-foreground">
-              مراجعة خططي
-            </Link>
-          </div>
-        </section>
-      </PageShell>
-    );
-  }
-
-  if (!hydrated || !sessionReady) return;
+    if (!hydrated || !sessionReady) return;
 
     const flushDraft = () => {
       if (draftSnapshot.current) {
@@ -891,6 +871,27 @@ function WorkoutPlayer() {
       </PageShell>
     );
   }
+
+  if (hydrated && custom && customError && !sessionConflict &&
+      !(sessionReady && sessionIdentity?.workoutId.startsWith(`custom:${custom}:`))) {
+    return (
+      <PageShell>
+        <section className="grid min-h-[65vh] place-items-center p-6 text-center">
+          <div className="w-full rounded-2xl border border-amber-400/30 bg-amber-400/5 p-6">
+            <h1 className="text-xl font-black">تعذر بدء الخطة المخصصة</h1>
+            <p role="alert" className="mt-3 text-sm leading-7 text-muted-foreground">{customError}</p>
+            <p className="mt-2 text-xs text-muted-foreground">
+              لا يتم استبدال خطتك تلقائيًا بتمرين مختلف. تحقّق من المعدات والقيود المسجلة.
+            </p>
+            <Link to="/builder" className="mt-5 inline-block rounded-xl bg-primary px-5 py-3 font-bold text-primary-foreground">
+              مراجعة خططي
+            </Link>
+          </div>
+        </section>
+      </PageShell>
+    );
+  }
+
 
   const isRest = phase === "rest";
 
