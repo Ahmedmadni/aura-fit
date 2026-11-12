@@ -113,6 +113,9 @@ public final class OfflineActivity extends Activity {
                         intent.setType("*/*");
                         intent.putExtra(Intent.EXTRA_MIME_TYPES,
                             new String[]{"video/mp4", "video/webm", "image/gif"});
+                        if (params.getMode() == FileChooserParams.MODE_OPEN_MULTIPLE) {
+                            intent.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true);
+                        }
                     } else {
                         intent.setType("application/json");
                     }
@@ -214,9 +217,20 @@ public final class OfflineActivity extends Activity {
         super.onActivityResult(requestCode, resultCode, intent);
         if (requestCode == CHOOSE_BACKUP) {
             if (fileChooser != null) {
-                Uri selected = resultCode == RESULT_OK && intent != null
-                    ? intent.getData() : null;
-                fileChooser.onReceiveValue(selected != null ? new Uri[]{selected} : null);
+                Uri[] selected = null;
+                if (resultCode == RESULT_OK && intent != null) {
+                    android.content.ClipData clips = intent.getClipData();
+                    if (clips != null && clips.getItemCount() > 0 &&
+                        clips.getItemCount() <= 60) {
+                        selected = new Uri[clips.getItemCount()];
+                        for (int index = 0; index < clips.getItemCount(); index++) {
+                            selected[index] = clips.getItemAt(index).getUri();
+                        }
+                    } else if (intent.getData() != null) {
+                        selected = new Uri[]{intent.getData()};
+                    }
+                }
+                fileChooser.onReceiveValue(selected);
                 fileChooser = null;
             }
         } else if (requestCode == SAVE_BACKUP) {
