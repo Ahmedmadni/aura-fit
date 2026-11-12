@@ -10,6 +10,7 @@ import {
   type Level,
 } from "@/lib/exercise-db";
 import { loadProfile, saveProfile } from "@/lib/user-profile";
+import { validateOnboardingMeasurements } from "@/lib/onboarding-validation";
 
 export const Route = createFileRoute("/onboarding")({
   head: () => ({
@@ -92,6 +93,7 @@ function Onboarding() {
   const [injuries, setInjuries] = useState<Injury[]>([]);
   const [daysPerWeek, setDaysPerWeek] = useState(3);
   const [sessionMinutes, setSessionMinutes] = useState(30);
+  const [inputError, setInputError] = useState("");
 
   useEffect(() => {
     const current = loadProfile();
@@ -131,7 +133,34 @@ function Onboarding() {
     );
   }
 
+  function validateStep(targetStep: number) {
+    const result = validateOnboardingMeasurements({ age, height, weight });
+    const error = targetStep === 0
+      ? result.errors.age
+      : targetStep === 2
+        ? result.errors.height ?? result.errors.weight
+        : undefined;
+    setInputError(error ?? "");
+    return !error;
+  }
+
+  function advanceStep() {
+    if (!validateStep(step)) return;
+    setStep((current) => Math.min(titles.length - 1, current + 1));
+  }
+
   function complete() {
+    const measurements = validateOnboardingMeasurements({ age, height, weight });
+    const error = measurements.errors.age ??
+      measurements.errors.height ??
+      measurements.errors.weight;
+    if (error) {
+      const invalidStep = measurements.errors.age ? 0 : 2;
+      setStep(invalidStep);
+      setInputError(error);
+      return;
+    }
+    setInputError("");
     const equipment = new Set<Equipment>(["none", "mat"]);
     for (const option of EQUIPMENT_OPTIONS) {
       if (!equipmentLabels.includes(option.label)) continue;
@@ -139,10 +168,10 @@ function Onboarding() {
     }
 
     saveProfile({
-      name: name.trim() || undefined,
-      age: Number(age) || undefined,
-      heightCm: Number(height) || undefined,
-      weightKg: Number(weight) || undefined,
+      name: name.trim().slice(0, 80) || undefined,
+      age: measurements.age,
+      heightCm: measurements.heightCm,
+      weightKg: measurements.weightKg,
       gender,
       level,
       goals: [goal],
@@ -172,7 +201,10 @@ function Onboarding() {
       <div className="relative flex items-center justify-between px-6 pb-6 pt-10">
         <button
           type="button"
-          onClick={() => setStep((current) => Math.max(0, current - 1))}
+          onClick={() => {
+            setInputError("");
+            setStep((current) => Math.max(0, current - 1));
+          }}
           className="grid size-10 place-items-center rounded-full border border-border bg-surface text-muted-foreground disabled:opacity-30"
           disabled={step === 0}
           aria-label="السابق"
@@ -202,7 +234,7 @@ function Onboarding() {
         {step === 0 && (
           <div className="space-y-4">
             <Field label="الاسم" value={name} onChange={setName} placeholder="أحمد" />
-            <Field label="العمر" value={age} onChange={setAge} placeholder="28" suffix="سنة" inputMode="numeric" />
+            <Field label="العمر" value={age} onChange={(value) => { setAge(value); setInputError(""); }} placeholder="28" suffix="سنة" inputMode="numeric" />
           </div>
         )}
 
@@ -218,8 +250,8 @@ function Onboarding() {
 
         {step === 2 && (
           <div className="space-y-4">
-            <Field label="الطول" value={height} onChange={setHeight} placeholder="178" suffix="سم" inputMode="numeric" />
-            <Field label="الوزن" value={weight} onChange={setWeight} placeholder="76" suffix="كجم" inputMode="decimal" />
+            <Field label="الطول" value={height} onChange={(value) => { setHeight(value); setInputError(""); }} placeholder="178" suffix="سم" inputMode="decimal" />
+            <Field label="الوزن" value={weight} onChange={(value) => { setWeight(value); setInputError(""); }} placeholder="76" suffix="كجم" inputMode="decimal" />
           </div>
         )}
 
@@ -366,6 +398,11 @@ function Onboarding() {
             </div>
           </div>
         )}
+        {inputError && (
+          <p role="alert" className="mt-4 rounded-xl border border-red-400/30 bg-red-400/10 p-3 text-sm font-bold text-red-300">
+            {inputError}
+          </p>
+        )}
       </section>
 
       <div
@@ -384,7 +421,7 @@ function Onboarding() {
         ) : (
           <button
             type="button"
-            onClick={() => setStep((current) => current + 1)}
+            onClick={advanceStep}
             className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary py-4 text-sm font-black text-primary-foreground active:scale-[0.98]"
           >
             التالي
@@ -419,6 +456,7 @@ function Field({
           value={value}
           onChange={(event) => onChange(event.target.value)}
           inputMode={inputMode}
+          maxLength={inputMode ? 10 : 80}
           placeholder={placeholder}
           className="w-full rounded-2xl border border-border bg-surface px-5 py-4 text-xl font-black focus:border-primary focus:outline-none"
         />
