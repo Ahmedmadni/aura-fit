@@ -247,6 +247,12 @@ async function main() {
     const plans = await js("JSON.parse(localStorage.getItem('kp.customPlans') || '[]')");
     if (!plans.length || !plans[0].slots?.length) throw new Error("Builder did not save actual exercises");
     await clickButton("ابدأ خطتي");
+    // The previously opened generated workout left a recoverable draft.
+    // The app must NOT overwrite it without a visible, explicit decision.
+    const afterLaunch = await js("document.body?.innerText ?? ''");
+    if (afterLaunch.includes("جلسة غير مكتملة")) {
+      await clickButton("بدء الجديدة وحذف المحفوظة");
+    }
     await waitForText("استجابة الخطة");
     const selected = await js("location.hash");
     if (!selected.includes("custom=")) throw new Error("Builder launched a generated workout instead of saved custom plan");
