@@ -42,6 +42,7 @@ import {
   recordWorkout,
 } from "@/lib/user-profile";
 import { checkNewAchievements } from "@/lib/achievements";
+import { createCustomWorkout, getCustomPlan } from "@/lib/custom-plans";
 import {
   clearWorkoutSessionDraft,
   getWorkoutSessionSafetySignature,
@@ -66,6 +67,8 @@ export const Route = createFileRoute("/workout")({
     const parsed = Number(search.day);
     return {
       day: Number.isFinite(parsed) && parsed >= 0 ? Math.floor(parsed) : undefined,
+      ...(typeof search.custom === "string" && search.custom.length <= 120
+        ? { custom: search.custom } : {}),
     };
   },
   component: WorkoutPlayer,
@@ -73,7 +76,7 @@ export const Route = createFileRoute("/workout")({
 
 function WorkoutPlayer() {
   const navigate = useNavigate();
-  const { day } = Route.useSearch();
+  const { day, custom } = Route.useSearch();
   const [hydrated, setHydrated] = useState(false);
   const [sessionReady, setSessionReady] = useState(false);
   const [restoredDraft, setRestoredDraft] = useState(false);
@@ -95,15 +98,28 @@ function WorkoutPlayer() {
     () => getWorkoutSessionSafetySignature(profile),
     [profile],
   );
-  const workout = useMemo(
-    () =>
-      generateWorkout(profile, {
-        day,
-        history: loadHistory(),
-        readiness: loadTodayReadiness(),
-      }),
+  const baseWorkout = useMemo(
+    () => generateWorkout(profile, {
+      day, history: loadHistory(), readiness: loadTodayReadiness(),
+    }),
     [day, hydrated, profile],
   );
+  const customState = useMemo(() => {
+    if (!custom || !hydrated) return { workout: baseWorkout, error: "" };
+    try {
+      const saved = getCustomPlan(custom);
+      if (!saved) throw new Error("الخطة المخصصة غير موجودة. افتح منشئ الجلسات لإعدادها.");
+      const selected = createCustomWorkout(saved, profile, loadHistory(), baseWorkout);
+      return { workout: selected, error: "" };
+    } catch (error) {
+      return {
+        workout: baseWorkout,
+        error: error instanceof Error ? error.message : "تعذر تحميل الخطة المخصصة.",
+      };
+    }
+  }, [custom, hydrated, profile, baseWorkout]);
+  const workout = customState.workout;
+  const customError = customState.error;
   const generatedPlan = workout.exercises;
   const [plan, setPlan] = useState<PlannedExercise[]>(generatedPlan);
 
@@ -244,6 +260,7 @@ function WorkoutPlayer() {
   }
 
   function initializeFreshSession(clearExistingDraft = false) {
+    if (custom && customError) return;
     exitCommitted.current = false;
     setSaveExitError(null);
     if (clearExistingDraft) {
@@ -292,14 +309,15 @@ function WorkoutPlayer() {
     if (sessionConflict.safetySignature !== sessionSafetySignature) return;
 
     const requestedDay = day ?? null;
-    if (sessionConflict.day !== requestedDay) {
+    const savedCustomId = sessionConflict.workoutId.startsWith("custom:")
+      ? sessionConflict.workoutId.split(":")[1] : undefined;
+    if (sessionConflict.day !== requestedDay || savedCustomId !== custom) {
       navigate({
         to: "/workout",
-        search: { day: sessionConflict.day ?? undefined },
+        search: { day: sessionConflict.day ?? undefined, custom: savedCustomId },
       });
       return;
     }
-
     restoreDraftSession(sessionConflict);
   }
 
@@ -343,9 +361,9 @@ function WorkoutPlayer() {
       return;
     }
 
-    initializeFreshSession(false);
+    if (!customError) initializeFreshSession(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [day, generatedPlan, hydrated, workout.id]);
+  }, [day, custom, customError, generatedPlan, hydrated, workout.id]);
 
   useEffect(() => {
     if (exitCommitted.current || !hydrated || !sessionReady || !sessionIdentity || phase === "done") {
@@ -790,14 +808,14 @@ function WorkoutPlayer() {
                   استئناف الجلسة المحفوظة
                 </Button>
               )}
-              <Button
+              {!customError && <Button
                 type="button"
                 variant="outline"
                 onClick={replaceConflictingSession}
                 className="border-red-400/30 text-red-300 hover:bg-red-400/10"
               >
                 بدء الجديدة وحذف المحفوظة
-              </Button>
+              </Button>}
               <Button
                 type="button"
                 variant="ghost"
@@ -853,6 +871,27 @@ function WorkoutPlayer() {
       </PageShell>
     );
   }
+
+  if (hydrated && custom && customError && !sessionConflict &&
+      !(sessionReady && sessionIdentity?.workoutId.startsWith(`custom:${custom}:`))) {
+    return (
+      <PageShell>
+        <section className="grid min-h-[65vh] place-items-center p-6 text-center">
+          <div className="w-full rounded-2xl border border-amber-400/30 bg-amber-400/5 p-6">
+            <h1 className="text-xl font-black">تعذر بدء الخطة المخصصة</h1>
+            <p role="alert" className="mt-3 text-sm leading-7 text-muted-foreground">{customError}</p>
+            <p className="mt-2 text-xs text-muted-foreground">
+              لا يتم استبدال خطتك تلقائيًا بتمرين مختلف. تحقّق من المعدات والقيود المسجلة.
+            </p>
+            <Link to="/builder" className="mt-5 inline-block rounded-xl bg-primary px-5 py-3 font-bold text-primary-foreground">
+              مراجعة خططي
+            </Link>
+          </div>
+        </section>
+      </PageShell>
+    );
+  }
+
 
   const isRest = phase === "rest";
 

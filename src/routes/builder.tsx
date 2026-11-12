@@ -1,5 +1,5 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { useEffect, useMemo, useState } from "react";
 import { Plus, Trash2, GripVertical, Sparkles, Play, Save } from "lucide-react";
 import { motion, AnimatePresence, Reorder } from "framer-motion";
 import { PageShell, PageHeader } from "@/components/page-shell";
@@ -7,6 +7,7 @@ import { BottomNav } from "@/components/bottom-nav";
 import { EXERCISES, getExercise, type Category, type Exercise } from "@/lib/exercise-db";
 import { generateWorkout } from "@/lib/workout-engine";
 import { loadHistory, loadProfile } from "@/lib/user-profile";
+import { deleteCustomPlan, loadCustomPlans, saveCustomPlan, type CustomPlan } from "@/lib/custom-plans";
 
 export const Route = createFileRoute("/builder")({
   component: BuilderPage,
@@ -35,6 +36,15 @@ function BuilderPage() {
   const [showPicker, setShowPicker] = useState(false);
   const [cat, setCat] = useState<Category | "all">("all");
   const [saved, setSaved] = useState(false);
+  const navigate = useNavigate();
+  const [savedPlans, setSavedPlans] = useState<CustomPlan[]>([]);
+  const [currentPlanId, setCurrentPlanId] = useState<string>();
+  const [planName, setPlanName] = useState("جلستي المخصصة");
+  const [error, setError] = useState("");
+  useEffect(() => {
+    try { setSavedPlans(loadCustomPlans()); }
+    catch { setError("تعذر قراءة الخطط القديمة. لن نستبدلها تلقائيًا حتى يتم إصلاح البيانات."); }
+  }, []);
 
   const pool = useMemo(
     () => (cat === "all" ? EXERCISES : EXERCISES.filter((e) => e.category === cat)),
@@ -52,6 +62,13 @@ function BuilderPage() {
   );
 
   function addSlot(ex: Exercise) {
+    if (slots.some((slot) => slot.exercise.id === ex.id)) {
+      setError("هذا التمرين موجود بالفعل؛ عدّل مجموعاته بدل تكراره.");
+      setShowPicker(false);
+      return;
+    }
+    setError("");
+    setSaved(false);
     setSlots((prev) => [
       ...prev,
       {
@@ -66,6 +83,10 @@ function BuilderPage() {
   }
 
   function aiGenerate() {
+    setCurrentPlanId(undefined);
+    setPlanName("جلستي المخصصة");
+    setSaved(false);
+    setError("");
     const w = generateWorkout(loadProfile(), { history: loadHistory() });
     setSlots(
       w.exercises.map((p) => ({
@@ -78,17 +99,57 @@ function BuilderPage() {
     );
   }
 
-  function save() {
-    if (typeof window === "undefined") return;
-    const saved = JSON.parse(localStorage.getItem("kp.customPlans") ?? "[]");
-    saved.unshift({
-      id: `plan-${Date.now()}`,
-      createdAt: new Date().toISOString(),
-      slots: slots.map((s) => ({ id: s.exercise.id, sets: s.sets, reps: s.reps, rest: s.rest })),
-    });
-    localStorage.setItem("kp.customPlans", JSON.stringify(saved.slice(0, 20)));
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
+  function save(): CustomPlan | null {
+    if (!slots.length) { setError("أضف تمرينًا قبل الحفظ."); return null; }
+    try {
+      const plan = saveCustomPlan({
+        id: currentPlanId, title: planName,
+        slots: slots.map((slot) => ({
+          id: slot.exercise.id, sets: slot.sets, reps: slot.reps, rest: slot.rest,
+        })),
+      });
+      setCurrentPlanId(plan.id);
+      setSavedPlans(loadCustomPlans());
+      setSaved(true);
+      setError("");
+      return plan;
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "تعذر حفظ الخطة.");
+      return null;
+    }
+  }
+
+  function startWorkout() {
+    const plan = save();
+    if (!plan) return;
+    navigate({ to: "/workout", search: { day: undefined, custom: plan.id } });
+  }
+
+  function openPlan(plan: CustomPlan) {
+    const loaded: Slot[] = [];
+    for (const item of plan.slots) {
+      const exercise = getExercise(item.id);
+      if (!exercise) { setError("تحتوي الخطة على تمرين لم يعد موجودًا."); return; }
+      loaded.push({
+        key: `${item.id}-${loaded.length}`,
+        exercise, sets: item.sets, reps: item.reps, rest: item.rest,
+      });
+    }
+    setSlots(loaded);
+    setCurrentPlanId(plan.id);
+    setPlanName(plan.title);
+    setSaved(false);
+    setError("");
+  }
+
+  function removePlan(id: string) {
+    if (!window.confirm("هل تريد حذف هذه الخطة المحفوظة؟")) return;
+    try {
+      deleteCustomPlan(id);
+      setSavedPlans(loadCustomPlans());
+      if (currentPlanId === id) setCurrentPlanId(undefined);
+      setError("");
+    } catch { setError("تعذر حذف الخطة."); }
   }
 
   return (
@@ -102,7 +163,7 @@ function BuilderPage() {
             className="h-10 px-3 rounded-xl bg-primary/15 border border-primary/40 text-primary text-xs font-bold inline-flex items-center gap-1"
           >
             <Sparkles className="size-3.5" />
-            توليد AI
+            توليد ذكي
           </button>
         }
       />
@@ -195,26 +256,53 @@ function BuilderPage() {
         </button>
       </div>
 
-      {/* action buttons */}
-      {slots.length > 0 && (
-        <div className="px-6 mt-6 grid grid-cols-2 gap-3">
-          <button
-            onClick={save}
-            className="h-12 rounded-2xl border border-border font-bold inline-flex items-center justify-center gap-2"
-          >
-            <Save className="size-4" />
-            {saved ? "تم الحفظ ✓" : "حفظ الخطة"}
-          </button>
-          <Link
-            to="/workout"
-            search={{ day: undefined }}
-            className="h-12 rounded-2xl bg-primary text-primary-foreground font-black inline-flex items-center justify-center gap-2"
-          >
-            <Play className="size-4 fill-current" />
-            ابدأ التمرين
-          </Link>
-        </div>
-      )}
+      <section className="px-6 mt-6 space-y-3" aria-label="خططي المخصصة">
+        <label htmlFor="custom-plan-name" className="block text-sm font-bold">اسم الخطة</label>
+        <input id="custom-plan-name" value={planName} maxLength={80}
+          onChange={(event) => { setPlanName(event.target.value); setSaved(false); }}
+          className="w-full h-11 rounded-xl border border-border bg-surface px-3 text-sm"
+          placeholder="اسم الجلسة" />
+        {error && <p role="alert" className="text-xs text-red-400">{error}</p>}
+        {slots.length > 0 && (
+          <div className="grid grid-cols-2 gap-3">
+            <button onClick={() => { save(); }}
+              className="h-12 rounded-2xl border border-border font-bold inline-flex items-center justify-center gap-2">
+              <Save className="size-4" />
+              {saved ? "تم الحفظ ✓" : "حفظ الخطة"}
+            </button>
+            <button type="button" onClick={startWorkout}
+              className="h-12 rounded-2xl bg-primary text-primary-foreground font-black inline-flex items-center justify-center gap-2">
+              <Play className="size-4 fill-current" />
+              ابدأ خطتي
+            </button>
+          </div>
+        )}
+        {savedPlans.length > 0 && (
+          <div className="pt-4 space-y-2">
+            <h2 className="font-black text-base">الخطط المحفوظة ({savedPlans.length})</h2>
+            {savedPlans.map((plan) => (
+              <div key={plan.id} className="rounded-xl border border-border p-3 flex items-center gap-2">
+                <div className="flex-1 min-w-0">
+                  <p className="truncate text-sm font-bold">{plan.title}</p>
+                  <p className="text-xs text-muted-foreground">{plan.slots.length} تمارين</p>
+                </div>
+                <button type="button" onClick={() => openPlan(plan)}
+                  className="rounded-lg border border-border px-3 py-2 text-xs font-bold">تعديل</button>
+                <button type="button" onClick={() =>
+                  navigate({ to: "/workout", search: { day: undefined, custom: plan.id } })
+                } className="rounded-lg bg-primary px-3 py-2 text-xs font-bold text-primary-foreground">
+                  تشغيل
+                </button>
+                <button type="button" onClick={() => removePlan(plan.id)}
+                  aria-label={`حذف ${plan.title}`}
+                  className="rounded-lg border border-border px-2 py-2 text-xs text-red-400">
+                  <Trash2 className="size-4" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
 
       {/* picker sheet */}
       <AnimatePresence>
@@ -360,5 +448,3 @@ function TextField({
   );
 }
 
-// unused imports guard
-void getExercise;

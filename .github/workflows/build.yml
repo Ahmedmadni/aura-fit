@@ -25,6 +25,7 @@ jobs:
       - run: bun run pwa:offline:validate
       - run: bun run media-runtime:validate
       - run: bun run workout:validate
+      - run: bun run custom-plans:validate
       - run: bun run session:validate
       - run: bun run recovery:validate
       - run: bun run android:targets:validate

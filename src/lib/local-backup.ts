@@ -14,6 +14,9 @@ import {
   type DailyReadinessCheckIn,
   type UserProfile,
 } from "./user-profile";
+import {
+  loadCustomPlans, normalizeCustomPlans, replaceCustomPlans, type CustomPlan,
+} from "./custom-plans";
 
 const BACKUP_FORMAT = "aura-fit-local-backup";
 const BACKUP_VERSION = 1 as const;
@@ -65,6 +68,8 @@ export interface AuraLocalBackupV1 {
   profile: UserProfile;
   readiness: DailyReadinessCheckIn[];
   workouts: CompletedWorkout[];
+  /** Optional to preserve compatibility with older v1 backup files. */
+  customPlans?: CustomPlan[];
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -285,6 +290,7 @@ export function createLocalBackup(): AuraLocalBackupV1 {
     profile: loadProfile(),
     readiness: loadReadinessHistory(),
     workouts: loadHistory(),
+    customPlans: loadCustomPlans(),
   };
 }
 
@@ -328,6 +334,7 @@ export function parseLocalBackup(text: string): AuraLocalBackupV1 {
     profile: validateProfile(parsed.profile),
     readiness: parsed.readiness.map(validateReadiness),
     workouts: parsed.workouts.map(validateWorkout),
+    customPlans: parsed.customPlans === undefined ? undefined : normalizeCustomPlans(parsed.customPlans),
   };
 }
 
@@ -338,6 +345,7 @@ export function restoreLocalBackup(text: string) {
   replaceLocalProfile(backup.profile, restoredAt, false);
   replaceLocalReadinessHistory(backup.readiness, false);
   replaceLocalHistory(backup.workouts, false);
+  if (backup.customPlans !== undefined) replaceCustomPlans(backup.customPlans);
 
   return {
     profile: backup.profile,

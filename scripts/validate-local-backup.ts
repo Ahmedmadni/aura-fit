@@ -11,6 +11,7 @@ import {
   restoreLocalBackup,
   serializeLocalBackup,
 } from "../src/lib/local-backup";
+import { loadCustomPlans, saveCustomPlan } from "../src/lib/custom-plans";
 
 class MemoryStorage {
   private data = new Map<string, string>();
@@ -125,6 +126,10 @@ localStorage.setItem(
   }),
 );
 
+saveCustomPlan({
+  title: "اختبار نسخة خطتي",
+  slots: [{ id: "squat", sets: 3, reps: "8-12", rest: 60 }],
+});
 const serialized = serializeLocalBackup();
 if (
   serialized.includes("SECRET_ACCESS_TOKEN") ||
@@ -138,7 +143,8 @@ const parsed = parseLocalBackup(serialized);
 if (
   parsed.profile.name !== "Backup Test" ||
   parsed.readiness.length !== 1 ||
-  parsed.workouts.length !== 1
+  parsed.workouts.length !== 1 ||
+  parsed.customPlans?.length !== 1
 ) {
   throw new Error("Backup payload did not include the expected local data.");
 }
@@ -158,6 +164,9 @@ if (loadReadinessHistory()[0]?.energy !== 5) {
 }
 if (loadHistory()[0]?.id !== "backup-workout-1") {
   throw new Error("Workout history was not restored.");
+}
+if (loadCustomPlans()[0]?.title !== "اختبار نسخة خطتي") {
+  throw new Error("Custom plans were not restored.");
 }
 if (restored.workouts !== 1 || restored.readiness !== 1) {
   throw new Error("Restore summary counts are incorrect.");
@@ -179,5 +188,5 @@ if (!rejected) {
 }
 
 console.log(
-  "Local backup PASS: profile, readiness and workouts round-trip without exporting or replacing cloud credentials.",
+  "Local backup PASS: profile, readiness, workouts and custom plans round-trip without exporting or replacing cloud credentials.",
 );
