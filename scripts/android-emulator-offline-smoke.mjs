@@ -1,7 +1,7 @@
 /**
  * Phase 66: runtime smoke on an ACTUAL Android emulator WebView, not Chrome.
  *
- * The APK is installed BEFORE any page load and airplane-mode networks are
+ * The APK is installed BEFORE any page load and wireless networks are
  * disabled. Debug-only WebView DevTools is reached through ADB's local socket.
  * This tests Android WebViewAssetLoader, first render, offline GIF/SVG decode,
  * hash navigation, profile persistence, and IndexedDB Blob local playback.
@@ -155,9 +155,11 @@ async function run() {
     "APK must not request network capability");
   adb("shell","svc","wifi","disable");
   adb("shell","svc","data","disable");
-  adb("shell","settings","put","global","airplane_mode_on","1");
-  adb("shell","am","broadcast","-a","android.intent.action.AIRPLANE_MODE",
-    "--ez","state","true");
+  // Android 15 denies ACTION_AIRPLANE_MODE broadcasts sent by the shell
+  // UID. Disabling both radios through svc is permitted and provides the
+  // offline condition; the APK independently has NO INTERNET permission.
+  // Do not fail the test on a protected system broadcast.
+  console.log("Network disabled: Wi-Fi and mobile data off; APK has no INTERNET permission.");
   adb("logcat","-c");
   let cdp = await openApp();
   try {
@@ -165,11 +167,11 @@ async function run() {
       "document.readyState === 'complete' && !!document.querySelector('#root') && "+
       "document.body.innerText.length > 100 && "+
       "window.__AURA_EMBEDDED_ANDROID__ === true"),
-      "first-launch React boot with Android airplane mode",80,200);
+      "first-launch React boot with Android Wi-Fi and data disabled",80,200);
     const view = await cdp.js("location.href");
     assert(view.startsWith("https://"+LOCAL_HOST+"/assets/web/index.html"),
       "WebView unexpectedly loaded a remote site: "+view);
-    console.log("PASS: first Android WebView launch, local React shell, airplane mode");
+    console.log("PASS: first Android WebView launch, local React shell, both radios disabled");
 
     await testExercise(cdp,"bench-press","Bench Press","approved-gif","gifs");
     await testExercise(cdp,"plank","Plank","frame","frames");
