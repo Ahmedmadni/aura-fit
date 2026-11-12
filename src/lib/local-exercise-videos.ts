@@ -150,10 +150,13 @@ export async function importLocalExerciseMotion(
 ): Promise<LocalExerciseMotion> {
   if (!getExercise(exerciseId)) throw new Error("التمرين غير موجود في المكتبة.");
   const kind = await inspectFile(file);
+  const mime = kind === "mp4" ? "video/mp4" : kind === "webm" ? "video/webm" : "image/gif";
   const entry: LocalExerciseMotion = {
     exerciseId,
     kind,
-    blob: file,
+    // Android SAF can return application/octet-stream. Restore the verified
+    // content type so Chrome/WebView can decode this blob URL.
+    blob: file.type === mime ? file : new Blob([file], { type: mime }),
     fileName: file.name.slice(0, 180),
     storedAt: Date.now(),
   };
