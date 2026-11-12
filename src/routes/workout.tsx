@@ -67,8 +67,8 @@ export const Route = createFileRoute("/workout")({
     const parsed = Number(search.day);
     return {
       day: Number.isFinite(parsed) && parsed >= 0 ? Math.floor(parsed) : undefined,
-      custom: typeof search.custom === "string" && search.custom.length <= 120
-        ? search.custom : undefined,
+      ...(typeof search.custom === "string" && search.custom.length <= 120
+        ? { custom: search.custom } : {}),
     };
   },
   component: WorkoutPlayer,
