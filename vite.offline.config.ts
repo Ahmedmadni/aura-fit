@@ -6,10 +6,12 @@ import { resolve } from "node:path";
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
-import tsconfigPaths from "vite-tsconfig-paths";
 
 export default defineConfig({
-  plugins: [react(), tailwindcss(), tsconfigPaths()],
+  plugins: [react(), tailwindcss()],
+  root: resolve(process.cwd(), "offline"),
+  resolve: { alias: { "@": resolve(process.cwd(), "src") } },
+  publicDir: resolve(process.cwd(), "public"),
   base: "/assets/web/",
   publicDir: "public",
   define: {
@@ -21,7 +23,7 @@ export default defineConfig({
   },
   build: {
     target: "es2022",
-    outDir: "android-offline/app/src/main/assets/web",
+    outDir: resolve(process.cwd(), "android-offline/app/src/main/assets/web"),
     emptyOutDir: true,
     rollupOptions: {
       input: resolve(process.cwd(), "offline/index.html"),
