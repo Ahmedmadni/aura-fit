@@ -8,7 +8,7 @@
  */
 import { spawn, spawnSync } from "node:child_process";
 import { createServer } from "node:http";
-import { mkdtempSync, readFileSync, existsSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, mkdirSync, readdirSync, readFileSync, existsSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 
@@ -467,6 +467,87 @@ async function main() {
     await clickButton("تأكيد الحذف");
     await waitForMediaMode("approved-gif");
     console.log("Bulk media import PASS: 2 licensed GIFs matched by exact exercise slugs and removable independently.");
+
+    // FULL PORTABLE BACKUP: generate a real binary .afbackup containing
+    // training history/custom plans AND an imported licensed GIF, export
+    // through Chrome's download manager, hash-check its binary contents,
+    // corrupt it to ensure non-destructive refusal, then restore successfully.
+    await js("location.hash = '#/exercise/bench-press'; true");
+    await waitForText("Bench Press");
+    await clickButton("الحركة");
+    await pickedFile(gif);
+    await waitForText("ملف الحركة محفوظ");
+    await waitForMediaMode("local-gif");
+    await js("location.hash = '#/profile'; true");
+    await waitForText("نسخة كاملة: التدريب + فيديوهات التمارين");
+    const downloads = path.join(profile, "full-backup-downloads");
+    mkdirSync(downloads, { recursive:true });
+    await cdp.send("Browser.setDownloadBehavior", {
+      behavior: "allow", downloadPath: downloads,
+    });
+    const previousPlans = await js("JSON.parse(localStorage.getItem('kp.customPlans')||'[]').length");
+    if (!previousPlans) throw new Error("No custom plans available for backup regression");
+    await clickButton("تصدير نسخة كاملة");
+    await waitForText("تم تجهيز الحزمة");
+    let downloaded;
+    for (let attempt=0; attempt<125; attempt++) {
+      const files = readdirSync(downloads).filter((name) => name.endsWith(".afbackup"));
+      if (files.length===1) {
+        downloaded = path.join(downloads, files[0]);
+        if (readFileSync(downloaded).length > 100) break;
+      }
+      await delay(120);
+    }
+    if (!downloaded || !existsSync(downloaded)) throw new Error("Portable archive was not downloaded");
+    const original = readFileSync(downloaded);
+    if (!original.toString("ascii", 0, 25).includes("AURA-FIT-FULL-ARCHIVE-V1")) {
+      throw new Error("Exported archive binary magic is invalid");
+    }
+    // Reject corruption BEFORE touching any localStorage/IndexedDB media.
+    const corrupt = Buffer.from(original);
+    corrupt[corrupt.length - 8] ^= 0x2f;
+    const corruptPath = path.join(profile, "corrupt.afbackup");
+    writeFileSync(corruptPath, corrupt);
+    async function selectFullArchive(fileName) {
+      const doc = await cdp.send("DOM.getDocument", { depth: 1 });
+      const input = await cdp.send("DOM.querySelector", {
+        nodeId:doc.root.nodeId, selector:'[data-testid="full-backup-file"]',
+      });
+      if (!input.nodeId) throw new Error("Full archive picker not found");
+      await cdp.send("DOM.setFileInputFiles", { nodeId:input.nodeId,files:[fileName] });
+    }
+    await selectFullArchive(corruptPath);
+    await waitForText("فشل التحقق من سلامة حركة التمرين");
+    const previewAfterTamper = await js("Boolean(document.querySelector('[data-testid=full-backup-preview]'))");
+    if (previewAfterTamper) throw new Error("Tampered backup unexpectedly became restorable");
+    const storedAfterTamper = await js("(async()=>{const r=indexedDB.open('aura-fit-local-exercise-motion');" +
+      "const db=await new Promise((ok,bad)=>{r.onsuccess=()=>ok(r.result);r.onerror=()=>bad(r.error)});" +
+      "const v=await new Promise((ok,bad)=>{const tx=db.transaction('motions','readonly');" +
+      "const q=tx.objectStore('motions').get('bench-press');q.onsuccess=()=>ok(q.result);q.onerror=()=>bad(q.error)});" +
+      "db.close();return Boolean(v?.blob?.size)})()");
+    if (!storedAfterTamper) throw new Error("Corrupted backup destroyed existing media");
+
+    // Deliberately remove existing media and plans; verify both return from
+    // the same backup only after successful validation + explicit consent.
+    await js("location.hash='#/exercise/bench-press';true");
+    await waitForMediaMode("local-gif");
+    await clickButton("الحركة");
+    await waitForText("ملف الحركة محفوظ");
+    await clickButton("حذف الملف المحلي");
+    await clickButton("تأكيد الحذف");
+    await waitForMediaMode("approved-gif");
+    await js("localStorage.removeItem('kp.customPlans');location.hash='#/profile';true");
+    await waitForText("نسخة كاملة: التدريب + فيديوهات التمارين");
+    await selectFullArchive(downloaded);
+    await waitForText("نجح فحص جميع ملفات الحزمة");
+    await waitForText("تأكيد استعادة الحزمة");
+    await clickButton("تأكيد استعادة الحزمة");
+    await waitForText("اكتملت الاستعادة");
+    const restoredPlans = await js("JSON.parse(localStorage.getItem('kp.customPlans')||'[]').length");
+    if (restoredPlans !== previousPlans) throw new Error("Full backup did not restore custom training plans");
+    await js("location.hash='#/exercise/bench-press';true");
+    await waitForMediaMode("local-gif");
+    console.log("FULL BACKUP PASS: downloaded a binary .afbackup with real GIF and plans, refused SHA256 corruption without mutation, restored both through explicit confirmation.");
 
     if (assetErrors.length || deniedRemote.length) {
       throw new Error("Local exercise media accessed external network/missing asset: " +
