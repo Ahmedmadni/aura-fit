@@ -275,12 +275,15 @@ async function run() {
       console.log("PASS: signed Android versionCode 10001 -> 10002 in-place upgrade kept localStorage and IndexedDB video.");
       // An APK with a different certificate must be refused rather than
       // replacing the existing application and erasing its data.
-      const mismatch = spawnSync("adb",["install","-r",APK],{
+      // -d suppresses versionCode downgrade rejection so this assertion
+      // specifically proves the Android signature identity check, not just
+      // the versionCode comparison.
+      const mismatch = spawnSync("adb",["install","-r","-d",APK],{
         encoding:"utf8",timeout:30_000,
       });
-      assert(mismatch.status!==0 && /INSTALL_FAILED_UPDATE_INCOMPATIBLE/.test(
-        String(mismatch.stdout)+" "+String(mismatch.stderr)),
-        "Android did not reject a differently signed replacement APK");
+      const mismatchText = String(mismatch.stdout)+" "+String(mismatch.stderr);
+      assert(mismatch.status!==0 && /INSTALL_FAILED_UPDATE_INCOMPATIBLE/.test(mismatchText),
+        "Expected a certificate mismatch rejection, observed: "+mismatchText.slice(0,650));
       console.log("PASS: Android rejects mismatched signer; existing local data remains untouched.");
       const sentinel = await cdp.js("localStorage.getItem('aura.qa.upgrade-data')");
       assert(sentinel === "preserved","Signer mismatch attempt modified local data.");
