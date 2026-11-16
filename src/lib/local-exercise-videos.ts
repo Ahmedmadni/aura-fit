@@ -200,3 +200,70 @@ export async function countLocalExerciseMotions(): Promise<number> {
     db.close();
   }
 }
+
+
+/**
+ * Preserve binary Blobs for full, portable offline backups. Retrieving the
+ * values does not encode them as JSON or upload them to a server.
+ */
+export async function listLocalExerciseMotions(): Promise<LocalExerciseMotion[]> {
+  const db = await openStore();
+  try {
+    const entries = await requestResult<LocalExerciseMotion[]>(
+      db.transaction(STORE, "readonly").objectStore(STORE).getAll(),
+    );
+    return entries.filter((entry) =>
+      Boolean(getExercise(entry.exerciseId)) &&
+      entry.blob instanceof Blob &&
+      entry.blob.size > 0 &&
+      entry.blob.size <= LOCAL_MOTION_MAX_BYTES &&
+      ["mp4", "webm", "gif"].includes(entry.kind),
+    );
+  } finally {
+    db.close();
+  }
+}
+
+/**
+ * Atomically updates just the selected exercise IDs in ONE IndexedDB
+ * transaction. Existing unrelated videos are never deleted. All arguments
+ * must have been validated by the caller before this step.
+ */
+export async function commitLocalExerciseMotions(
+  records: LocalExerciseMotion[],
+  removeIds: string[] = [],
+): Promise<void> {
+  const seen = new Set<string>();
+  for (const record of records) {
+    if (!getExercise(record.exerciseId) || seen.has(record.exerciseId) ||
+        !(record.blob instanceof Blob) || !record.blob.size ||
+        record.blob.size > LOCAL_MOTION_MAX_BYTES ||
+        !["mp4", "webm", "gif"].includes(record.kind)) {
+      throw new Error("ملف حركة واحد أو أكثر غير صالح للاستعادة.");
+    }
+    seen.add(record.exerciseId);
+  }
+  for (const id of removeIds) {
+    if (!getExercise(id) || seen.has(id)) {
+      throw new Error("معرّف حذف غير صالح أو مكرر في عملية الاستعادة.");
+    }
+    seen.add(id);
+  }
+  const db = await openStore();
+  try {
+    const tx = db.transaction(STORE, "readwrite");
+    const done = completed(tx);
+    const store = tx.objectStore(STORE);
+    for (const id of removeIds) store.delete(id);
+    for (const record of records) store.put(record);
+    await done;
+  } catch (error) {
+    if (error instanceof DOMException && error.name === "QuotaExceededError") {
+      throw new Error("مساحة التخزين غير كافية لاستعادة ملفات الفيديو. لم تُعتمد عملية الاستعادة.");
+    }
+    throw error;
+  } finally {
+    db.close();
+  }
+  for (const id of seen) notify(id);
+}
