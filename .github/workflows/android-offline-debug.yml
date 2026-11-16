@@ -124,11 +124,12 @@ jobs:
           AAPT="${ANDROID_HOME:-/usr/local/lib/android/sdk}/build-tools/35.0.0/aapt"
           APKSIGNER="${ANDROID_HOME:-/usr/local/lib/android/sdk}/build-tools/35.0.0/apksigner"
           for CODE in 10001 10002; do
-            "$APKSIGNER" verify --verbose "$TARGET/qa-v$CODE.apk"
-            "$AAPT" dump badging "$TARGET/qa-v$CODE.apk" | head -1 | grep -q "versionCode='$CODE'"
+            "$APKSIGNER" verify --verbose --print-certs "$TARGET/qa-v$CODE.apk" > "$TARGET/qa-v$CODE-signer.txt"
+            "$AAPT" dump badging "$TARGET/qa-v$CODE.apk" > "$TARGET/qa-v$CODE-badging.txt"
+            grep -q "versionCode='$CODE'" "$TARGET/qa-v$CODE-badging.txt"
+            grep -m1 'Signer #1 certificate SHA-256 digest:' "$TARGET/qa-v$CODE-signer.txt" > "$TARGET/qa-v$CODE-certificate.txt"
           done
-          "$APKSIGNER" verify --print-certs "$TARGET/qa-v10001.apk" | grep 'Signer #1 certificate SHA-256 digest:' | head -1 > "$TARGET/qa-certificate.txt"
-          "$APKSIGNER" verify --print-certs "$TARGET/qa-v10002.apk" | grep 'Signer #1 certificate SHA-256 digest:' | head -1 | cmp - "$TARGET/qa-certificate.txt"
+          cmp "$TARGET/qa-v10001-certificate.txt" "$TARGET/qa-v10002-certificate.txt"
           echo 'CI TEST ONLY; ephemeral insecure key, DO NOT INSTALL on a real phone.' > "$TARGET/DO_NOT_INSTALL.txt"
           rm -f "$KEYFILE"
       - uses: actions/upload-artifact@v4
