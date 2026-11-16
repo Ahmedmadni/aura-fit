@@ -12,6 +12,7 @@ on:
       - 'scripts/prepare-android-exercise-media.mjs'
       - 'scripts/validate-android-offline-media.mjs'
       - 'scripts/android-emulator-offline-smoke.mjs'
+      - 'scripts/gradle-retry-429.sh'
       - 'src/data/exercise-media-map.json'
       - 'src/data/workout-guide-manifest.json'
       - 'package.json'
@@ -62,8 +63,7 @@ jobs:
           yes | "$SDKMANAGER" --licenses > /dev/null || true
           "$SDKMANAGER" 'platforms;android-36' 'build-tools;35.0.0'
       - name: Build independent, offline-only debug APK
-        working-directory: android-offline
-        run: gradle --no-daemon :app:assembleDebug
+        run: bash scripts/gradle-retry-429.sh :app:assembleDebug
       - name: Verify packaged assets and absence of network permission
         run: |
           APK=android-offline/app/build/outputs/apk/debug/app-debug.apk
@@ -85,6 +85,59 @@ jobs:
             android-offline/app/build/outputs/apk/debug/apk-sha256.txt
             android-offline/app/build/outputs/apk/debug/build-info.txt
           retention-days: 7
+      - name: Assert production release fails without signing credentials
+        shell: bash
+        run: |
+          set +e
+          bash scripts/gradle-retry-429.sh :app:assembleRelease > /tmp/aura-unsigned-release.log 2>&1
+          STATUS=$?
+          set -e
+          if [ "$STATUS" -eq 0 ] || ! grep -q "RELEASE BLOCKED" /tmp/aura-unsigned-release.log; then
+            echo "::error::Unsigned release build was not explicitly blocked."
+            tail -70 /tmp/aura-unsigned-release.log
+            exit 1
+          fi
+          echo "PASS: production release refuses missing private signing credentials."
+      - name: Build two upgrade QA APKs with ONE ephemeral in-job signing identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          KEYFILE="$RUNNER_TEMP/aura-upgrade-qa-only.p12"
+          keytool -genkeypair -noprompt -storetype PKCS12 \
+            -keystore "$KEYFILE" -storepass "qa-test-only-123456" \
+            -keypass "qa-test-only-123456" -alias "aura-qa-upgrade" \
+            -dname "CN=Throwaway Aura Fit CI Upgrade Identity" \
+            -keyalg RSA -keysize 2048 -validity 2
+          export AURA_OFFLINE_QA_KEYSTORE_PATH="$KEYFILE"
+          export AURA_OFFLINE_QA_STORE_PASSWORD="qa-test-only-123456"
+          export AURA_OFFLINE_QA_KEY_ALIAS="aura-qa-upgrade"
+          export AURA_OFFLINE_QA_KEY_PASSWORD="qa-test-only-123456"
+          export AURA_OFFLINE_VERSION_NAME="qa-upgrade-only"
+          TARGET="android-offline/app/build/outputs/upgrade-qa"
+          mkdir -p "$TARGET"
+          export AURA_OFFLINE_VERSION_CODE=10001
+          bash scripts/gradle-retry-429.sh :app:assembleDebug
+          cp android-offline/app/build/outputs/apk/debug/app-debug.apk "$TARGET/qa-v10001.apk"
+          export AURA_OFFLINE_VERSION_CODE=10002
+          bash scripts/gradle-retry-429.sh :app:assembleDebug
+          cp android-offline/app/build/outputs/apk/debug/app-debug.apk "$TARGET/qa-v10002.apk"
+          AAPT="${ANDROID_HOME:-/usr/local/lib/android/sdk}/build-tools/35.0.0/aapt"
+          APKSIGNER="${ANDROID_HOME:-/usr/local/lib/android/sdk}/build-tools/35.0.0/apksigner"
+          for CODE in 10001 10002; do
+            "$APKSIGNER" verify --verbose --print-certs "$TARGET/qa-v$CODE.apk" > "$TARGET/qa-v$CODE-signer.txt"
+            "$AAPT" dump badging "$TARGET/qa-v$CODE.apk" > "$TARGET/qa-v$CODE-badging.txt"
+            grep -q "versionCode='$CODE'" "$TARGET/qa-v$CODE-badging.txt"
+            grep -m1 'Signer #1 certificate SHA-256 digest:' "$TARGET/qa-v$CODE-signer.txt" > "$TARGET/qa-v$CODE-certificate.txt"
+          done
+          cmp "$TARGET/qa-v10001-certificate.txt" "$TARGET/qa-v10002-certificate.txt"
+          echo 'CI TEST ONLY; ephemeral insecure key, DO NOT INSTALL on a real phone.' > "$TARGET/DO_NOT_INSTALL.txt"
+          rm -f "$KEYFILE"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: aura-fit-offline-upgrade-test-only
+          path: android-offline/app/build/outputs/upgrade-qa/
+          retention-days: 1
+
 
   emulator-webview:
     name: Android emulator / real WebView offline smoke
@@ -102,6 +155,10 @@ jobs:
         with:
           name: aura-fit-offline-android-debug
           path: android-artifact
+      - uses: actions/download-artifact@v4
+        with:
+          name: aura-fit-offline-upgrade-test-only
+          path: upgrade-test-only
       - name: Enable KVM for accelerated Android emulator
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
@@ -119,7 +176,7 @@ jobs:
           heap-size: 512M
           disable-animations: true
           emulator-boot-timeout: 600
-          script: node scripts/android-emulator-offline-smoke.mjs android-artifact/app-debug.apk
+          script: node scripts/android-emulator-offline-smoke.mjs android-artifact/app-debug.apk upgrade-test-only/qa-v10001.apk upgrade-test-only/qa-v10002.apk
       - name: Upload emulator logs and screenshot if failure
         if: failure()
         uses: actions/upload-artifact@v4

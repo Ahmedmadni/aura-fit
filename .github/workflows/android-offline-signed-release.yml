@@ -1,0 +1,145 @@
+name: android-offline-signed-release
+
+# A deliberately separate workflow. A GitHub Actions debug APK is never
+# silently promoted to a production update; signed release needs user-owned
+# long-lived credentials configured in protected repository secrets.
+on:
+  workflow_dispatch:
+    inputs:
+      version_code:
+        description: 'Increasing Android versionCode (first production release >= 2)'
+        required: true
+        type: string
+      version_name:
+        description: 'Display version, e.g. 1.0.0'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+concurrency:
+  group: aura-offline-production-release
+  cancel-in-progress: false
+
+jobs:
+  signed-release:
+    runs-on: ubuntu-latest
+    environment: android-offline-release
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.11.1'
+      - run: bun install --frozen-lockfile
+      - name: Enforce version and protected signing credentials
+        env:
+          VERSION_CODE: ${{ inputs.version_code }}
+          VERSION_NAME: ${{ inputs.version_name }}
+          SIGNING_B64: ${{ secrets.AURA_OFFLINE_RELEASE_KEYSTORE_B64 }}
+          STORE_PASSWORD: ${{ secrets.AURA_OFFLINE_RELEASE_STORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.AURA_OFFLINE_RELEASE_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.AURA_OFFLINE_RELEASE_KEY_PASSWORD }}
+          EXPECTED_CERT: ${{ secrets.AURA_OFFLINE_RELEASE_CERT_SHA256 }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$VERSION_CODE" =~ ^[1-9][0-9]{0,8}$ ]] || exit 1
+          test "$VERSION_CODE" -ge 2
+          [[ "$VERSION_NAME" =~ ^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$ ]] || exit 1
+          for var in SIGNING_B64 STORE_PASSWORD KEY_ALIAS KEY_PASSWORD EXPECTED_CERT; do
+            if [[ -z "${!var}" ]]; then
+              echo "::error::Missing protected offline release signing credentials: $var."
+              exit 1
+            fi
+          done
+          [[ "$EXPECTED_CERT" =~ ^[A-Fa-f0-9]{64}$ ]] || {
+            echo "::error::Expected signing certificate must be a 64-character SHA256 hex digest."
+            exit 1
+          }
+          KEYSTORE="$RUNNER_TEMP/aura-fit-offline-release-keystore.p12"
+          printf '%s' "$SIGNING_B64" | base64 --decode > "$KEYSTORE"
+          chmod 600 "$KEYSTORE"
+          test -s "$KEYSTORE"
+          {
+            echo "AURA_OFFLINE_KEYSTORE_PATH=$KEYSTORE"
+            echo "AURA_OFFLINE_VERSION_CODE=$VERSION_CODE"
+            echo "AURA_OFFLINE_VERSION_NAME=$VERSION_NAME"
+          } >> "$GITHUB_ENV"
+      - name: Bundle offline React application
+        run: bun run offline:web:build
+        env:
+          VITE_SUPABASE_URL: ''
+          VITE_SUPABASE_PUBLISHABLE_KEY: ''
+          VITE_SUPABASE_ANON_KEY: ''
+      - run: bun run offline:web:validate
+      - run: bun run all-exercises-forms:validate
+      - uses: actions/cache@v4
+        with:
+          path: android-offline/app/src/main/assets/web/media
+          key: aurafit-offline-media-7455efae41b330c265e7cd4b78dfa848e7ce5ebd-aac599224bb9780305239607ef98540b7e0ce389-v1
+      - run: bun run offline:media:prepare
+      - run: bun run offline:media:validate
+      - name: Verify media and offline forms with network blocked
+        run: node scripts/browser-offline-bundle-smoke.mjs
+      - name: Install Android SDK
+        run: |
+          SDKMANAGER=$(find "${ANDROID_HOME:-/usr/local/lib/android/sdk}/cmdline-tools" -type f -name sdkmanager | head -n 1)
+          test -x "$SDKMANAGER"
+          yes | "$SDKMANAGER" --licenses > /dev/null || true
+          "$SDKMANAGER" 'platforms;android-36' 'build-tools;35.0.0'
+      - name: Build with long-lived release signing identity
+        env:
+          AURA_OFFLINE_STORE_PASSWORD: ${{ secrets.AURA_OFFLINE_RELEASE_STORE_PASSWORD }}
+          AURA_OFFLINE_KEY_ALIAS: ${{ secrets.AURA_OFFLINE_RELEASE_KEY_ALIAS }}
+          AURA_OFFLINE_KEY_PASSWORD: ${{ secrets.AURA_OFFLINE_RELEASE_KEY_PASSWORD }}
+        run: bash scripts/gradle-retry-429.sh :app:assembleRelease
+      - name: Fail closed on incorrect signature, package, internet or version
+        env:
+          EXPECTED_CERT: ${{ secrets.AURA_OFFLINE_RELEASE_CERT_SHA256 }}
+          VERSION_CODE: ${{ inputs.version_code }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          APK=android-offline/app/build/outputs/apk/release/app-release.apk
+          test -s "$APK"
+          TOOLS="${ANDROID_HOME:-/usr/local/lib/android/sdk}/build-tools/35.0.0"
+          "$TOOLS/apksigner" verify --verbose --print-certs "$APK" > "$RUNNER_TEMP/signer.txt"
+          ACTUAL=$(sed -n 's/^Signer #1 certificate SHA-256 digest: //p' "$RUNNER_TEMP/signer.txt" | head -1)
+          if [[ "${ACTUAL,,}" != "${EXPECTED_CERT,,}" ]]; then
+            echo "::error::RELEASE BLOCKED: signer fingerprint differs from pinned identity."
+            exit 1
+          fi
+          "$TOOLS/aapt" dump permissions "$APK" > "$RUNNER_TEMP/permissions.txt"
+          if grep -q 'android.permission.INTERNET' "$RUNNER_TEMP/permissions.txt"; then
+            echo "::error::Unexpected INTERNET permission in release APK."
+            exit 1
+          fi
+          "$TOOLS/aapt" dump badging "$APK" > "$RUNNER_TEMP/badging.txt"
+          BADGING=$(head -1 "$RUNNER_TEMP/badging.txt")
+          [[ "$BADGING" == *"name='com.aurafit.offline'"* ]]
+          [[ "$BADGING" == *"versionCode='$VERSION_CODE'"* ]]
+          unzip -Z1 "$APK" > "$RUNNER_TEMP/apk-contents.txt"
+          grep -qx 'assets/web/index.html' "$RUNNER_TEMP/apk-contents.txt"
+          grep -qx 'assets/web/media/manifest.json' "$RUNNER_TEMP/apk-contents.txt"
+          sha256sum "$APK" > android-offline/app/build/outputs/apk/release/apk-sha256.txt
+          printf 'Stable-signature candidate. Retain your private keystore forever.\nPackage: com.aurafit.offline\nVersion code: %s\nCertificate SHA-256: %s\n' "$VERSION_CODE" "$ACTUAL" > android-offline/app/build/outputs/apk/release/build-info.txt
+          echo "Signed release identity verified; no network permission."
+      - uses: actions/upload-artifact@v4
+        with:
+          name: aura-fit-offline-stable-signed-release
+          path: |
+            android-offline/app/build/outputs/apk/release/app-release.apk
+            android-offline/app/build/outputs/apk/release/apk-sha256.txt
+            android-offline/app/build/outputs/apk/release/build-info.txt
+          retention-days: 30
+      - name: Remove ephemeral keystore copy
+        if: always()
+        run: rm -f "$RUNNER_TEMP/aura-fit-offline-release-keystore.p12"

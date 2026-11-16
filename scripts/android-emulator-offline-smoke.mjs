@@ -231,6 +231,63 @@ async function run() {
       "tx.objectStore('motions').delete('bench-press');"+
       "tx.oncomplete=ok;tx.onerror=()=>bad(tx.error)});db.close();"+
       "localStorage.removeItem("+JSON.stringify(sentinel)+");return true;})()");
+
+    // Verify a REAL Android package-version upgrade signed with the SAME QA
+    // certificate. Data must survive package manager replacement, not merely
+    // a process restart. The two APKs have increasing versionCode values.
+    if (process.argv[3] && process.argv[4]) {
+      const v1 = process.argv[3], v2 = process.argv[4];
+      cdp.close();
+      adb("uninstall", PACKAGE); // Isolated CI emulator ONLY; not a user device.
+      assert(adb("install", v1).includes("Success"),
+        "The first QA signed APK cannot be installed");
+      cdp=await openApp();
+      await waitFor(async()=>await cdp.js(
+        "document.readyState === 'complete' && window.__AURA_EMBEDDED_ANDROID__ === true"),
+        "first signed QA version startup");
+      await cdp.js("localStorage.setItem('aura.qa.upgrade-data','preserved'); true");
+      await cdp.js("(async()=>{"+
+        "const gif=await (await fetch('/assets/web/media/gifs/bench-press.gif')).blob();"+
+        "const db=await new Promise((ok,bad)=>{"+
+        "const r=indexedDB.open('aura-fit-local-exercise-motion',1);"+
+        "r.onupgradeneeded=()=>r.result.createObjectStore('motions',{keyPath:'exerciseId'});"+
+        "r.onsuccess=()=>ok(r.result);r.onerror=()=>bad(r.error)});"+
+        "await new Promise((ok,bad)=>{const tx=db.transaction('motions','readwrite');"+
+        "tx.objectStore('motions').put({exerciseId:'bench-press',kind:'gif',blob:gif,"+
+        "fileName:'bench-press.gif',storedAt:Date.now()});"+
+        "tx.oncomplete=ok;tx.onerror=()=>bad(tx.error)});db.close();return true;})()");
+      cdp.close();
+      adb("shell","am","force-stop",PACKAGE);
+      const installed = adb("install","-r",v2);
+      assert(installed.includes("Success"), "Same-signer upgrade must install in place: "+installed);
+      const metadata = adb("shell","dumpsys","package",PACKAGE);
+      assert(/versionCode=10002(?:\s|$)/.test(metadata),
+        "Upgrade did not increase version code to 10002");
+      cdp=await openApp();
+      await waitFor(async()=>await cdp.js(
+        "localStorage.getItem('aura.qa.upgrade-data') === 'preserved'"),
+        "localStorage persisted after v10001 -> v10002 signed upgrade",75,200);
+      await cdp.js("location.hash = '#/exercise/bench-press'; true");
+      await waitFor(async()=>await cdp.js(
+        "(() => {const p=document.querySelector('[data-exercise-media-mode=local-gif]');"+
+        "const img=p?.querySelector('img');return !!(img?.complete && img.naturalWidth>0)})()"),
+        "IndexedDB GIF survived signed versionCode upgrade",75,200);
+      console.log("PASS: signed Android versionCode 10001 -> 10002 in-place upgrade kept localStorage and IndexedDB video.");
+      // An APK with a different certificate must be refused rather than
+      // replacing the existing application and erasing its data.
+      // -d suppresses versionCode downgrade rejection so this assertion
+      // specifically proves the Android signature identity check, not just
+      // the versionCode comparison.
+      const mismatch = spawnSync("adb",["install","-r","-d",APK],{
+        encoding:"utf8",timeout:30_000,
+      });
+      const mismatchText = String(mismatch.stdout)+" "+String(mismatch.stderr);
+      assert(mismatch.status!==0 && /INSTALL_FAILED_UPDATE_INCOMPATIBLE/.test(mismatchText),
+        "Expected a certificate mismatch rejection, observed: "+mismatchText.slice(0,650));
+      console.log("PASS: Android rejects mismatched signer; existing local data remains untouched.");
+      const sentinel = await cdp.js("localStorage.getItem('aura.qa.upgrade-data')");
+      assert(sentinel === "preserved","Signer mismatch attempt modified local data.");
+    }
     console.log("ANDROID OFFLINE EMULATOR PASS: first-run offline WebView, decoded GIF/SVG, "+
       "local navigation, Android persistence after restart, local exercise Blob playback.");
   } finally {
