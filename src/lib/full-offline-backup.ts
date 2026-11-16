@@ -91,7 +91,8 @@ function validateManifest(value: unknown): BackupManifest {
         !getExercise(input.exerciseId) || seen.has(input.exerciseId) ||
         !["mp4", "webm", "gif"].includes(String(input.kind)) ||
         typeof input.fileName !== "string" || input.fileName.length > 180 ||
-        !input.fileName || !Number.isSafeInteger(input.bytes) ||
+        !input.fileName || typeof input.bytes !== "number" ||
+        !Number.isSafeInteger(input.bytes) ||
         input.bytes < 24 || input.bytes > LOCAL_MOTION_MAX_BYTES ||
         typeof input.sha256 !== "string" || !HASH_FORMAT.test(input.sha256)) {
       throw new Error("تفاصيل أحد مقاطع التمارين في النسخة غير صالحة.");
