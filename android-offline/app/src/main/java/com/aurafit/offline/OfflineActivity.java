@@ -128,11 +128,16 @@ public final class OfflineActivity extends Activity {
                     // open in the same WebView SAF picker. Never grant broad
                     // filesystem access: user explicitly picks one document.
                     boolean motion = false;
+                    boolean archive = false;
                     String[] accepted = params.getAcceptTypes();
                     if (accepted != null) {
                         for (String type : accepted) {
                             if (type == null) continue;
                             String lower = type.toLowerCase(java.util.Locale.ROOT);
+                            if (lower.contains(".afbackup") ||
+                                lower.contains("application/octet-stream")) {
+                                archive = true;
+                            }
                             if (lower.contains("video/") || lower.contains("image/gif") ||
                                 lower.contains(".mp4") || lower.contains(".webm") ||
                                 lower.contains(".gif")) {
@@ -141,7 +146,13 @@ public final class OfflineActivity extends Activity {
                             }
                         }
                     }
-                    if (motion) {
+                    if (archive) {
+                        // .afbackup is a custom binary extension; many SAF
+                        // providers return application/octet-stream or no
+                        // registered MIME. Permit choosing files, then verify
+                        // the archive magic, exact length and SHA-256 in JS.
+                        intent.setType("*/*");
+                    } else if (motion) {
                         intent.setType("*/*");
                         intent.putExtra(Intent.EXTRA_MIME_TYPES,
                             new String[]{"video/mp4", "video/webm", "image/gif"});
