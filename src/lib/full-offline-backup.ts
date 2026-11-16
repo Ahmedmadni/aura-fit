@@ -311,6 +311,7 @@ export async function saveFullBackupToDevice(
   try {
     const reader = archive.stream().getReader();
     let written = 0;
+    let lastProgressPercent = -1;
     for (;;) {
       const { value, done } = await reader.read();
       if (done) break;
@@ -322,7 +323,13 @@ export async function saveFullBackupToDevice(
           throw new Error("تعذر إرسال جزء من الحزمة إلى Android. لم يُحفظ ملف ناقص.");
         }
         written += part.length;
-        progress?.(written, archive.size);
+        const percentage = Math.floor(written * 100 / archive.size);
+        // Large backups may contain 20,000 native bridge chunks. Re-render
+        // the React progress indicator only when the displayed percent moves.
+        if (percentage !== lastProgressPercent || written === archive.size) {
+          lastProgressPercent = percentage;
+          progress?.(written, archive.size);
+        }
       }
     }
     if (written !== archive.size || !bridge.finishArchive(token)) {
