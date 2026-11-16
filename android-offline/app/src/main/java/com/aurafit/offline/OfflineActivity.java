@@ -15,6 +15,7 @@ import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.widget.Toast;
+import android.util.Base64;
 
 import androidx.webkit.WebViewAssetLoader;
 
@@ -40,9 +41,19 @@ public final class OfflineActivity extends Activity {
     private static final String BACKUP_STATE = "aura_pending_backup_file";
     private static final int CHOOSE_BACKUP = 4121;
     private static final int SAVE_BACKUP = 4122;
+    private static final int SAVE_ARCHIVE = 4123;
+    private static final String ARCHIVE_PENDING_STATE = "aura_pending_binary_archive";
+    private static final long MAX_ARCHIVE_BYTES = 512L * 1024L * 1024L;
     private WebView webView;
     private ValueCallback<Uri[]> fileChooser;
     private File pendingExport;
+    private File pendingArchive;
+    private File archiveStaging;
+    private FileOutputStream archiveOutput;
+    private long archiveExpected;
+    private long archiveWritten;
+    private String archiveToken;
+    private final Object archiveGuard = new Object();
 
     @Override
     protected void onCreate(Bundle state) {
@@ -63,6 +74,16 @@ public final class OfflineActivity extends Activity {
             android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE) != 0) {
             WebView.setWebContentsDebuggingEnabled(true);
         }
+        if (state != null && state.getString(ARCHIVE_PENDING_STATE) != null) {
+            File candidate = new File(state.getString(ARCHIVE_PENDING_STATE));
+            if (candidate.getParentFile() != null &&
+                candidate.getParentFile().equals(getCacheDir()) &&
+                candidate.getName().startsWith("aura_full_archive_") &&
+                candidate.isFile()) {
+                pendingArchive = candidate;
+            }
+        }
+
         webView = new WebView(this);
         webView.setLayoutParams(new ViewGroup.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT,
@@ -208,6 +229,129 @@ public final class OfflineActivity extends Activity {
                 runOnUiThread(() -> showToast("تعذر تجهيز النسخة الاحتياطية."));
             }
         }
+
+        /**
+         * Stream a large binary archive from the trusted embedded WebView into
+         * a private cache file. No multi-hundred-MB JS bridge string and no
+         * file-system permissions; the user chooses destination through SAF.
+         */
+        @JavascriptInterface
+        public boolean beginArchive(String token, long expectedBytes) {
+            synchronized (archiveGuard) {
+                if (archiveOutput != null || pendingArchive != null ||
+                    token == null || !token.matches("[A-Za-z0-9_-]{12,64}") ||
+                    expectedBytes < 29 || expectedBytes > MAX_ARCHIVE_BYTES) {
+                    return false;
+                }
+                try {
+                    File staging = File.createTempFile(
+                        "aura_full_archive_", ".afbackup", getCacheDir()
+                    );
+                    archiveOutput = new FileOutputStream(staging);
+                    archiveStaging = staging;
+                    archiveExpected = expectedBytes;
+                    archiveWritten = 0;
+                    archiveToken = token;
+                    return true;
+                } catch (Exception error) {
+                    clearArchiveStaging();
+                    return false;
+                }
+            }
+        }
+
+        @JavascriptInterface
+        public boolean appendArchiveChunk(String token, String chunkBase64) {
+            synchronized (archiveGuard) {
+                if (archiveOutput == null || !java.util.Objects.equals(archiveToken, token) ||
+                    chunkBase64 == null || chunkBase64.length() > 50000) {
+                    return false;
+                }
+                try {
+                    byte[] bytes = Base64.decode(chunkBase64, Base64.NO_WRAP);
+                    if (bytes.length == 0 || bytes.length > 24576 ||
+                        archiveWritten + bytes.length > archiveExpected) {
+                        clearArchiveStaging();
+                        return false;
+                    }
+                    archiveOutput.write(bytes);
+                    archiveWritten += bytes.length;
+                    return true;
+                } catch (Exception error) {
+                    clearArchiveStaging();
+                    return false;
+                }
+            }
+        }
+
+        @JavascriptInterface
+        public boolean finishArchive(String token) {
+            synchronized (archiveGuard) {
+                if (archiveOutput == null || !java.util.Objects.equals(archiveToken, token) ||
+                    archiveWritten != archiveExpected || archiveStaging == null) {
+                    clearArchiveStaging();
+                    return false;
+                }
+                try {
+                    archiveOutput.getFD().sync();
+                    archiveOutput.close();
+                    archiveOutput = null;
+                    pendingArchive = archiveStaging;
+                    archiveStaging = null;
+                    archiveToken = null;
+                    archiveExpected = archiveWritten = 0;
+                    runOnUiThread(() -> {
+                        Intent save = new Intent(Intent.ACTION_CREATE_DOCUMENT);
+                        save.addCategory(Intent.CATEGORY_OPENABLE);
+                        save.setType("application/octet-stream");
+                        save.putExtra(Intent.EXTRA_TITLE,
+                            "aura-fit-complete-" +
+                            new java.text.SimpleDateFormat(
+                                "yyyy-MM-dd", java.util.Locale.US
+                            ).format(new java.util.Date()) + ".afbackup");
+                        try {
+                            startActivityForResult(save, SAVE_ARCHIVE);
+                        } catch (Exception error) {
+                            clearPendingArchive();
+                            showToast("تعذر فتح نافذة حفظ الحزمة.");
+                        }
+                    });
+                    return true;
+                } catch (Exception error) {
+                    clearArchiveStaging();
+                    return false;
+                }
+            }
+        }
+
+        @JavascriptInterface
+        public void cancelArchive(String token) {
+            synchronized (archiveGuard) {
+                if (archiveOutput != null && java.util.Objects.equals(archiveToken, token)) {
+                    clearArchiveStaging();
+                }
+            }
+        }
+    }
+
+    private void clearArchiveStaging() {
+        // Only call under archiveGuard, including on activity teardown.
+        try { if (archiveOutput != null) archiveOutput.close(); }
+        catch (Exception ignored) {}
+        archiveOutput = null;
+        if (archiveStaging != null) archiveStaging.delete();
+        archiveStaging = null;
+        archiveToken = null;
+        archiveExpected = archiveWritten = 0;
+    }
+
+    private void clearPendingArchive() {
+        synchronized (archiveGuard) {
+            if (pendingArchive != null) {
+                pendingArchive.delete();
+                pendingArchive = null;
+            }
+        }
     }
 
     private void showToast(String message) {
@@ -243,6 +387,38 @@ public final class OfflineActivity extends Activity {
                 }
                 fileChooser.onReceiveValue(selected);
                 fileChooser = null;
+            }
+        } else if (requestCode == SAVE_ARCHIVE) {
+            final File completed = pendingArchive;
+            pendingArchive = null;
+            final Uri destination = resultCode == RESULT_OK && intent != null
+                ? intent.getData() : null;
+            if (completed != null) {
+                if (destination == null) {
+                    completed.delete();
+                } else {
+                    // Do not copy a 512 MB archive on the Android UI thread.
+                    new Thread(() -> {
+                        boolean saved = false;
+                        try (FileInputStream input = new FileInputStream(completed);
+                             OutputStream output = getContentResolver().openOutputStream(destination)) {
+                            if (output == null) throw new IllegalStateException("No SAF output");
+                            byte[] chunk = new byte[64 * 1024];
+                            int count;
+                            while ((count = input.read(chunk)) != -1) {
+                                output.write(chunk, 0, count);
+                            }
+                            output.flush();
+                            saved = true;
+                        } catch (Exception error) {
+                            // SAF may leave a partial file; warn explicitly.
+                            showToast("فشل نقل الحزمة. قد يكون الملف الناتج ناقصًا؛ احذفه وأعد المحاولة.");
+                        } finally {
+                            completed.delete();
+                        }
+                        if (saved) showToast("حُفظت حزمة Aura Fit الكاملة على الجهاز.");
+                    }, "AuraOfflineArchiveExport").start();
+                }
             }
         } else if (requestCode == SAVE_BACKUP) {
             boolean saved = false;
@@ -290,6 +466,9 @@ public final class OfflineActivity extends Activity {
     @Override
     protected void onSaveInstanceState(Bundle state) {
         if (pendingExport != null) state.putString(BACKUP_STATE, pendingExport.getAbsolutePath());
+        if (pendingArchive != null) state.putString(
+            ARCHIVE_PENDING_STATE, pendingArchive.getAbsolutePath()
+        );
         webView.saveState(state);
         super.onSaveInstanceState(state);
     }
@@ -302,6 +481,9 @@ public final class OfflineActivity extends Activity {
 
     @Override
     protected void onDestroy() {
+        synchronized (archiveGuard) {
+            clearArchiveStaging();
+        }
         if (fileChooser != null) {
             fileChooser.onReceiveValue(null);
             fileChooser = null;
