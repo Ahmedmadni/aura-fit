@@ -646,7 +646,10 @@ async function main() {
     })()`);
 
     await navigate("/profile", "ملف التدريب");
-    const safetyDashboard = await navigate("/", "Browser E2E");
+    await navigate("/", "Browser E2E");
+    // Dashboard profile/session hydration is asynchronous. Check the final
+    // safety decision, not the first paint before the effect loads storage.
+    const safetyDashboard = await waitForText("جلسة تحتاج مراجعة", 15000);
     if (
       !safetyDashboard.includes("جلسة تحتاج مراجعة") ||
       !safetyDashboard.includes("مراجعة الجلسة")
