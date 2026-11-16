@@ -16,6 +16,7 @@ import {
 } from "./local-backup";
 import {
   commitLocalExerciseMotions,
+  countLocalExerciseMotions,
   listLocalExerciseMotions,
   LOCAL_MOTION_MAX_BYTES,
   type LocalExerciseMotion,
@@ -125,6 +126,10 @@ export async function createFullBackup(
 ): Promise<{ archive: Blob; mediaCount: number; totalBytes: number }> {
   if (!crypto?.subtle) throw new Error("هذا الجهاز لا يدعم فحص سلامة الملفات SHA-256.");
   const records = await listLocalExerciseMotions();
+  const storedCount = await countLocalExerciseMotions();
+  if (storedCount !== records.length) {
+    throw new Error("توجد ملفات حركة تالفة أو غير متوافقة داخل الجهاز. لم يتم إنشاء نسخة ناقصة؛ راجع مكتبة الحركات أولًا.");
+  }
   if (records.length > MAX_MEDIA_COUNT) throw new Error("عدد ملفات الفيديو يتجاوز حد الحزمة.");
   const media: MotionManifest[] = [];
   const blobs: Blob[] = [];
