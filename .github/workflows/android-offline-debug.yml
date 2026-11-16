@@ -12,6 +12,7 @@ on:
       - 'scripts/prepare-android-exercise-media.mjs'
       - 'scripts/validate-android-offline-media.mjs'
       - 'scripts/android-emulator-offline-smoke.mjs'
+      - 'scripts/gradle-retry-429.sh'
       - 'src/data/exercise-media-map.json'
       - 'src/data/workout-guide-manifest.json'
       - 'package.json'
@@ -62,8 +63,7 @@ jobs:
           yes | "$SDKMANAGER" --licenses > /dev/null || true
           "$SDKMANAGER" 'platforms;android-36' 'build-tools;35.0.0'
       - name: Build independent, offline-only debug APK
-        working-directory: android-offline
-        run: gradle --no-daemon :app:assembleDebug
+        run: bash scripts/gradle-retry-429.sh :app:assembleDebug
       - name: Verify packaged assets and absence of network permission
         run: |
           APK=android-offline/app/build/outputs/apk/debug/app-debug.apk
@@ -89,7 +89,7 @@ jobs:
         shell: bash
         run: |
           set +e
-          (cd android-offline && gradle --no-daemon :app:assembleRelease) > /tmp/aura-unsigned-release.log 2>&1
+          bash scripts/gradle-retry-429.sh :app:assembleRelease > /tmp/aura-unsigned-release.log 2>&1
           STATUS=$?
           set -e
           if [ "$STATUS" -eq 0 ] || ! grep -q "RELEASE BLOCKED" /tmp/aura-unsigned-release.log; then
@@ -116,10 +116,10 @@ jobs:
           TARGET="android-offline/app/build/outputs/upgrade-qa"
           mkdir -p "$TARGET"
           export AURA_OFFLINE_VERSION_CODE=10001
-          (cd android-offline && gradle --no-daemon :app:assembleDebug)
+          bash scripts/gradle-retry-429.sh :app:assembleDebug
           cp android-offline/app/build/outputs/apk/debug/app-debug.apk "$TARGET/qa-v10001.apk"
           export AURA_OFFLINE_VERSION_CODE=10002
-          (cd android-offline && gradle --no-daemon :app:assembleDebug)
+          bash scripts/gradle-retry-429.sh :app:assembleDebug
           cp android-offline/app/build/outputs/apk/debug/app-debug.apk "$TARGET/qa-v10002.apk"
           AAPT="${ANDROID_HOME:-/usr/local/lib/android/sdk}/build-tools/35.0.0/aapt"
           APKSIGNER="${ANDROID_HOME:-/usr/local/lib/android/sdk}/build-tools/35.0.0/apksigner"
