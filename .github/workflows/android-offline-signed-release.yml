@@ -96,12 +96,11 @@ jobs:
           yes | "$SDKMANAGER" --licenses > /dev/null || true
           "$SDKMANAGER" 'platforms;android-36' 'build-tools;35.0.0'
       - name: Build with long-lived release signing identity
-        working-directory: android-offline
         env:
           AURA_OFFLINE_STORE_PASSWORD: ${{ secrets.AURA_OFFLINE_RELEASE_STORE_PASSWORD }}
           AURA_OFFLINE_KEY_ALIAS: ${{ secrets.AURA_OFFLINE_RELEASE_KEY_ALIAS }}
           AURA_OFFLINE_KEY_PASSWORD: ${{ secrets.AURA_OFFLINE_RELEASE_KEY_PASSWORD }}
-        run: gradle --no-daemon :app:assembleRelease
+        run: bash scripts/gradle-retry-429.sh :app:assembleRelease
       - name: Fail closed on incorrect signature, package, internet or version
         env:
           EXPECTED_CERT: ${{ secrets.AURA_OFFLINE_RELEASE_CERT_SHA256 }}
@@ -123,11 +122,13 @@ jobs:
             echo "::error::Unexpected INTERNET permission in release APK."
             exit 1
           fi
-          BADGING=$("$TOOLS/aapt" dump badging "$APK" | head -1)
+          "$TOOLS/aapt" dump badging "$APK" > "$RUNNER_TEMP/badging.txt"
+          BADGING=$(head -1 "$RUNNER_TEMP/badging.txt")
           [[ "$BADGING" == *"name='com.aurafit.offline'"* ]]
           [[ "$BADGING" == *"versionCode='$VERSION_CODE'"* ]]
-          unzip -Z1 "$APK" | grep -qx 'assets/web/index.html'
-          unzip -Z1 "$APK" | grep -qx 'assets/web/media/manifest.json'
+          unzip -Z1 "$APK" > "$RUNNER_TEMP/apk-contents.txt"
+          grep -qx 'assets/web/index.html' "$RUNNER_TEMP/apk-contents.txt"
+          grep -qx 'assets/web/media/manifest.json' "$RUNNER_TEMP/apk-contents.txt"
           sha256sum "$APK" > android-offline/app/build/outputs/apk/release/apk-sha256.txt
           printf 'Stable-signature candidate. Retain your private keystore forever.\nPackage: com.aurafit.offline\nVersion code: %s\nCertificate SHA-256: %s\n' "$VERSION_CODE" "$ACTUAL" > android-offline/app/build/outputs/apk/release/build-info.txt
           echo "Signed release identity verified; no network permission."
