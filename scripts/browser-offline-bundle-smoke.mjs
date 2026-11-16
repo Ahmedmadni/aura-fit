@@ -480,29 +480,33 @@ async function main() {
     await waitForMediaMode("local-gif");
     await js("location.hash = '#/profile'; true");
     await waitForText("نسخة كاملة: التدريب + فيديوهات التمارين");
-    const downloads = path.join(profile, "full-backup-downloads");
-    mkdirSync(downloads, { recursive:true });
-    await cdp.send("Browser.setDownloadBehavior", {
-      behavior: "allow", downloadPath: downloads,
-    });
+    // The browser runs the Android-embedded web bundle without Java.
+    // Provide a deterministic test double for the native chunked SAF bridge,
+    // then reconstruct the binary bytes from the actual JS bridge calls.
+    const mockBridge = await js("(() => {"+
+      "window.__auraBackupChunks = [];window.__auraBackupSize = 0;"+
+      "window.AuraLocalBackup={"+
+      "beginArchive:(token,n)=>{window.__auraBackupToken=token;window.__auraBackupExpected=n;return true;},"+
+      "appendArchiveChunk:(token,part)=>{if(token!==window.__auraBackupToken)return false;"+
+      "window.__auraBackupChunks.push(part);window.__auraBackupSize+=atob(part).length;return true;},"+
+      "finishArchive:(token)=>token===window.__auraBackupToken && "+
+      "window.__auraBackupSize===window.__auraBackupExpected,"+
+      "cancelArchive:()=>{window.__auraBackupChunks=[];}};return true})()");
+    if (!mockBridge) throw new Error("Failed to configure offline Android bridge stub");
     const previousPlans = await js("JSON.parse(localStorage.getItem('kp.customPlans')||'[]').length");
     if (!previousPlans) throw new Error("No custom plans available for backup regression");
     await clickButton("تصدير نسخة كاملة");
     await waitForText("تم تجهيز الحزمة");
-    let downloaded;
-    for (let attempt=0; attempt<125; attempt++) {
-      const files = readdirSync(downloads).filter((name) => name.endsWith(".afbackup"));
-      if (files.length===1) {
-        downloaded = path.join(downloads, files[0]);
-        if (readFileSync(downloaded).length > 100) break;
-      }
-      await delay(120);
+    const archiveChunks = await js("window.__auraBackupChunks");
+    if (!Array.isArray(archiveChunks) || !archiveChunks.length) {
+      throw new Error("Full backup did not stream binary chunks through native bridge");
     }
-    if (!downloaded || !existsSync(downloaded)) throw new Error("Portable archive was not downloaded");
-    const original = readFileSync(downloaded);
+    const original = Buffer.concat(archiveChunks.map((part) => Buffer.from(part, "base64")));
     if (!original.toString("ascii", 0, 25).includes("AURA-FIT-FULL-ARCHIVE-V1")) {
-      throw new Error("Exported archive binary magic is invalid");
+      throw new Error("Streamed archive binary magic is invalid");
     }
+    const downloaded = path.join(profile, "portable.a fbackup".replace(" ",""));
+    writeFileSync(downloaded, original);
     // Reject corruption BEFORE touching any localStorage/IndexedDB media.
     const corrupt = Buffer.from(original);
     corrupt[corrupt.length - 8] ^= 0x2f;
