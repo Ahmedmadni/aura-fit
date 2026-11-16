@@ -20,6 +20,7 @@ import {
   Zap,
 } from "lucide-react";
 import { BottomNav } from "@/components/bottom-nav";
+import { FullOfflineBackupPanel } from "@/components/full-offline-backup-panel";
 import {
   countLocalExerciseMotions,
   LOCAL_MOTION_CHANGED_EVENT,
@@ -755,6 +756,13 @@ function Profile() {
               {backupMessage}
             </p>
           )}
+          <FullOfflineBackupPanel
+            onRestored={() => {
+              setProfile(loadProfile());
+              setHistory(loadHistory());
+              setPendingBackup(null);
+            }}
+          />
         </div>
       </section>
 
