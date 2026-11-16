@@ -15,6 +15,33 @@ if (!bundleIndex.isFile()) {
     )
 }
 
+// Release certificates are NEVER generated or checked into this repository.
+// Supply one stable private keystore through protected CI secrets.
+def signingEnv = [
+    path: System.getenv("AURA_OFFLINE_KEYSTORE_PATH"),
+    store: System.getenv("AURA_OFFLINE_STORE_PASSWORD"),
+    alias: System.getenv("AURA_OFFLINE_KEY_ALIAS"),
+    key: System.getenv("AURA_OFFLINE_KEY_PASSWORD"),
+]
+def signingEnabled = signingEnv.values().every { it != null && !it.isEmpty() }
+def qaEnv = [
+    path: System.getenv("AURA_OFFLINE_QA_KEYSTORE_PATH"),
+    store: System.getenv("AURA_OFFLINE_QA_STORE_PASSWORD"),
+    alias: System.getenv("AURA_OFFLINE_QA_KEY_ALIAS"),
+    key: System.getenv("AURA_OFFLINE_QA_KEY_PASSWORD"),
+]
+def qaEnabled = qaEnv.values().every { it != null && !it.isEmpty() }
+
+def versionCodeText = System.getenv("AURA_OFFLINE_VERSION_CODE") ?: "2"
+if (!(versionCodeText ==~ /[1-9][0-9]{0,8}/)) {
+    throw new GradleException("AURA_OFFLINE_VERSION_CODE must be a positive integer.")
+}
+def offlineVersionCode = Integer.parseInt(versionCodeText)
+def offlineVersionName = System.getenv("AURA_OFFLINE_VERSION_NAME") ?: "0.4.0-offline"
+if (!(offlineVersionName ==~ /[A-Za-z0-9][A-Za-z0-9._-]{0,63}/)) {
+    throw new GradleException("AURA_OFFLINE_VERSION_NAME contains invalid characters.")
+}
+
 android {
     namespace 'com.aurafit.offline'
     compileSdk 36
@@ -24,12 +51,50 @@ android {
         applicationId 'com.aurafit.offline'
         minSdk 24
         targetSdk 35
-        versionCode 1
-        versionName '0.3.0-offline-test'
+        versionCode offlineVersionCode
+        versionName offlineVersionName
+    }
+    signingConfigs {
+        stableRelease {
+            if (signingEnabled) {
+                storeFile file(signingEnv.path)
+                storePassword signingEnv.store
+                keyAlias signingEnv.alias
+                keyPassword signingEnv.key
+            }
+        }
+        ephemeralUpgradeQa {
+            // Temporary test key is confined to CI and NEVER issued to users.
+            if (qaEnabled) {
+                storeFile file(qaEnv.path)
+                storePassword qaEnv.store
+                keyAlias qaEnv.alias
+                keyPassword qaEnv.key
+            }
+        }
     }
     buildTypes {
+        debug {
+            if (qaEnabled) signingConfig signingConfigs.ephemeralUpgradeQa
+        }
         release {
             minifyEnabled false
+            if (signingEnabled) signingConfig signingConfigs.stableRelease
+        }
+    }
+    // Fail closed for any actual release build without the full signing set.
+    tasks.configureEach { task ->
+        if (task.name == "validateSigningRelease") {
+            task.doFirst {
+                if (!signingEnabled) {
+                    throw new GradleException(
+                        "RELEASE BLOCKED: configure stable keystore path, store password, alias and key password via protected CI secrets."
+                    )
+                }
+                if (!file(signingEnv.path).isFile()) {
+                    throw new GradleException("RELEASE BLOCKED: protected keystore file is missing.")
+                }
+            }
         }
     }
     compileOptions {
