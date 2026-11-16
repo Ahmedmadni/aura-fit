@@ -288,6 +288,33 @@ async function run() {
       const sentinel = await cdp.js("localStorage.getItem('aura.qa.upgrade-data')");
       assert(sentinel === "preserved","Signer mismatch attempt modified local data.");
     }
+    // Exercise the real WebView -> Java chunked binary bridge and Android
+    // ACTION_CREATE_DOCUMENT picker (not a simulated Chrome download).
+    await cdp.js("location.hash = '#/profile'; true");
+    await waitFor(async()=>await cdp.js(
+      "Boolean(document.querySelector('[data-testid=full-offline-backup]'))"),
+      "full archive export panel on real Android WebView",55,200);
+    const exported = await cdp.js("(() => {const scope=document.querySelector('[data-testid=full-offline-backup]');" +
+      "const b=[...scope.querySelectorAll('button')].find(x=>x.innerText.includes('تصدير نسخة كاملة'));" +
+      "if (!b) return false;b.click();return true})()");
+    assert(exported,"Full backup export button is not clickable on Android");
+    await waitFor(async()=>await cdp.js(
+      "document.querySelector('[data-testid=full-offline-backup]')?.innerText.includes('تم تجهيز الحزمة')"),
+      "binary archive completed through Java native chunk writer",100,200);
+    let androidDocumentPicker = false;
+    for (let i=0;i<45;i++) {
+      const activity = adb("shell","dumpsys","activity","activities");
+      if (/topResumedActivity=.*[Dd]ocuments[Uu][Ii]|mResumedActivity.*[Dd]ocuments[Uu][Ii]|[Rr]esumed.*[Dd]ocuments[Uu][Ii]/.test(activity)) {
+        androidDocumentPicker = true;
+        break;
+      }
+      await sleep(150);
+    }
+    assert(androidDocumentPicker,
+      "Android SAF ACTION_CREATE_DOCUMENT did not launch after writing archive");
+    adb("shell","input","keyevent","4"); // Cancel picker; never save test data on device.
+    console.log("PASS: real Android WebView streamed full backup to private cache and launched native SAF save picker.");
+
     console.log("ANDROID OFFLINE EMULATOR PASS: first-run offline WebView, decoded GIF/SVG, "+
       "local navigation, Android persistence after restart, local exercise Blob playback.");
   } finally {
