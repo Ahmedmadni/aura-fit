@@ -82,21 +82,6 @@ android {
             if (signingEnabled) signingConfig signingConfigs.stableRelease
         }
     }
-    // Fail closed for any actual release build without the full signing set.
-    tasks.configureEach { task ->
-        if (task.name == "validateSigningRelease") {
-            task.doFirst {
-                if (!signingEnabled) {
-                    throw new GradleException(
-                        "RELEASE BLOCKED: configure stable keystore path, store password, alias and key password via protected CI secrets."
-                    )
-                }
-                if (!file(signingEnv.path).isFile()) {
-                    throw new GradleException("RELEASE BLOCKED: protected keystore file is missing.")
-                }
-            }
-        }
-    }
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_17
         targetCompatibility JavaVersion.VERSION_17
@@ -105,4 +90,16 @@ android {
 
 dependencies {
     implementation 'androidx.webkit:webkit:1.16.0'
+}
+
+gradle.taskGraph.whenReady { graph ->
+    if (graph.allTasks.any { it.project == project &&
+        (it.name == "assembleRelease" || it.name == "bundleRelease" ||
+        it.name == "packageRelease" || it.name == "packageReleaseBundle") }) {
+        if (!signingEnabled || !file(signingEnv.path).isFile()) {
+            throw new GradleException(
+                "RELEASE BLOCKED: a long-lived, private signing keystore and all credentials are required."
+            )
+        }
+    }
 }
