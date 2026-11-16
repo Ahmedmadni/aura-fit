@@ -21,6 +21,10 @@ import {
 } from "lucide-react";
 import { BottomNav } from "@/components/bottom-nav";
 import {
+  countLocalExerciseMotions,
+  LOCAL_MOTION_CHANGED_EVENT,
+} from "@/lib/local-exercise-videos";
+import {
   CLOUD_AUTH_CHANGED_EVENT,
   loadCloudSession,
   signInCloud,
@@ -92,12 +96,28 @@ function Profile() {
   const [cloudBusy, setCloudBusy] = useState(false);
   const [cloudMessage, setCloudMessage] = useState("");
   const [backupMessage, setBackupMessage] = useState("");
+  const [offlineMotionCount, setOfflineMotionCount] = useState<number | null>(null);
   const [pendingBackup, setPendingBackup] = useState<{
     text: string;
     parsed: AuraLocalBackupV1;
     fileName: string;
   } | null>(null);
   const backupInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    let active = true;
+    const refresh = () => {
+      void countLocalExerciseMotions()
+        .then((count) => { if (active) setOfflineMotionCount(count); })
+        .catch(() => { if (active) setOfflineMotionCount(null); });
+    };
+    refresh();
+    window.addEventListener(LOCAL_MOTION_CHANGED_EVENT, refresh);
+    return () => {
+      active = false;
+      window.removeEventListener(LOCAL_MOTION_CHANGED_EVENT, refresh);
+    };
+  }, []);
 
   useEffect(() => {
     setProfile(loadProfile());
@@ -270,7 +290,7 @@ function Profile() {
           throw new Error("واجهة حفظ ملفات Android غير متاحة.");
         }
         native.AuraLocalBackup.saveBackup(text);
-        setBackupMessage("اختر مكان حفظ ملف JSON في نافذة Android. ستظهر رسالة تأكيد بعد الحفظ.");
+        setBackupMessage("اختر مكان حفظ ملف JSON في نافذة Android. بعد الحفظ افتح الملف للتحقق منه. هذا الملف لا يحتوي فيديوهاتك المحلية.");
         return;
       }
       const blob = new Blob([text], { type: "application/json" });
@@ -284,7 +304,7 @@ function Profile() {
       link.remove();
       URL.revokeObjectURL(url);
       setBackupMessage(
-        `تم تصدير ${history.length} جلسة. ملف النسخة لا يحتوي بيانات تسجيل الدخول السحابي.`,
+        `تم تصدير ${history.length} جلسة. ملف JSON لا يحتوي بيانات تسجيل الدخول السحابي أو فيديوهات التمارين المحلية.`,
       );
     } catch (error) {
       setBackupMessage(
@@ -631,6 +651,27 @@ function Profile() {
             احفظ ملف JSON يحتوي ملف التدريب، تقييمات الجاهزية وسجل الجلسات.
             لا يتم تضمين جلسة Supabase أو رموز تسجيل الدخول.
           </p>
+
+          <div
+            className="mt-3 rounded-xl border border-amber-400/40 bg-amber-400/5 px-3 py-3 text-xs leading-6"
+            data-testid="android-safe-update-warning"
+          >
+            <p className="font-black text-amber-300">قبل تحديث أو حذف تطبيق أندرويد</p>
+            <p className="mt-1 text-muted-foreground">
+              ملفات JSON تحمي سجل التدريب والخطط فقط؛ لا تشمل مقاطع MP4 أو GIF
+              المستوردة داخل التطبيق. تأكد من حفظ ملفات المقاطع الأصلية خارج التطبيق
+              قبل أي إزالة أو إعادة تثبيت.
+              {offlineMotionCount !== null && (
+                <span className="font-bold text-foreground">
+                  {" "}المقاطع المحلية الموجودة: {offlineMotionCount}.
+                </span>
+              )}
+            </p>
+            <p className="mt-1 font-semibold text-amber-300">
+              لا تحذف النسخة الحالية لمجرد أن أندرويد رفض التحديث. قد يكون
+              السبب اختلاف شهادة توقيع APK، وحذفها يمحو البيانات المحلية.
+            </p>
+          </div>
 
           <input
             ref={backupInputRef}
