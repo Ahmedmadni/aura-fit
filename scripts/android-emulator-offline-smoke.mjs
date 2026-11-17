@@ -212,6 +212,36 @@ async function tapDocumentAction(regex,label) {
   }
   throw new Error("Android DocumentsUI action missing ("+label+"): "+describeUi(last));
 }
+async function selectSavedArchive() {
+  let nodes=androidUiNodes();
+  const candidates=nodes.filter(n=>/aura-fit-complet/i.test(
+    [n.text,n["content-desc"]].filter(Boolean).join(" ")));
+  if (!candidates.length) {
+    throw new Error("Saved archive missing from Android picker: "+describeUi(nodes));
+  }
+  console.log("SAF FILE NODES: "+JSON.stringify(candidates.map(n=>({
+    text:n.text,desc:n["content-desc"],bounds:n.bounds,clickable:n.clickable,
+    nearestClickable:[n,...(n._parents||[]).slice().reverse()]
+      .find(p=>p.clickable==="true")?.bounds,
+  }))));
+  const node=candidates.find(n=>n.clickable==="true")||candidates[0];
+  for(let attempt=0;attempt<3;attempt++){
+    tapClickableNode(node,"saved .afbackup document");
+    await sleep(650);
+    const foreground=adb("shell","dumpsys","activity","activities");
+    if(!/[Rr]esumed.*[Dd]ocuments[Uu][Ii]/.test(foreground) &&
+       !/topResumedActivity=.*[Dd]ocuments[Uu][Ii]/.test(foreground)) return;
+    nodes=androidUiNodes();
+    const open=findUi(nodes,/action_menu_open|(?:^|\s)(?:Open|فتح)(?:\s|$)/i);
+    if(open){
+      tapClickableNode(open,"Android picker Open action");
+      await sleep(650);
+      return;
+    }
+  }
+  throw new Error("Android picker never opened selected archive: "+describeUi(nodes));
+}
+
 async function waitForDocumentsUi() {
   await waitFor(()=>{
     const activity=adb("shell","dumpsys","activity","activities");
@@ -466,10 +496,23 @@ async function run() {
     assert(pickerOpened,"Could not open the native Android archive chooser");
     await waitForDocumentsUi();
     await ensureDownloadFolder();
-    await tapDocumentAction(/aura-fit-complete-.*\.afbackup/i,"saved archive in Downloads");
-    await waitFor(async()=>await cdp.js(
-      "Boolean(document.querySelector('[data-testid=full-backup-preview]'))"),
-      "native ACTION_OPEN_DOCUMENT delivered binary file to WebView",110,220);
+    await selectSavedArchive();
+    let nativePreview = false;
+    for(let attempt=0;attempt<110;attempt++){
+      nativePreview = await cdp.js(
+        "Boolean(document.querySelector('[data-testid=full-backup-preview]'))");
+      if(nativePreview) break;
+      await sleep(220);
+    }
+    if(!nativePreview){
+      const panel=await cdp.js(
+        "document.querySelector('[data-testid=full-offline-backup]')?.innerText") || "";
+      const foreground=adb("shell","dumpsys","activity","activities")
+        .split("\n").filter(line=>/topResumedActivity|mResumedActivity/.test(line))
+        .slice(0,4).join(" ");
+      throw new Error("Native SAF import did not display preview. Panel="+
+        String(panel).slice(-1300)+"; Foreground="+foreground);
+    }
     const confirmed=await cdp.js("(() => {const scope=document.querySelector('[data-testid=full-offline-backup]');"+
       "const b=[...scope.querySelectorAll('button')].find(x=>x.textContent.includes('تأكيد استعادة الحزمة'));" +
       "if(!b)return false;b.click();return true})()",true);
