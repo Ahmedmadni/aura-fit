@@ -140,13 +140,28 @@ function androidUiNodes() {
     "/sdcard/aura-saf-ui.xml"], {encoding:"utf8",timeout:25_000});
   if (result.status !== 0) throw new Error("Android accessibility dump failed: "+result.stderr);
   const xml = adb("shell","cat","/sdcard/aura-saf-ui.xml");
-  return [...xml.matchAll(/<node\b[^>]*>/g)].map((match) => {
+  const nodes = [];
+  const ancestors = [];
+  for (const token of xml.matchAll(/<node\\b[^>]*>|<\\/node>/g)) {
+    if (token[0].startsWith("</")) { ancestors.pop(); continue; }
     const attrs = {};
-    for (const attr of match[0].matchAll(/([\w-]+)="([^"]*)"/g)) {
+    for (const attr of token[0].matchAll(/([\\w-]+)="([^"]*)"/g)) {
       attrs[attr[1]] = attr[2].replace(/&quot;/g,'"').replace(/&amp;/g,'&');
     }
-    return attrs;
-  });
+    attrs._parents = [...ancestors];
+    nodes.push(attrs);
+    ancestors.push(attrs);
+  }
+  return nodes;
+}
+function tapClickableNode(node, label) {
+  const targets = [node, ...(node?._parents ?? []).slice().reverse()];
+  const target = targets.find(n=>n.clickable==="true" && n.bounds) || node;
+  console.log("SAF TAP: "+label+" "+JSON.stringify({
+    text:target?.text,desc:target?.["content-desc"],
+    bounds:target?.bounds,clickable:target?.clickable
+  }));
+  tapNode(target,label);
 }
 function tapNode(attrs, description) {
   const bounds = /\[(\d+),(\d+)\]\[(\d+),(\d+)\]/.exec(attrs?.bounds || "");
@@ -183,7 +198,7 @@ async function ensureDownloadFolder() {
   if (!downloads) {
     throw new Error("Cannot select Android Downloads root. UI: "+describeUi(nodes));
   }
-  tapNode(downloads,"Downloads root");
+  tapClickableNode(downloads,"Downloads root");
   await sleep(450);
 }
 async function tapDocumentAction(regex,label) {
@@ -192,7 +207,7 @@ async function tapDocumentAction(regex,label) {
     const nodes=androidUiNodes();
     last=nodes;
     const target=findUi(nodes,regex);
-    if (target) {tapNode(target,label);return;}
+    if (target) {tapClickableNode(target,label);return;}
     await sleep(350);
   }
   throw new Error("Android DocumentsUI action missing ("+label+"): "+describeUi(last));
