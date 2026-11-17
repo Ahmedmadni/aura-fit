@@ -389,10 +389,20 @@ async function run() {
       "Boolean(document.querySelector('[data-testid=full-offline-backup]'))"),
       "restore panel ready on Android after deleting local GIF",65,200);
 
-    const selectBackup = await cdp.js("(() => {const scope=document.querySelector('[data-testid=full-offline-backup]');"+
-      "const b=[...scope.querySelectorAll('button')].find(x=>x.innerText.includes('فحص حزمة للاستعادة'));" +
-      "if(!b)return false;b.click();return true})()");
-    assert(selectBackup,"Full offline restore file chooser was not clickable");
+    // Android WebView does not allow JavaScript's element.click() to open
+    // file chooser: it requires real user activation. Scroll the button
+    // into the visible viewport then send a true Android touchscreen tap.
+    const restoreTap = await cdp.js("(() => {"+
+      "const scope=document.querySelector('[data-testid=full-offline-backup]');"+
+      "const b=[...scope.querySelectorAll('button')].find(x=>x.innerText.includes('فحص حزمة للاستعادة'));"+
+      "if(!b)return null;b.scrollIntoView({block:'center',behavior:'instant'});"+
+      "const r=b.getBoundingClientRect();const scale=window.devicePixelRatio;"+
+      "return {x:Math.round((r.left+r.width/2)*scale),"+
+      "y:Math.round((r.top+r.height/2+24)*scale),"+
+      "visible:r.width>30&&r.height>20&&r.top>=0&&r.bottom<=window.innerHeight};})()");
+    assert(restoreTap?.visible,"Restore button was not visible after scrolling: "+
+      JSON.stringify(restoreTap));
+    adb("shell","input","tap",String(restoreTap.x),String(restoreTap.y));
     await waitFor(() => {
       const activity=adb("shell","dumpsys","activity","activities");
       return /topResumedActivity=.*[Dd]ocuments[Uu][Ii]|mResumedActivity.*[Dd]ocuments[Uu][Ii]|[Rr]esumed.*[Dd]ocuments[Uu][Ii]/.test(activity);
