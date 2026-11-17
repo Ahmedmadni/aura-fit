@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Archive, Download, HardDrive, ShieldCheck, Upload } from "lucide-react";
 import {
   createFullBackup,
@@ -16,6 +16,26 @@ export function FullOfflineBackupPanel({ onRestored }: { onRestored: () => void 
   const [progress, setProgress] = useState("");
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [awaitingNativeSave, setAwaitingNativeSave] = useState(false);
+
+  useEffect(() => {
+    const onArchiveResult = (event: Event) => {
+      const status = (event as CustomEvent<{ status?: string }>).detail?.status;
+      if (!["saved", "cancelled", "failed"].includes(status ?? "")) return;
+      setAwaitingNativeSave(false);
+      if (status === "saved") {
+        setError("");
+        setMessage("اكتمل حفظ الحزمة على جهاز Android. افحص الملف بالاستيراد قبل إزالة النسخة القديمة.");
+      } else if (status === "cancelled") {
+        setMessage("أُلغيت عملية الحفظ؛ لم يُنشأ ملف نسخة احتياطية جديد.");
+      } else {
+        setError("تعذر إكمال كتابة ملف الحزمة. قد يكون هناك ملف ناقص عند مزود الملفات؛ احذفه وأعد المحاولة.");
+        setMessage("");
+      }
+    };
+    window.addEventListener("aura-native-full-backup-result", onArchiveResult);
+    return () => window.removeEventListener("aura-native-full-backup-result", onArchiveResult);
+  }, []);
 
   async function exportFull() {
     if (busy) return;
@@ -24,6 +44,7 @@ export function FullOfflineBackupPanel({ onRestored }: { onRestored: () => void 
     setMessage("");
     setError("");
     setProgress("جارٍ تجهيز الحزمة الكاملة…");
+    setAwaitingNativeSave(false);
     try {
       const { archive, mediaCount, totalBytes } = await createFullBackup(
         (n, total) => setProgress("فحص سلامة ملفات الحركة: " + n + "/" + total),
@@ -34,13 +55,18 @@ export function FullOfflineBackupPanel({ onRestored }: { onRestored: () => void 
           "تجهيز ملف Android: " + Math.round(100 * written / total) + "%",
         ),
       );
-      setMessage(
-        "تم تجهيز الحزمة (" + mediaCount + " ملف حركة، " +
-        (totalBytes / 1048576).toFixed(1) +
-        " ميجابايت). تحقق من اكتمال تنزيل الملف أو إتمام حفظه في نافذة Android " +
-        "قبل حذف التطبيق القديم.",
-      );
+      const sizeSummary = " (" + mediaCount + " ملف حركة، " +
+        (totalBytes / 1048576).toFixed(1) + " ميجابايت)";
+      if ((window as Window & { __AURA_EMBEDDED_ANDROID__?: boolean }).__AURA_EMBEDDED_ANDROID__) {
+        setAwaitingNativeSave(true);
+        setMessage("تم تجهيز الحزمة" + sizeSummary +
+          " لكن لم تُحفظ بعد. أكمل نافذة ملفات Android ولا تحذف التطبيق حتى يظهر تأكيد الحفظ.");
+      } else {
+        setMessage("تم بدء تنزيل الحزمة" + sizeSummary +
+          ". تحقق من وجود الملف بعد اكتمال التنزيل قبل حذف التطبيق.");
+      }
     } catch (cause) {
+      setAwaitingNativeSave(false);
       setError(cause instanceof Error ? cause.message : "تعذر تجهيز الحزمة الكاملة.");
     } finally {
       setProgress("");
@@ -176,6 +202,7 @@ export function FullOfflineBackupPanel({ onRestored }: { onRestored: () => void 
           </div>
         </div>
       )}
+      {awaitingNativeSave && <p data-testid="native-backup-awaiting-save" className="mt-2 text-xs text-amber-300">بانتظار تأكيد الحفظ من مدير ملفات Android…</p>}
       {progress && <p role="status" className="mt-2 text-xs text-primary">{progress}</p>}
       {message && <p role="status" className="mt-2 text-xs leading-6 text-primary">{message}</p>}
       {error && <p role="alert" className="mt-2 text-xs leading-6 text-red-300">{error}</p>}

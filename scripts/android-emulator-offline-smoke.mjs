@@ -9,6 +9,7 @@
  * Requires: GitHub Actions Android emulator, Node 22+, adb and a debug APK.
  */
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { execFileSync, spawnSync } from "node:child_process";
 import { mkdirSync, writeFileSync } from "node:fs";
 
@@ -60,9 +61,9 @@ class DevTools {
       this.ws.send(JSON.stringify({id,method,params}));
     });
   }
-  async js(expression) {
+  async js(expression, userGesture = false) {
     const result = await this.call("Runtime.evaluate", {
-      expression, returnByValue:true, awaitPromise:true,
+      expression, returnByValue:true, awaitPromise:true, userGesture,
     });
     if (result.exceptionDetails) {
       throw new Error("Android WebView JS exception: " +
@@ -127,6 +128,125 @@ async function connectWebView() {
   }
   throw new Error("Debuggable Android WebView did not expose a local asset document. " +
     inspectLog());
+}
+
+/**
+ * Operate the actual Android DocumentsUI window via accessibility hierarchy.
+ * No hardcoded screen coordinates or mock data providers. The app is running
+ * as an ordinary unprivileged package; adb has no extra app permissions.
+ */
+function androidUiNodes() {
+  const result = spawnSync("adb", ["shell", "uiautomator", "dump",
+    "/sdcard/aura-saf-ui.xml"], {encoding:"utf8",timeout:25_000});
+  if (result.status !== 0) throw new Error("Android accessibility dump failed: "+result.stderr);
+  const xml = adb("shell","cat","/sdcard/aura-saf-ui.xml");
+  const nodes = [];
+  const ancestors = [];
+  for (const token of xml.matchAll(/<node\b[^>]*>|<\/node>/g)) {
+    if (token[0].startsWith("</")) { ancestors.pop(); continue; }
+    const attrs = {};
+    for (const attr of token[0].matchAll(/([\w-]+)="([^"]*)"/g)) {
+      attrs[attr[1]] = attr[2].replace(/&quot;/g,'"').replace(/&amp;/g,'&');
+    }
+    attrs._parents = [...ancestors];
+    nodes.push(attrs);
+    ancestors.push(attrs);
+  }
+  return nodes;
+}
+function tapClickableNode(node, label) {
+  const targets = [node, ...(node?._parents ?? []).slice().reverse()];
+  const target = targets.find(n=>n.clickable==="true" && n.bounds) || node;
+  console.log("SAF TAP: "+label+" "+JSON.stringify({
+    text:target?.text,desc:target?.["content-desc"],
+    bounds:target?.bounds,clickable:target?.clickable
+  }));
+  tapNode(target,label);
+}
+function tapNode(attrs, description) {
+  const bounds = /\[(\d+),(\d+)\]\[(\d+),(\d+)\]/.exec(attrs?.bounds || "");
+  if (!bounds) throw new Error("Missing UI bounds for "+description);
+  const x = Math.round((Number(bounds[1])+Number(bounds[3]))/2);
+  const y = Math.round((Number(bounds[2])+Number(bounds[4]))/2);
+  adb("shell","input","tap",String(x),String(y));
+}
+function describeUi(nodes) {
+  return nodes.filter(n=>n.text || n["content-desc"] || n["resource-id"])
+    .map(n=>[n.text,n["content-desc"],n["resource-id"]].filter(Boolean).join("/"))
+    .slice(0,90).join(" | ").slice(0,4500);
+}
+function findUi(nodes, regex) {
+  return nodes.find(n=>regex.test([n.text,n["content-desc"],n["resource-id"]]
+    .filter(Boolean).join(" ")));
+}
+async function ensureDownloadFolder() {
+  let nodes=androidUiNodes();
+  // The picker often opens on "Recent", where Save cannot target a folder.
+  // Prefer the explicit Downloads root irrespective of previous picker state.
+  let downloads = nodes.find(n=>/^(Downloads|Download|التنزيلات|التحميلات)$/i.test(n.text||"") ||
+    /^(Downloads|Download|التنزيلات|التحميلات)$/i.test(n["content-desc"]||""));
+  if (!downloads) {
+    const nav = findUi(nodes,/navigation drawer|show roots|إظهار الجذور|Open drawer|Navigate up/i);
+    if (nav) {
+      tapNode(nav,"DocumentsUI navigation drawer");
+      await sleep(450);
+      nodes=androidUiNodes();
+      downloads=nodes.find(n=>/^(Downloads|Download|التنزيلات|التحميلات)$/i.test(n.text||"") ||
+        /^(Downloads|Download|التنزيلات|التحميلات)$/i.test(n["content-desc"]||""));
+    }
+  }
+  if (!downloads) {
+    throw new Error("Cannot select Android Downloads root. UI: "+describeUi(nodes));
+  }
+  tapClickableNode(downloads,"Downloads root");
+  await sleep(450);
+}
+async function tapDocumentAction(regex,label) {
+  let last = [];
+  for (let attempt=0;attempt<9;attempt++) {
+    const nodes=androidUiNodes();
+    last=nodes;
+    const target=findUi(nodes,regex);
+    if (target) {tapClickableNode(target,label);return;}
+    await sleep(350);
+  }
+  throw new Error("Android DocumentsUI action missing ("+label+"): "+describeUi(last));
+}
+async function selectSavedArchive() {
+  let nodes=androidUiNodes();
+  const candidates=nodes.filter(n=>/aura-fit-complet/i.test(
+    [n.text,n["content-desc"]].filter(Boolean).join(" ")));
+  if (!candidates.length) {
+    throw new Error("Saved archive missing from Android picker: "+describeUi(nodes));
+  }
+  console.log("SAF FILE NODES: "+JSON.stringify(candidates.map(n=>({
+    text:n.text,desc:n["content-desc"],bounds:n.bounds,clickable:n.clickable,
+    nearestClickable:[n,...(n._parents||[]).slice().reverse()]
+      .find(p=>p.clickable==="true")?.bounds,
+  }))));
+  const node=candidates.find(n=>n.clickable==="true")||candidates[0];
+  for(let attempt=0;attempt<3;attempt++){
+    tapClickableNode(node,"saved .afbackup document");
+    await sleep(650);
+    const foreground=adb("shell","dumpsys","activity","activities");
+    if(!/[Rr]esumed.*[Dd]ocuments[Uu][Ii]/.test(foreground) &&
+       !/topResumedActivity=.*[Dd]ocuments[Uu][Ii]/.test(foreground)) return;
+    nodes=androidUiNodes();
+    const open=findUi(nodes,/action_menu_open|(?:^|\s)(?:Open|فتح)(?:\s|$)/i);
+    if(open){
+      tapClickableNode(open,"Android picker Open action");
+      await sleep(650);
+      return;
+    }
+  }
+  throw new Error("Android picker never opened selected archive: "+describeUi(nodes));
+}
+
+async function waitForDocumentsUi() {
+  await waitFor(()=>{
+    const activity=adb("shell","dumpsys","activity","activities");
+    return /topResumedActivity=.*[Dd]ocuments[Uu][Ii]|mResumedActivity.*[Dd]ocuments[Uu][Ii]|[Rr]esumed.*[Dd]ocuments[Uu][Ii]/.test(activity);
+  },"Android system DocumentsUI foreground",50,200);
 }
 
 async function openApp() {
@@ -288,32 +408,142 @@ async function run() {
       const sentinel = await cdp.js("localStorage.getItem('aura.qa.upgrade-data')");
       assert(sentinel === "preserved","Signer mismatch attempt modified local data.");
     }
-    // Exercise the real WebView -> Java chunked binary bridge and Android
-    // ACTION_CREATE_DOCUMENT picker (not a simulated Chrome download).
+    // FULL NATIVE DOCUMENTSUI ROUNDTRIP: ensure a real licensed local GIF is
+    // present in Android IndexedDB (after upgrade), export the real binary
+    // backup through WebView->Java, select Downloads and SAVE via DocumentsUI,
+    // verify actual file bytes on /sdcard, then restore via ACTION_OPEN_DOCUMENT.
     await cdp.js("location.hash = '#/profile'; true");
     await waitFor(async()=>await cdp.js(
       "Boolean(document.querySelector('[data-testid=full-offline-backup]'))"),
-      "full archive export panel on real Android WebView",55,200);
-    const exported = await cdp.js("(() => {const scope=document.querySelector('[data-testid=full-offline-backup]');" +
-      "const b=[...scope.querySelectorAll('button')].find(x=>x.innerText.includes('تصدير نسخة كاملة'));" +
-      "if (!b) return false;b.click();return true})()");
-    assert(exported,"Full backup export button is not clickable on Android");
-    await waitFor(async()=>await cdp.js(
-      "document.querySelector('[data-testid=full-offline-backup]')?.innerText.includes('تم تجهيز الحزمة')"),
-      "binary archive completed through Java native chunk writer",100,200);
-    let androidDocumentPicker = false;
-    for (let i=0;i<45;i++) {
-      const activity = adb("shell","dumpsys","activity","activities");
-      if (/topResumedActivity=.*[Dd]ocuments[Uu][Ii]|mResumedActivity.*[Dd]ocuments[Uu][Ii]|[Rr]esumed.*[Dd]ocuments[Uu][Ii]/.test(activity)) {
-        androidDocumentPicker = true;
-        break;
-      }
-      await sleep(150);
+      "full archive UI on actual WebView",65,180);
+    async function startFullExport() {
+      const clicked = await cdp.js("(() => {const scope=document.querySelector('[data-testid=full-offline-backup]');" +
+        "const b=[...scope.querySelectorAll('button')].find(x=>x.innerText.includes('تصدير نسخة كاملة'));" +
+        "if(!b) return false;b.click();return true})()",true);
+      assert(clicked,"Could not click full backup export in Android");
+      await waitFor(async()=>await cdp.js(
+        "document.querySelector('[data-testid=full-offline-backup]')?.innerText.includes('تم تجهيز الحزمة')"),
+        "Android Java native backup streaming finished",120,220);
+      await waitForDocumentsUi();
     }
-    assert(androidDocumentPicker,
-      "Android SAF ACTION_CREATE_DOCUMENT did not launch after writing archive");
-    adb("shell","input","keyevent","4"); // Cancel picker; never save test data on device.
-    console.log("PASS: real Android WebView streamed full backup to private cache and launched native SAF save picker.");
+
+    // Test user CANCEL explicitly. This must NOT show a false save success.
+    await startFullExport();
+    adb("shell","input","keyevent","4");
+    await waitFor(async()=>await cdp.js(
+      "document.querySelector('[data-testid=full-offline-backup]')?.innerText.includes('أُلغيت عملية الحفظ')"),
+      "native SAF cancellation callback",65,220);
+    console.log("PASS: native SAF cancellation surfaces cancelled status without claiming file saved.");
+
+    await startFullExport();
+    await ensureDownloadFolder();
+    await tapDocumentAction(/action_menu_save|(?:^|\s)(?:Save|حفظ)(?:\s|$)/i,
+      "Android SAF save button");
+    await waitFor(async()=>await cdp.js(
+      "document.querySelector('[data-testid=full-offline-backup]')?.innerText.includes('اكتمل حفظ الحزمة')"),
+      "SAF provider committed archive and native completion callback",110,220);
+
+    const allDownloads=adb("shell","ls","-1","/sdcard/Download").split(/\r?\n/);
+    const savedNames=allDownloads.filter(n=>/^aura-fit-complete-.*\.afbackup$/.test(n));
+    assert(savedNames.length===1,
+      "Expected exactly one real .afbackup file in Android Downloads: "+allDownloads.join(", "));
+    const savedPath="/sdcard/Download/"+savedNames[0];
+    const raw=execFileSync("adb",["exec-out","cat",savedPath],
+      {encoding:null,maxBuffer:550*1024*1024,timeout:35_000});
+    const magic=Buffer.from("AURA-FIT-FULL-ARCHIVE-V1\n");
+    assert(raw.subarray(0,magic.length).equals(magic),
+      "Android SAF saved archive has wrong binary header");
+    const manifestBytes=raw.readUInt32LE(magic.length);
+    assert(manifestBytes>10 && manifestBytes<10*1024*1024,
+      "Android SAF archive manifest length invalid");
+    const manifest=JSON.parse(raw.subarray(magic.length+4,
+      magic.length+4+manifestBytes).toString("utf8"));
+    assert(manifest.format==="aura-fit-offline-full" &&
+      manifest.training?.format==="aura-fit-local-backup" &&
+      Array.isArray(manifest.media) &&
+      manifest.media.some(x=>x.exerciseId==="bench-press"),
+      "Real SAF file is missing training or the imported exercise GIF");
+    let offset=magic.length+4+manifestBytes;
+    for(const item of manifest.media){
+      const clip=raw.subarray(offset,offset+item.bytes);
+      assert(clip.length===item.bytes && createHash("sha256").update(clip).digest("hex")===item.sha256,
+        "Android SAF file checksum mismatch for "+item.exerciseId);
+      offset+=item.bytes;
+    }
+    assert(offset===raw.length,"Android SAF document has a truncated or appended payload");
+    console.log("PASS: Android SAF SAVE wrote a real .afbackup to Downloads; original media SHA256 and training manifest verified.");
+
+    // Modify training and remove the video inside the isolated emulator to
+    // prove restoration comes from the REAL document provider, not in-memory
+    // or stale IndexedDB data.
+    await cdp.js("(async()=>{"+
+      "const db=await new Promise((ok,bad)=>{const r=indexedDB.open('aura-fit-local-exercise-motion',1);"+
+      "r.onsuccess=()=>ok(r.result);r.onerror=()=>bad(r.error)});"+
+      "await new Promise((ok,bad)=>{const tx=db.transaction('motions','readwrite');"+
+      "tx.objectStore('motions').delete('bench-press');tx.oncomplete=ok;tx.onerror=()=>bad(tx.error)});"+
+      "db.close(); const p="+JSON.stringify(manifest.training.profile)+";"+
+      "p.name='CHANGED_AFTER_SAF_EXPORT';localStorage.setItem('kp.profile',JSON.stringify(p));return true;})()");
+    await cdp.js("location.hash='#/exercise/bench-press';true");
+    await waitFor(async()=>await cdp.js(
+      "Boolean(document.querySelector('[data-exercise-media-mode=approved-gif]'))"),
+      "video absent before SAF import",70,170);
+    await cdp.js("location.hash='#/profile';true");
+    await waitFor(async()=>await cdp.js(
+      "Boolean(document.querySelector('[data-testid=full-backup-file]'))"),
+      "full backup input on WebView",60,150);
+    const pickerOpened=await cdp.js("(() => {const input=document.querySelector('[data-testid=full-backup-file]');"+
+      "if(!input)return false;input.click();return true})()",true);
+    assert(pickerOpened,"Could not open the native Android archive chooser");
+    await waitForDocumentsUi();
+    await ensureDownloadFolder();
+    await selectSavedArchive();
+    let nativePreview = false;
+    for(let attempt=0;attempt<110;attempt++){
+      nativePreview = await cdp.js(
+        "Boolean(document.querySelector('[data-testid=full-backup-preview]'))");
+      if(nativePreview) break;
+      await sleep(220);
+    }
+    if(!nativePreview){
+      const panel=await cdp.js(
+        "document.querySelector('[data-testid=full-offline-backup]')?.innerText") || "";
+      const foreground=adb("shell","dumpsys","activity","activities")
+        .split("\n").filter(line=>/topResumedActivity|mResumedActivity/.test(line))
+        .slice(0,4).join(" ");
+      throw new Error("Native SAF import did not display preview. Panel="+
+        String(panel).slice(-1300)+"; Foreground="+foreground);
+    }
+    const confirmed=await cdp.js("(() => {const scope=document.querySelector('[data-testid=full-offline-backup]');"+
+      "const b=[...scope.querySelectorAll('button')].find(x=>x.textContent.includes('تأكيد استعادة الحزمة'));" +
+      "if(!b)return false;b.click();return true})()",true);
+    assert(confirmed,"Cannot confirm native SAF restore after preview");
+    let restoredFromSaf = false;
+    for(let attempt=0;attempt<120;attempt++){
+      const status = await cdp.js("(() => {"+
+        "const p=document.querySelector('[data-testid=full-offline-backup]');"+
+        "return {text:p?.innerText||'',error:p?.querySelector('[role=alert]')?.innerText||''}})()");
+      if(status?.text?.includes("اكتملت الاستعادة")){
+        restoredFromSaf = true; break;
+      }
+      if(status?.error){
+        throw new Error("SAF import confirmation failed: "+status.error+
+          " PANEL "+status.text.slice(-850));
+      }
+      await sleep(220);
+    }
+    if(!restoredFromSaf){
+      const panel=await cdp.js(
+        "document.querySelector('[data-testid=full-offline-backup]')?.innerText")||"";
+      throw new Error("Native SAF restore never completed: "+String(panel).slice(-1800));
+    }
+    await cdp.js("location.hash='#/exercise/bench-press';true");
+    await waitFor(async()=>await cdp.js(
+      "Boolean(document.querySelector('[data-exercise-media-mode=local-gif]'))"),
+      "restored exercise GIF from actual downloaded SAF document",90,200);
+    const restoredProfile=await cdp.js("JSON.parse(localStorage.getItem('kp.profile')||'{}').name");
+    assert(restoredProfile===manifest.training.profile.name,
+      "Native SAF restored media but did not restore original training profile");
+    console.log("ANDROID SAF ROUNDTRIP PASS: real picker save -> read binary .afbackup from Downloads -> picker import -> confirmed restoration of training profile and original exercise GIF.");
 
     console.log("ANDROID OFFLINE EMULATOR PASS: first-run offline WebView, decoded GIF/SVG, "+
       "local navigation, Android persistence after restart, local exercise Blob playback.");
