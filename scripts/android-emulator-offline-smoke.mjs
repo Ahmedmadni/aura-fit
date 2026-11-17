@@ -142,10 +142,10 @@ function androidUiNodes() {
   const xml = adb("shell","cat","/sdcard/aura-saf-ui.xml");
   const nodes = [];
   const ancestors = [];
-  for (const token of xml.matchAll(/<node\\b[^>]*>|<\\/node>/g)) {
+  for (const token of xml.matchAll(/<node\b[^>]*>|<\/node>/g)) {
     if (token[0].startsWith("</")) { ancestors.pop(); continue; }
     const attrs = {};
-    for (const attr of token[0].matchAll(/([\\w-]+)="([^"]*)"/g)) {
+    for (const attr of token[0].matchAll(/([\w-]+)="([^"]*)"/g)) {
       attrs[attr[1]] = attr[2].replace(/&quot;/g,'"').replace(/&amp;/g,'&');
     }
     attrs._parents = [...ancestors];
