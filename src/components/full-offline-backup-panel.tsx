@@ -38,9 +38,9 @@ export function FullOfflineBackupPanel({ onRestored }: { onRestored: () => void 
         "اكتمل حفظ الحزمة (" + mediaCount + " ملف حركة، " +
         (totalBytes / 1048576).toFixed(1) +
         " ميجابايت). " +
-        (window as Window & { __AURA_EMBEDDED_ANDROID__?: boolean }).__AURA_EMBEDDED_ANDROID__
+        ((window as Window & { __AURA_EMBEDDED_ANDROID__?: boolean }).__AURA_EMBEDDED_ANDROID__
           ? "تأكد أندرويد من حجم الملف وبصمة SHA-256 للوجهة المحددة. احتفظ بالحزمة خارج التطبيق."
-          : "تم إرسال الملف إلى تنزيلات المتصفح. تحقق من وجوده وافحصه قبل إزالة النسخة القديمة.",
+          : "تم إرسال الملف إلى تنزيلات المتصفح. تحقق من وجوده وافحصه قبل إزالة النسخة القديمة."),
       );
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "تعذر تجهيز الحزمة الكاملة.");
