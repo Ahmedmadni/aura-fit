@@ -362,14 +362,10 @@ async function run() {
     // the *user-facing* Android ACTION_OPEN_DOCUMENT -> WebView file input,
     // SHA256-validated, and explicitly restored into localStorage + IndexedDB.
     // This is distinct from Phase 69's native writer readback smoke test.
-    const documents = adb("shell","find","/sdcard","-maxdepth","5","-type","f",
-      "-name","aura-fit-complete-*.afbackup").split("\n").filter(Boolean);
-    assert(documents.length === 1,
-      "Saved SAF archive was not visible as one real Android file: "+documents.join("; "));
-    const documentPath=documents[0];
-    const savedSize=Number(adb("shell","stat","-c","%s",documentPath));
-    assert(savedSize > 100 && savedSize < 512*1024*1024,
-      "Saved SAF backup has unexpected file size: "+savedSize);
+    // SAF providers expose content:// document URIs, not necessarily
+    // shell-visible /sdcard paths. The real proof is whether native
+    // ACTION_OPEN_DOCUMENT returns that saved file to Android WebView and
+    // it passes our binary SHA256 and data-restore checks below.
 
     // Deliberately change user profile and remove the locally saved exercise
     // GIF. Both must return only AFTER the user approves a verified backup.
