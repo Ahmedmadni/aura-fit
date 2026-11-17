@@ -489,8 +489,11 @@ async function main() {
       "beginArchive:(token,n)=>{window.__auraBackupToken=token;window.__auraBackupExpected=n;return true;},"+
       "appendArchiveChunk:(token,part)=>{if(token!==window.__auraBackupToken)return false;"+
       "window.__auraBackupChunks.push(part);window.__auraBackupSize+=atob(part).length;return true;},"+
-      "finishArchive:(token)=>token===window.__auraBackupToken && "+
-      "window.__auraBackupSize===window.__auraBackupExpected,"+
+      "finishArchive:(token)=>{const ok=token===window.__auraBackupToken && "+
+      "window.__auraBackupSize===window.__auraBackupExpected;"+
+      "if(ok)queueMicrotask(()=>window.dispatchEvent(new CustomEvent("+
+      "'aura-offline-archive-save-result',{detail:{status:'saved',bytes:window.__auraBackupSize}})));"+
+      "return ok;},"+
       "cancelArchive:()=>{window.__auraBackupChunks=[];}};return true})()");
     if (!mockBridge) throw new Error("Failed to configure offline Android bridge stub");
     const previousPlans = await js("JSON.parse(localStorage.getItem('kp.customPlans')||'[]').length");
