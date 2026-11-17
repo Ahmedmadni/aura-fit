@@ -365,6 +365,24 @@ public final class OfflineActivity extends Activity {
         }
     }
 
+    /**
+     * JS bridge transfer completion does not mean the SAF provider wrote the
+     * file. Notify the visible page only after user save/cancel/provider result.
+     * All status values are Java-controlled constants, never untrusted input.
+     */
+    private void notifyFullArchiveResult(String status) {
+        if (!"saved".equals(status) && !"cancelled".equals(status) &&
+            !"failed".equals(status)) return;
+        runOnUiThread(() -> {
+            if (webView == null) return;
+            webView.evaluateJavascript(
+                "window.dispatchEvent(new CustomEvent('aura-native-full-backup-result'," +
+                "{detail:{status:'" + status + "'}}));",
+                null
+            );
+        });
+    }
+
     private void showToast(String message) {
         runOnUiThread(() ->
             Toast.makeText(OfflineActivity.this, message, Toast.LENGTH_SHORT).show()
@@ -404,32 +422,55 @@ public final class OfflineActivity extends Activity {
             pendingArchive = null;
             final Uri destination = resultCode == RESULT_OK && intent != null
                 ? intent.getData() : null;
-            if (completed != null) {
-                if (destination == null) {
-                    completed.delete();
-                } else {
-                    // Do not copy a 512 MB archive on the Android UI thread.
-                    new Thread(() -> {
-                        boolean saved = false;
-                        try (FileInputStream input = new FileInputStream(completed);
-                             OutputStream output = getContentResolver().openOutputStream(destination)) {
-                            if (output == null) throw new IllegalStateException("No SAF output");
-                            byte[] chunk = new byte[64 * 1024];
-                            int count;
-                            while ((count = input.read(chunk)) != -1) {
-                                output.write(chunk, 0, count);
-                            }
-                            output.flush();
-                            saved = true;
-                        } catch (Exception error) {
-                            // SAF may leave a partial file; warn explicitly.
-                            showToast("فشل نقل الحزمة. قد يكون الملف الناتج ناقصًا؛ احذفه وأعد المحاولة.");
-                        } finally {
-                            completed.delete();
+            if (completed == null) {
+                notifyFullArchiveResult("failed");
+            } else if (destination == null) {
+                completed.delete();
+                notifyFullArchiveResult("cancelled");
+            } else {
+                // Copy off the Android UI thread. Only claim success AFTER the
+                // provider output stream has closed without throwing.
+                new Thread(() -> {
+                    boolean saved = false;
+                    try (FileInputStream input = new FileInputStream(completed);
+                         OutputStream output = getContentResolver().openOutputStream(destination, "wt")) {
+                        if (output == null) throw new IllegalStateException("No SAF output stream");
+                        byte[] chunk = new byte[64 * 1024];
+                        long bytes = 0;
+                        int count;
+                        while ((count = input.read(chunk)) != -1) {
+                            output.write(chunk, 0, count);
+                            bytes += count;
                         }
-                        if (saved) showToast("حُفظت حزمة Aura Fit الكاملة على الجهاز.");
-                    }, "AuraOfflineArchiveExport").start();
-                }
+                        if (bytes != completed.length()) {
+                            throw new IllegalStateException("Archive byte count changed during export");
+                        }
+                        output.flush();
+                        saved = true;
+                    } catch (Exception error) {
+                        saved = false;
+                    } finally {
+                        completed.delete();
+                    }
+                    if (!saved) {
+                        // ACTION_CREATE_DOCUMENT created a NEW document.
+                        // Best-effort remove it to avoid leaving a partial
+                        // backup that users might mistake for a safe archive.
+                        try {
+                            android.provider.DocumentsContract.deleteDocument(
+                                getContentResolver(), destination
+                            );
+                        } catch (Exception ignored) {
+                            // Not all providers allow deletion. Tell the user
+                            // to remove any remaining incomplete file.
+                        }
+                        showToast("فشل حفظ الحزمة. احذف أي ملف غير مكتمل وأعد المحاولة.");
+                        notifyFullArchiveResult("failed");
+                    } else {
+                        showToast("حُفظت الحزمة. افحصها قبل إزالة النسخة القديمة.");
+                        notifyFullArchiveResult("saved");
+                    }
+                }, "AuraOfflineArchiveExport").start();
             }
         } else if (requestCode == SAVE_BACKUP) {
             boolean saved = false;
