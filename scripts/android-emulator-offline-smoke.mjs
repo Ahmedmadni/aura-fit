@@ -517,9 +517,25 @@ async function run() {
       "const b=[...scope.querySelectorAll('button')].find(x=>x.textContent.includes('تأكيد استعادة الحزمة'));" +
       "if(!b)return false;b.click();return true})()",true);
     assert(confirmed,"Cannot confirm native SAF restore after preview");
-    await waitFor(async()=>await cdp.js(
-      "document.querySelector('[data-testid=full-offline-backup]')?.innerText.includes('اكتملت الاستعادة')"),
-      "restoration completed from Android SAF document",120,220);
+    let restoredFromSaf = false;
+    for(let attempt=0;attempt<120;attempt++){
+      const status = await cdp.js("(() => {"+
+        "const p=document.querySelector('[data-testid=full-offline-backup]');"+
+        "return {text:p?.innerText||'',error:p?.querySelector('[role=alert]')?.innerText||''}})()");
+      if(status?.text?.includes("اكتملت الاستعادة")){
+        restoredFromSaf = true; break;
+      }
+      if(status?.error){
+        throw new Error("SAF import confirmation failed: "+status.error+
+          " PANEL "+status.text.slice(-850));
+      }
+      await sleep(220);
+    }
+    if(!restoredFromSaf){
+      const panel=await cdp.js(
+        "document.querySelector('[data-testid=full-offline-backup]')?.innerText")||"";
+      throw new Error("Native SAF restore never completed: "+String(panel).slice(-1800));
+    }
     await cdp.js("location.hash='#/exercise/bench-press';true");
     await waitFor(async()=>await cdp.js(
       "Boolean(document.querySelector('[data-exercise-media-mode=local-gif]'))"),
