@@ -358,6 +358,120 @@ async function run() {
       "real Android SAF write + SHA256 readback verified before UI success",100,200);
     console.log("PASS: real Android SAF wrote archive and verified full destination SHA256 readback.");
 
+    // Phase 70: prove the file written by Android SAF can be READ BACK through
+    // the *user-facing* Android ACTION_OPEN_DOCUMENT -> WebView file input,
+    // SHA256-validated, and explicitly restored into localStorage + IndexedDB.
+    // This is distinct from Phase 69's native writer readback smoke test.
+    // SAF providers expose content:// document URIs, not necessarily
+    // shell-visible /sdcard paths. The real proof is whether native
+    // ACTION_OPEN_DOCUMENT returns that saved file to Android WebView and
+    // it passes our binary SHA256 and data-restore checks below.
+
+    // Deliberately change user profile and remove the locally saved exercise
+    // GIF. Both must return only AFTER the user approves a verified backup.
+    const originalName = await cdp.js(
+      "JSON.parse(localStorage.getItem('kp.profile') || '{}').name || ''");
+    const alteredName = "SAF restore regression changed profile";
+    await cdp.js("(() => {const p=JSON.parse(localStorage.getItem('kp.profile')||'{}');"+
+      "p.name="+JSON.stringify(alteredName)+";localStorage.setItem('kp.profile',JSON.stringify(p));return true})()");
+    await cdp.js("(async()=>{const db=await new Promise((ok,bad)=>{"+
+      "const r=indexedDB.open('aura-fit-local-exercise-motion',1);"+
+      "r.onsuccess=()=>ok(r.result);r.onerror=()=>bad(r.error)});"+
+      "await new Promise((ok,bad)=>{const tx=db.transaction('motions','readwrite');"+
+      "tx.objectStore('motions').delete('bench-press');"+
+      "tx.oncomplete=ok;tx.onerror=()=>bad(tx.error)});db.close();return true})()");
+    await cdp.js("location.hash='#/exercise/bench-press';true");
+    await waitFor(async()=>await cdp.js(
+      "document.querySelector('[data-exercise-media-mode]')?.getAttribute('data-exercise-media-mode')==='approved-gif'"),
+      "exercise reverted to approved preview after deleting imported GIF",70,200);
+    await cdp.js("location.hash='#/profile';true");
+    await waitFor(async()=>await cdp.js(
+      "Boolean(document.querySelector('[data-testid=full-offline-backup]'))"),
+      "restore panel ready on Android after deleting local GIF",65,200);
+
+    // Android WebView does not allow JavaScript's element.click() to open
+    // file chooser: it requires real user activation. Scroll the button
+    // into the visible viewport then send a true Android touchscreen tap.
+    const restoreTap = await cdp.js("(() => {"+
+      "const scope=document.querySelector('[data-testid=full-offline-backup]');"+
+      "const b=[...scope.querySelectorAll('button')].find(x=>x.innerText.includes('فحص حزمة للاستعادة'));"+
+      "if(!b)return null;b.scrollIntoView({block:'center',behavior:'instant'});"+
+      "const r=b.getBoundingClientRect();const scale=window.devicePixelRatio;"+
+      "return {x:Math.round((r.left+r.width/2)*scale),"+
+      "y:Math.round((r.top+r.height/2+24)*scale),"+
+      "visible:r.width>30&&r.height>20&&r.top>=0&&r.bottom<=window.innerHeight};})()");
+    assert(restoreTap?.visible,"Restore button was not visible after scrolling: "+
+      JSON.stringify(restoreTap));
+    adb("shell","input","tap",String(restoreTap.x),String(restoreTap.y));
+    await waitFor(() => {
+      const activity=adb("shell","dumpsys","activity","activities");
+      return /topResumedActivity=.*[Dd]ocuments[Uu][Ii]|mResumedActivity.*[Dd]ocuments[Uu][Ii]|[Rr]esumed.*[Dd]ocuments[Uu][Ii]/.test(activity);
+    },"native Android ACTION_OPEN_DOCUMENT picker for archive restore",80,200);
+    function parsePickerNodes(xml) {
+      return [...xml.matchAll(/<node\b[^>]*>/g)].map(([tag])=>{
+        const get=(field)=>tag.match(new RegExp(field+'="([^"]*)"'))?.[1]||"";
+        const bounds=get("bounds").match(/^\[(\d+),(\d+)\]\[(\d+),(\d+)\]$/);
+        return {text:get("text"),description:get("content-desc"),
+          resource:get("resource-id"),visible:get("enabled")!=="false",
+          bounds:bounds?.slice(1).map(Number)};
+      }).filter(n=>n.visible&&n.bounds);
+    }
+    function tapPickerNode(node) {
+      const [x1,y1,x2,y2]=node.bounds;
+      adb("shell","input","tap",String(Math.floor((x1+x2)/2)),
+        String(Math.floor((y1+y2)/2)));
+    }
+    let openedFile=false, lastPicker="";
+    for(let attempt=0;attempt<9;attempt++) {
+      adb("shell","uiautomator","dump","/sdcard/aura-restore-picker.xml");
+      lastPicker=adb("shell","cat","/sdcard/aura-restore-picker.xml");
+      const nodes=parsePickerNodes(lastPicker);
+      const found=nodes.find(n=>(n.text+" "+n.description).includes("aura-fit-complete-"));
+      if(found) {tapPickerNode(found);openedFile=true;break;}
+      const downloads=nodes.find(n=>/^Downloads$|^التنزيلات$|^Download$/.test(n.text||n.description));
+      const showRoots=nodes.find(n=>/Show roots|Browse|تصفح|إظهار/.test(n.description+" "+n.text));
+      if(downloads) tapPickerNode(downloads);
+      else if(showRoots) tapPickerNode(showRoots);
+      else throw new Error("SAF picker does not display saved .afbackup or Downloads: "+lastPicker.slice(-1800));
+      await sleep(500);
+    }
+    assert(openedFile,"Native Android picker did not expose verified exported backup: "+lastPicker.slice(-1400));
+
+    await waitFor(async()=>await cdp.js(
+      "document.querySelector('[data-testid=full-backup-preview]')?.innerText.includes('ملف فيديو/حركة')"),
+      "real Android selected .afbackup passed binary SHA256 inspection",120,200);
+    const profileNotRestored = await cdp.js(
+      "JSON.parse(localStorage.getItem('kp.profile')||'{}').name === "+JSON.stringify(alteredName));
+    assert(profileNotRestored,"Choosing a file must not restore user profile before confirmation");
+    const gifNotRestored = await cdp.js("(async()=>{const db=await new Promise((ok,bad)=>{"+
+      "const r=indexedDB.open('aura-fit-local-exercise-motion',1);"+
+      "r.onsuccess=()=>ok(r.result);r.onerror=()=>bad(r.error)});"+
+      "const result=await new Promise((ok,bad)=>{const tx=db.transaction('motions','readonly');"+
+      "const r=tx.objectStore('motions').get('bench-press');"+
+      "r.onsuccess=()=>ok(r.result);r.onerror=()=>bad(r.error)});"+
+      "db.close();return !result})()");
+    assert(gifNotRestored,"Selecting a backup mutated IndexedDB without user confirmation");
+    console.log("PASS: real Android ACTION_OPEN_DOCUMENT delivered verified SAF file to WebView; preview did not alter existing data.");
+
+    const confirmed = await cdp.js("(() => {const scope=document.querySelector('[data-testid=full-offline-backup]');"+
+      "const b=[...scope.querySelectorAll('button')].find(x=>x.innerText.includes('تأكيد استعادة الحزمة'));" +
+      "if(!b)return false;b.click();return true})()");
+    assert(confirmed,"Native restored-archive preview confirmation missing");
+    await waitFor(async()=>await cdp.js(
+      "document.querySelector('[data-testid=full-offline-backup]')?.innerText.includes('اكتملت الاستعادة')"),
+      "explicit Android full restore completed",90,200);
+    const nameRestored=await cdp.js(
+      "JSON.parse(localStorage.getItem('kp.profile')||'{}').name || ''");
+    assert(nameRestored===originalName,
+      "Training profile was not restored from the real SAF archive");
+    await cdp.js("location.hash='#/exercise/bench-press';true");
+    await waitFor(async()=>await cdp.js(
+      "(() => {const p=document.querySelector('[data-exercise-media-mode=local-gif]');"+
+      "const img=p?.querySelector('img');return !!(img?.complete && img.naturalWidth>0)})()"),
+      "imported GIF restored and decoded after SAF archive roundtrip",80,200);
+    console.log("PASS: Android SAF complete export -> ACTION_OPEN_DOCUMENT -> SHA256 verify -> explicit restore preserved training and restored playable IndexedDB GIF.");
+
+
     console.log("ANDROID OFFLINE EMULATOR PASS: first-run offline WebView, decoded GIF/SVG, "+
       "local navigation, Android persistence after restart, local exercise Blob playback.");
   } finally {
