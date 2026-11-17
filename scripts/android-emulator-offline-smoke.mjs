@@ -298,9 +298,9 @@ async function run() {
       "const b=[...scope.querySelectorAll('button')].find(x=>x.innerText.includes('تصدير نسخة كاملة'));" +
       "if (!b) return false;b.click();return true})()");
     assert(exported,"Full backup export button is not clickable on Android");
-    await waitFor(async()=>await cdp.js(
-      "document.querySelector('[data-testid=full-offline-backup]')?.innerText.includes('تم تجهيز الحزمة')"),
-      "binary archive completed through Java native chunk writer",100,200);
+    // Progress text changes rapidly between SHA256 hashing and native
+    // chunk transfer. Test the durable SAF picker and verified result,
+    // not any transient progress message that might already disappear.
     let androidDocumentPicker = false;
     for (let i=0;i<45;i++) {
       const activity = adb("shell","dumpsys","activity","activities");
@@ -312,8 +312,51 @@ async function run() {
     }
     assert(androidDocumentPicker,
       "Android SAF ACTION_CREATE_DOCUMENT did not launch after writing archive");
-    adb("shell","input","keyevent","4"); // Cancel picker; never save test data on device.
-    console.log("PASS: real Android WebView streamed full backup to private cache and launched native SAF save picker.");
+    const notCompleted = await cdp.js(
+      "document.querySelector('[data-testid=full-offline-backup]')?.innerText.includes('اكتمل حفظ الحزمة')");
+    assert(!notCompleted,"False-positive archive success was shown before SAF completed");
+    adb("shell","input","keyevent","4"); // Explicitly cancel first picker.
+    await waitFor(async()=>await cdp.js(
+      "document.querySelector('[data-testid=full-offline-backup] [role=alert]')?.innerText.includes('أُلغِي حفظ الحزمة')"),
+      "Android SAF cancellation must reject full export",75,200);
+    const cancelledShowsSuccess = await cdp.js(
+      "document.querySelector('[data-testid=full-offline-backup]')?.innerText.includes('اكتمل حفظ الحزمة')");
+    assert(!cancelledShowsSuccess,"Cancelled SAF export was incorrectly marked saved");
+    console.log("PASS: native SAF cancel returns explicit failure and cannot be mistaken for a saved backup.");
+
+    // Save a second archive through the REAL Android DocumentsUI picker.
+    const second = await cdp.js("(() => {const scope=document.querySelector('[data-testid=full-offline-backup]');"+
+      "const b=[...scope.querySelectorAll('button')].find(x=>x.innerText.includes('تصدير نسخة كاملة'));" +
+      "if(!b)return false;b.click();return true})()");
+    assert(second,"Second full backup button did not reopen Android SAF");
+    await waitFor(() => {
+      const activity = adb("shell","dumpsys","activity","activities");
+      return /topResumedActivity=.*[Dd]ocuments[Uu][Ii]|mResumedActivity.*[Dd]ocuments[Uu][Ii]|[Rr]esumed.*[Dd]ocuments[Uu][Ii]/.test(activity);
+    }, "second Android documents save dialog",85,200);
+    // Query Android accessibility XML rather than blind fixed screen taps:
+    // DocumentsUI labels vary by Android release and device locale.
+    adb("shell","uiautomator","dump","/sdcard/aura-saf-window.xml");
+    const hierarchy = adb("shell","cat","/sdcard/aura-saf-window.xml");
+    const nodes = [...hierarchy.matchAll(/<node\s[^>]*\/?\>/g)];
+    let saveBounds = null;
+    for (const [tag] of nodes) {
+      if (/text="(?:SAVE|Save|حفظ|إنشاء|CREATE|Create)"/.test(tag) ||
+          /content-desc="(?:SAVE|Save|حفظ|إنشاء|CREATE|Create)"/.test(tag)) {
+        const bounds = tag.match(/bounds="\[(\d+),(\d+)\]\[(\d+),(\d+)\]"/);
+        if (bounds) {
+          saveBounds = bounds.slice(1).map(Number);
+          break;
+        }
+      }
+    }
+    assert(saveBounds,"Android DocumentsUI save button not found: "+hierarchy.slice(-2600));
+    adb("shell","input","tap",
+      String(Math.floor((saveBounds[0]+saveBounds[2])/2)),
+      String(Math.floor((saveBounds[1]+saveBounds[3])/2)));
+    await waitFor(async()=>await cdp.js(
+      "document.querySelector('[data-testid=full-offline-backup]')?.innerText.includes('اكتمل حفظ الحزمة')"),
+      "real Android SAF write + SHA256 readback verified before UI success",100,200);
+    console.log("PASS: real Android SAF wrote archive and verified full destination SHA256 readback.");
 
     console.log("ANDROID OFFLINE EMULATOR PASS: first-run offline WebView, decoded GIF/SVG, "+
       "local navigation, Android persistence after restart, local exercise Blob playback.");

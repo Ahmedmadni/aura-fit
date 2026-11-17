@@ -310,10 +310,32 @@ export async function saveFullBackupToDevice(
     throw new Error("ميزة حفظ الحزم الكبيرة غير متاحة في إصدار أندرويد هذا.");
   }
   const token = crypto.randomUUID();
-  if (!bridge.beginArchive(token, archive.size)) {
-    throw new Error("تعذر بدء حفظ الحزمة على أندرويد. تحقق من توفر مساحة تخزين.");
-  }
+  // The Java method finishArchive only opens the SAF document picker.
+  // The export must not resolve until Android finishes saving AND rereads
+  // the destination to compare SHA-256. A rejected/cancelled SAF chooser is
+  // never reported as a completed backup.
+  let onResult: ((event: Event) => void) | null = null;
+  let timeoutId: number | null = null;
+  const outcome = new Promise<void>((resolve, reject) => {
+    onResult = (event: Event) => {
+      const detail = (event as CustomEvent<{status: string;bytes: number}>).detail;
+      if (detail?.status === "saved" && detail.bytes === archive.size) resolve();
+      else if (detail?.status === "cancelled")
+        reject(new Error("أُلغِي حفظ الحزمة. لم يُنشأ ملف احتياطي على الجهاز."));
+      else reject(new Error("فشل حفظ الحزمة أو فحص سلامتها. لا تحذف النسخة القديمة."));
+    };
+    window.addEventListener("aura-offline-archive-save-result", onResult);
+    timeoutId = window.setTimeout(() => reject(
+      new Error("لم يؤكد أندرويد اكتمال الحفظ. افتح الملف وتحقق منه قبل حذف التطبيق القديم."),
+    ), 30 * 60 * 1000);
+  });
+  // Avoid unhandled rejections if the user cancels the native picker while
+  // asynchronous binary chunks are still being prepared.
+  void outcome.catch(() => {});
   try {
+    if (!bridge.beginArchive(token, archive.size)) {
+      throw new Error("تعذر بدء حفظ الحزمة على أندرويد. تحقق من توفر مساحة تخزين.");
+    }
     const reader = archive.stream().getReader();
     let written = 0;
     let lastProgressPercent = -1;
@@ -340,8 +362,12 @@ export async function saveFullBackupToDevice(
     if (written !== archive.size || !bridge.finishArchive(token)) {
       throw new Error("لم يكتمل إعداد الحزمة للحفظ. أعد المحاولة.");
     }
+    await outcome;
   } catch (error) {
     bridge.cancelArchive?.(token);
     throw error;
+  } finally {
+    if (onResult) window.removeEventListener("aura-offline-archive-save-result", onResult);
+    if (timeoutId !== null) window.clearTimeout(timeoutId);
   }
 }

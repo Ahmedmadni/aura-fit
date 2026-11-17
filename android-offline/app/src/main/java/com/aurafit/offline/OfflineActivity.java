@@ -25,6 +25,9 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.OutputStream;
+import java.io.InputStream;
+import java.security.MessageDigest;
+import java.util.Arrays;
 import java.io.ByteArrayInputStream;
 import java.nio.charset.StandardCharsets;
 
@@ -324,6 +327,7 @@ public final class OfflineActivity extends Activity {
                             startActivityForResult(save, SAVE_ARCHIVE);
                         } catch (Exception error) {
                             clearPendingArchive();
+                            reportArchiveResult("failed", 0);
                             showToast("تعذر فتح نافذة حفظ الحزمة.");
                         }
                     });
@@ -365,6 +369,30 @@ public final class OfflineActivity extends Activity {
         }
     }
 
+    /**
+     * A native SAF operation is not complete when the picker first opens.
+     * Report terminal success/cancel/failure to the trusted local WebView so
+     * React never labels an unfinished export as a completed backup.
+     * Only static status tokens cross the JavaScript bridge: no file contents
+     * or local filesystem paths are exposed.
+     */
+    private void reportArchiveResult(String status, long bytes) {
+        runOnUiThread(() -> {
+            if (webView == null) return;
+            String safeStatus = "saved".equals(status) ? "saved" :
+                "cancelled".equals(status) ? "cancelled" : "failed";
+            webView.evaluateJavascript(
+                "window.dispatchEvent(new CustomEvent('aura-offline-archive-save-result'," +
+                "{detail:{status:'" + safeStatus + "',bytes:" + Math.max(0,bytes) + "}}));",
+                null
+            );
+        });
+    }
+
+    private static boolean matchingSha256(byte[] first, byte[] second) {
+        return MessageDigest.isEqual(first, second);
+    }
+
     private void showToast(String message) {
         runOnUiThread(() ->
             Toast.makeText(OfflineActivity.this, message, Toast.LENGTH_SHORT).show()
@@ -404,32 +432,66 @@ public final class OfflineActivity extends Activity {
             pendingArchive = null;
             final Uri destination = resultCode == RESULT_OK && intent != null
                 ? intent.getData() : null;
-            if (completed != null) {
-                if (destination == null) {
-                    completed.delete();
-                } else {
-                    // Do not copy a 512 MB archive on the Android UI thread.
-                    new Thread(() -> {
-                        boolean saved = false;
-                        try (FileInputStream input = new FileInputStream(completed);
-                             OutputStream output = getContentResolver().openOutputStream(destination)) {
-                            if (output == null) throw new IllegalStateException("No SAF output");
-                            byte[] chunk = new byte[64 * 1024];
-                            int count;
-                            while ((count = input.read(chunk)) != -1) {
-                                output.write(chunk, 0, count);
+            if (completed == null || destination == null) {
+                if (completed != null) completed.delete();
+                reportArchiveResult("cancelled", 0);
+            } else {
+                // Run all SAF I/O outside the Android UI thread. A provider
+                // can truncate a file or return failure only during close.
+                new Thread(() -> {
+                    long bytesWritten = 0;
+                    boolean verified = false;
+                    try {
+                        MessageDigest writtenDigest = MessageDigest.getInstance("SHA-256");
+                        try (InputStream source = new FileInputStream(completed);
+                             OutputStream destinationStream =
+                                 getContentResolver().openOutputStream(destination, "wt")) {
+                            if (destinationStream == null)
+                                throw new IllegalStateException("SAF provider returned no output stream");
+                            byte[] buffer = new byte[64 * 1024];
+                            int read;
+                            while ((read = source.read(buffer)) != -1) {
+                                destinationStream.write(buffer, 0, read);
+                                writtenDigest.update(buffer, 0, read);
+                                bytesWritten += read;
                             }
-                            output.flush();
-                            saved = true;
-                        } catch (Exception error) {
-                            // SAF may leave a partial file; warn explicitly.
-                            showToast("فشل نقل الحزمة. قد يكون الملف الناتج ناقصًا؛ احذفه وأعد المحاولة.");
-                        } finally {
-                            completed.delete();
+                            destinationStream.flush();
                         }
-                        if (saved) showToast("حُفظت حزمة Aura Fit الكاملة على الجهاز.");
-                    }, "AuraOfflineArchiveExport").start();
-                }
+                        if (bytesWritten != completed.length())
+                            throw new IllegalStateException("SAF source length changed during export");
+
+                        // Reopen the actual user-selected document, not the
+                        // source cache, and verify a full SHA256 readback.
+                        MessageDigest actualDigest = MessageDigest.getInstance("SHA-256");
+                        long bytesVerified = 0;
+                        try (InputStream readback = getContentResolver().openInputStream(destination)) {
+                            if (readback == null)
+                                throw new IllegalStateException("SAF provider cannot read back saved file");
+                            byte[] buffer = new byte[64 * 1024];
+                            int count;
+                            while ((count = readback.read(buffer)) != -1) {
+                                actualDigest.update(buffer, 0, count);
+                                bytesVerified += count;
+                            }
+                        }
+                        verified = bytesWritten == bytesVerified &&
+                            matchingSha256(writtenDigest.digest(), actualDigest.digest());
+                        if (!verified)
+                            throw new IllegalStateException("SAF saved content failed SHA256 comparison");
+                    } catch (Exception error) {
+                        // Partial provider files are not ever marked saved.
+                        // Warn users that SAF may leave a corrupt destination.
+                        showToast("فشل التحقق من الملف المحفوظ. لا تحذف التطبيق القديم.");
+                    } finally {
+                        completed.delete();
+                    }
+                    if (verified) {
+                        reportArchiveResult("saved", bytesWritten);
+                        showToast("تم حفظ حزمة Aura Fit والتحقق من سلامتها.");
+                    } else {
+                        reportArchiveResult("failed", 0);
+                    }
+                }, "AuraOfflineVerifiedArchiveSave").start();
             }
         } else if (requestCode == SAVE_BACKUP) {
             boolean saved = false;
