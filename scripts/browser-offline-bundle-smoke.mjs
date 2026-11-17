@@ -499,7 +499,7 @@ async function main() {
     const previousPlans = await js("JSON.parse(localStorage.getItem('kp.customPlans')||'[]').length");
     if (!previousPlans) throw new Error("No custom plans available for backup regression");
     await clickButton("تصدير نسخة كاملة");
-    await waitForText("تم تجهيز الحزمة");
+    await waitForText("اكتمل حفظ الحزمة");
     const archiveChunks = await js("window.__auraBackupChunks");
     if (!Array.isArray(archiveChunks) || !archiveChunks.length) {
       throw new Error("Full backup did not stream binary chunks through native bridge");
