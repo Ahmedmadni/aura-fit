@@ -168,14 +168,16 @@ async function ensureDownloadFolder() {
   let nodes=androidUiNodes();
   // The picker often opens on "Recent", where Save cannot target a folder.
   // Prefer the explicit Downloads root irrespective of previous picker state.
-  let downloads = findUi(nodes,/^(Downloads|Download|التنزيلات|التحميلات)$/i);
+  let downloads = nodes.find(n=>/^(Downloads|Download|التنزيلات|التحميلات)$/i.test(n.text||"") ||
+    /^(Downloads|Download|التنزيلات|التحميلات)$/i.test(n["content-desc"]||""));
   if (!downloads) {
     const nav = findUi(nodes,/navigation drawer|show roots|إظهار الجذور|Open drawer|Navigate up/i);
     if (nav) {
       tapNode(nav,"DocumentsUI navigation drawer");
       await sleep(450);
       nodes=androidUiNodes();
-      downloads=findUi(nodes,/^(Downloads|Download|التنزيلات|التحميلات)$/i);
+      downloads=nodes.find(n=>/^(Downloads|Download|التنزيلات|التحميلات)$/i.test(n.text||"") ||
+        /^(Downloads|Download|التنزيلات|التحميلات)$/i.test(n["content-desc"]||""));
     }
   }
   if (!downloads) {
@@ -390,7 +392,7 @@ async function run() {
 
     await startFullExport();
     await ensureDownloadFolder();
-    await tapDocumentAction(/(?:text|action_menu_save|^Save$|^SAVE$|حفظ)/i,
+    await tapDocumentAction(/action_menu_save|(?:^|\s)(?:Save|حفظ)(?:\s|$)/i,
       "Android SAF save button");
     await waitFor(async()=>await cdp.js(
       "document.querySelector('[data-testid=full-offline-backup]')?.innerText.includes('اكتمل حفظ الحزمة')"),
